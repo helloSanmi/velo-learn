@@ -1,0 +1,123 @@
+[
+  {
+    "id": "task-1",
+    "orgId": "org-ent-001",
+    "userId": "u-3",
+    "assigneeId": "u-1",
+    "projectId": "p1",
+    "title": "Define Core AI Engine Architecture",
+    "description": "Design the orchestration layer between Gemini and the UI state. Need to ensure low latency and robust error handling for real-time voice updates.",
+    "status": "in-progress",
+    "priority": "High",
+    "createdAt": 1740175200000,
+    "order": 0,
+    "tags": ["Architecture", "AI"],
+    "subtasks": [
+      { "id": "st-1", "title": "Draft SDK orchestration schema", "isCompleted": true },
+      { "id": "st-2", "title": "Select primary Gemini models for reasoning", "isCompleted": true },
+      { "id": "st-3", "title": "Implement basic websocket error recovery", "isCompleted": false },
+      { "id": "st-4", "title": "Benchmarking inference times", "isCompleted": false }
+    ],
+    "comments": [
+      { "id": "c1", "userId": "u-1", "displayName": "Alex Rivera", "text": "I've started on the schema designs for the orchestration layer.", "timestamp": 1740178800000 },
+      { "id": "c2", "userId": "u-2", "displayName": "Sarah Chen", "text": "Make sure to consider the token budget for the audit summaries.", "timestamp": 1740182400000 }
+    ],
+    "auditLog": [
+      { "id": "a1", "orgId": "org-ent-001", "userId": "u-3", "displayName": "Michael Scott", "action": "Task initialized", "timestamp": 1740175200000 },
+      { "id": "a2", "orgId": "org-ent-001", "userId": "u-1", "displayName": "Alex Rivera", "action": "Moved to In Progress", "timestamp": 1740178000000 }
+    ],
+    "timeLogged": 4500000
+  },
+  {
+    "id": "task-2",
+    "orgId": "org-ent-001",
+    "userId": "demo-admin",
+    "assigneeId": "u-2",
+    "projectId": "p1",
+    "title": "Cloud Scale Performance Audit",
+    "description": "Stress test the real-time websocket synchronization under high concurrency (1000+ active users).",
+    "status": "todo",
+    "priority": "Medium",
+    "createdAt": 1740175200000,
+    "order": 1,
+    "tags": ["DevOps", "Infrastructure"],
+    "subtasks": [
+      { "id": "st-5", "title": "Configure K6 performance scripts", "isCompleted": false },
+      { "id": "st-6", "title": "Provision staging cluster nodes", "isCompleted": false },
+      { "id": "st-7", "title": "Monitor memory leaks in node.js cluster", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": [],
+    "timeLogged": 0
+  },
+  {
+    "id": "task-3",
+    "orgId": "org-ent-001",
+    "userId": "u-4",
+    "assigneeId": "u-4",
+    "projectId": "p2",
+    "title": "Visual Identity System 2.0",
+    "description": "Refresh our color palette and typography for the SaaS enterprise dashboard. Aiming for a more 'premium' and 'trustworthy' aesthetic.",
+    "status": "done",
+    "priority": "Low",
+    "createdAt": 1740175200000,
+    "order": 0,
+    "tags": ["Design"],
+    "subtasks": [
+      { "id": "st-8", "title": "Select base typography scale (Geist)", "isCompleted": true },
+      { "id": "st-9", "title": "Draft initial color palette (Aurora/Midnight)", "isCompleted": true },
+      { "id": "st-10", "title": "Review with Marketing Lead", "isCompleted": true }
+    ],
+    "comments": [
+      { "id": "c3", "userId": "demo-admin", "displayName": "System Admin", "text": "Colors look fantastic, very clean.", "timestamp": 1740200000000 }
+    ],
+    "auditLog": [
+      { "id": "a3", "orgId": "org-ent-001", "userId": "u-4", "displayName": "Elena Rodriguez", "action": "Completed task", "timestamp": 1740300000000 }
+    ],
+    "timeLogged": 12600000
+  },
+  {
+    "id": "task-4",
+    "orgId": "org-ent-001",
+    "userId": "u-2",
+    "assigneeId": "u-3",
+    "projectId": "p1",
+    "title": "API Rate Limiting & Quota Management",
+    "description": "Implement enterprise-grade rate limiting logic to protect internal clusters and external API dependencies.",
+    "status": "in-progress",
+    "priority": "High",
+    "createdAt": 1740300000000,
+    "order": 2,
+    "tags": ["Backend", "Security"],
+    "subtasks": [
+      { "id": "st-11", "title": "Design Redis-based counter logic", "isCompleted": true },
+      { "id": "st-12", "title": "Define tier-based quota thresholds", "isCompleted": false },
+      { "id": "st-13", "title": "Integrate with Auth layer", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": [],
+    "timeLogged": 1800000
+  },
+  {
+    "id": "task-5",
+    "orgId": "org-ent-001",
+    "userId": "u-5",
+    "assigneeId": "u-6",
+    "projectId": "p1",
+    "title": "Natural Language Query Engine",
+    "description": "Enabling the 'AI Commander' to handle complex relational queries across the task board (e.g., 'What high priority tasks are assigned to Alex Rivera?').",
+    "status": "todo",
+    "priority": "Medium",
+    "createdAt": 1740310000000,
+    "order": 3,
+    "tags": ["AI", "Search"],
+    "subtasks": [
+      { "id": "st-14", "title": "Map board schema to Gemini context prompts", "isCompleted": false },
+      { "id": "st-15", "title": "Implement keyword fuzzy matching", "isCompleted": false },
+      { "id": "st-16", "title": "Setup feedback loop for incorrect interpretations", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": [],
+    "timeLogged": 0
+  }
+]

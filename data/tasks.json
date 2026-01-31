@@ -1,0 +1,142 @@
+
+[
+  {
+    "id": "task-1",
+    "userId": "u-3",
+    "assigneeId": "u-1",
+    "projectId": "p1",
+    "title": "Define Core AI Engine Architecture",
+    "description": "Design the orchestration layer between Gemini and the UI state.",
+    "status": "in-progress",
+    "priority": "High",
+    "createdAt": 1740175200000,
+    "order": 0,
+    "tags": ["Architecture", "AI"],
+    "subtasks": [
+      { "id": "st-1", "title": "Schema design", "isCompleted": true },
+      { "id": "st-2", "title": "Model selection", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-2",
+    "userId": "u-3",
+    "assigneeId": "u-2",
+    "projectId": "p1",
+    "title": "Frontend Performance Audit",
+    "description": "Identify rendering bottlenecks in the Kanban board.",
+    "status": "todo",
+    "priority": "Medium",
+    "createdAt": 1740261600000,
+    "order": 1,
+    "tags": ["Performance", "Frontend"],
+    "subtasks": [
+      { "id": "st-3", "title": "Profile with React DevTools", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-3",
+    "userId": "u-1",
+    "assigneeId": "u-4",
+    "projectId": "p2",
+    "title": "New Typography System",
+    "description": "Evaluate Inter vs Roboto for the dashboard interface.",
+    "status": "done",
+    "priority": "Low",
+    "createdAt": 1740304800000,
+    "order": 0,
+    "tags": ["Design"],
+    "subtasks": [
+      { "id": "st-4", "title": "Create Figma mocks", "isCompleted": true },
+      { "id": "st-5", "title": "Review with team", "isCompleted": true }
+    ],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-4",
+    "userId": "u-5",
+    "assigneeId": "u-5",
+    "projectId": "p4",
+    "title": "SOC2 Compliance Checklist",
+    "description": "Ensure all logs are being correctly captured and stored.",
+    "status": "todo",
+    "priority": "High",
+    "createdAt": 1740344400000,
+    "order": 0,
+    "tags": ["Compliance", "Security"],
+    "subtasks": [],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-5",
+    "userId": "u-2",
+    "assigneeId": "u-6",
+    "projectId": "p3",
+    "title": "iOS Push Notification Bug",
+    "description": "Users report delays in real-time updates on iOS 18.",
+    "status": "in-progress",
+    "priority": "High",
+    "createdAt": 1740348000000,
+    "order": 1,
+    "tags": ["Bug", "Mobile"],
+    "subtasks": [
+      { "id": "st-6", "title": "Reproduce on simulator", "isCompleted": true },
+      { "id": "st-7", "title": "Fix APNS token refresh", "isCompleted": false }
+    ],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-6",
+    "userId": "demo-user-uuid",
+    "assigneeId": "u-2",
+    "projectId": "p1",
+    "title": "Implement WebSockets for Real-time",
+    "description": "Move away from polling for task updates.",
+    "status": "todo",
+    "priority": "Medium",
+    "createdAt": 1740351600000,
+    "order": 2,
+    "tags": ["Backend", "Infrastructure"],
+    "subtasks": [],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-7",
+    "userId": "u-1",
+    "assigneeId": "u-4",
+    "projectId": "p2",
+    "title": "Draft Press Release",
+    "description": "Announce the new AI features to the public.",
+    "status": "todo",
+    "priority": "Low",
+    "createdAt": 1740355200000,
+    "order": 1,
+    "tags": ["Marketing"],
+    "subtasks": [],
+    "comments": [],
+    "auditLog": []
+  },
+  {
+    "id": "task-8",
+    "userId": "u-3",
+    "assigneeId": "u-3",
+    "projectId": "p1",
+    "title": "Q1 Retrospective",
+    "description": "Analyze team velocity and identify hurdles.",
+    "status": "done",
+    "priority": "Medium",
+    "createdAt": 1740358800000,
+    "order": 2,
+    "tags": ["Planning"],
+    "subtasks": [],
+    "comments": [],
+    "auditLog": []
+  }
+]

@@ -1,0 +1,30 @@
+
+[
+  {
+    "id": "p1",
+    "name": "Product Roadmap 2025",
+    "description": "Core product strategy and feature development.",
+    "color": "bg-indigo-600",
+    "members": ["u-1", "u-2", "u-3", "u-4", "u-5", "u-6", "demo-user-uuid"],
+    "isPublic": false,
+    "publicToken": "roadmap25"
+  },
+  {
+    "id": "p2",
+    "name": "Marketing Rebrand",
+    "description": "New website design and brand guidelines.",
+    "color": "bg-rose-500",
+    "members": ["u-1", "u-4", "demo-user-uuid"],
+    "isPublic": false,
+    "publicToken": "mktg-rb"
+  },
+  {
+    "id": "p3",
+    "name": "Security Audit",
+    "description": "Bi-annual compliance and penetration testing.",
+    "color": "bg-slate-700",
+    "members": ["u-5", "demo-user-uuid"],
+    "isPublic": false,
+    "publicToken": "sec-audit"
+  }
+]
