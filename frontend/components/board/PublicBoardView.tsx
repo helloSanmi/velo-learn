@@ -50,12 +50,6 @@ const PublicBoardView: React.FC<PublicBoardViewProps> = ({ project, tasks }) => 
         onAddNewTask={() => {}}
         readOnly={true}
       />
-      
-      <footer className="flex-none py-6 border-t border-slate-200 bg-white text-center">
-        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest px-4">
-          Shared project view
-        </p>
-      </footer>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Search, Sparkles } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, User } from '../types';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
@@ -11,9 +11,13 @@ interface WorkloadViewProps {
   onReassign: (taskId: string, toUserId: string) => void;
 }
 
+type LoadFilter = 'All' | 'High' | 'Medium' | 'Low';
+
 const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign }) => {
   const [isBalancing, setIsBalancing] = useState(false);
   const [suggestions, setSuggestions] = useState<any[] | null>(null);
+  const [query, setQuery] = useState('');
+  const [loadFilter, setLoadFilter] = useState<LoadFilter>('All');
 
   const userStats = useMemo(() => {
     return users.map((u) => {
@@ -21,7 +25,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
       const doneTasks = tasks.filter((t) => t.assigneeId === u.id && t.status === TaskStatus.DONE);
       const highCount = activeTasks.filter((t) => t.priority === TaskPriority.HIGH).length;
       const load = activeTasks.length;
-      const status = load >= 6 ? 'High' : load >= 3 ? 'Medium' : 'Low';
+      const status: LoadFilter = load >= 6 ? 'High' : load >= 3 ? 'Medium' : 'Low';
       return {
         ...u,
         load,
@@ -31,6 +35,15 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
       };
     });
   }, [users, tasks]);
+
+  const filteredUserStats = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return userStats.filter((u) => {
+      const matchesQuery = !normalized || u.displayName.toLowerCase().includes(normalized);
+      const matchesLoad = loadFilter === 'All' || u.status === loadFilter;
+      return matchesQuery && matchesLoad;
+    });
+  }, [userStats, query, loadFilter]);
 
   const handleBalance = async () => {
     setIsBalancing(true);
@@ -64,65 +77,99 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
         {suggestions && suggestions.length > 0 && (
           <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold">AI Suggestions</h3>
-            {suggestions.map((s, idx) => {
-              const task = tasks.find((t) => t.id === s.taskId);
-              const from = users.find((u) => u.id === s.fromUserId);
-              const to = users.find((u) => u.id === s.toUserId);
+            <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+              {suggestions.map((s, idx) => {
+                const task = tasks.find((t) => t.id === s.taskId);
+                const from = users.find((u) => u.id === s.fromUserId);
+                const to = users.find((u) => u.id === s.toUserId);
 
-              return (
-                <div key={idx} className="border border-slate-200 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-slate-900">
-                      Move <span className="font-medium">{task?.title || 'Task'}</span> from {from?.displayName || 'Unknown'} to {to?.displayName || 'Unknown'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">{s.reason}</p>
+                return (
+                  <div key={idx} className="border border-slate-200 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-slate-900">
+                        Move <span className="font-medium">{task?.title || 'Task'}</span> from {from?.displayName || 'Unknown'} to {to?.displayName || 'Unknown'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">{s.reason}</p>
+                    </div>
+                    <Button size="sm" onClick={() => applyReassignment(s)}>Apply</Button>
                   </div>
-                  <Button size="sm" onClick={() => applyReassignment(s)}>Apply</Button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </section>
         )}
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {userStats.map((u) => (
-            <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <img src={u.avatar} className="w-10 h-10 rounded-xl border border-slate-200" alt={u.displayName} />
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-slate-900 truncate">{u.displayName}</h3>
-                    <p className="text-xs text-slate-500 capitalize">{u.role || 'member'}</p>
-                  </div>
-                </div>
-                <Badge variant={u.status === 'High' ? 'rose' : u.status === 'Medium' ? 'amber' : 'emerald'}>{u.status} load</Badge>
-              </div>
+        <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <label className="h-10 bg-white border border-slate-300 rounded-lg px-3 flex items-center gap-2">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter people"
+                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
+              />
+            </label>
+            <select
+              value={loadFilter}
+              onChange={(event) => setLoadFilter(event.target.value as LoadFilter)}
+              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <option value="All">All loads</option>
+              <option value="High">High load</option>
+              <option value="Medium">Medium load</option>
+              <option value="Low">Low load</option>
+            </select>
+          </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>Active</span>
-                  <span>{u.load}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${u.status === 'High' ? 'bg-rose-500' : u.status === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                    style={{ width: `${Math.min(u.load * 16, 100)}%` }}
-                  />
-                </div>
-              </div>
+          {filteredUserStats.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">
+              No team members match these filters.
+            </div>
+          ) : (
+            <div className="max-h-[56vh] overflow-y-auto custom-scrollbar pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredUserStats.map((u) => (
+                  <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img src={u.avatar} className="w-10 h-10 rounded-xl border border-slate-200" alt={u.displayName} />
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-slate-900 truncate">{u.displayName}</h3>
+                          <p className="text-xs text-slate-500 capitalize">{u.role || 'member'}</p>
+                        </div>
+                      </div>
+                      <Badge variant={u.status === 'High' ? 'rose' : u.status === 'Medium' ? 'amber' : 'emerald'}>{u.status} load</Badge>
+                    </div>
 
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="border border-slate-200 rounded-lg py-2">
-                  <p className="text-sm font-semibold text-slate-900">{u.done}</p>
-                  <p className="text-[11px] text-slate-500">Done</p>
-                </div>
-                <div className="border border-slate-200 rounded-lg py-2">
-                  <p className="text-sm font-semibold text-slate-900">{u.highCount}</p>
-                  <p className="text-[11px] text-slate-500">High Priority</p>
-                </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-slate-500">
+                        <span>Active</span>
+                        <span>{u.load}</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${u.status === 'High' ? 'bg-rose-500' : u.status === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(u.load * 16, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="border border-slate-200 rounded-lg py-2">
+                        <p className="text-sm font-semibold text-slate-900">{u.done}</p>
+                        <p className="text-[11px] text-slate-500">Done</p>
+                      </div>
+                      <div className="border border-slate-200 rounded-lg py-2">
+                        <p className="text-sm font-semibold text-slate-900">{u.highCount}</p>
+                        <p className="text-[11px] text-slate-500">High Priority</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
-            </article>
-          ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

@@ -31,7 +31,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   onAssigneeChange
 }) => {
   return (
-    <div className="flex-none px-4 md:px-8 pt-4">
+    <div className="flex-none px-4 md:px-8 pt-4 sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm">
       <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-3">
         <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-3">
           <SlidersHorizontal className="w-4 h-4" />

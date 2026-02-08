@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Github, Link2, MessageSquare } from 'lucide-react';
+import { Github, Link2, MessageSquare, Search } from 'lucide-react';
 import { Project } from '../types';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
@@ -9,8 +9,13 @@ interface IntegrationHubProps {
   onUpdateProject: (id: string, updates: Partial<Project>) => void;
 }
 
+type StatusFilter = 'All' | 'Connected' | 'Not Connected';
+
 const IntegrationHub: React.FC<IntegrationHubProps> = ({ projects, onUpdateProject }) => {
   const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id || '');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
+
   const activeProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId]
@@ -60,6 +65,18 @@ const IntegrationHub: React.FC<IntegrationHubProps> = ({ projects, onUpdateProje
     }
   ];
 
+  const filteredCards = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return cards.filter((card) => {
+      const matchesQuery = !normalized || `${card.name} ${card.description}`.toLowerCase().includes(normalized);
+      const matchesStatus =
+        statusFilter === 'All' ||
+        (statusFilter === 'Connected' && card.enabled) ||
+        (statusFilter === 'Not Connected' && !card.enabled);
+      return matchesQuery && matchesStatus;
+    });
+  }, [cards, query, statusFilter]);
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -79,29 +96,60 @@ const IntegrationHub: React.FC<IntegrationHubProps> = ({ projects, onUpdateProje
           </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map((card) => (
-            <article key={card.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-slate-100 text-slate-700">{card.icon}</div>
-                <Badge variant={card.enabled ? 'emerald' : 'neutral'}>
-                  {card.enabled ? 'Connected' : 'Not Connected'}
-                </Badge>
+        <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <label className="h-10 bg-white border border-slate-300 rounded-lg px-3 flex items-center gap-2">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter integrations"
+                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
+              />
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              className="h-10 bg-white border border-slate-300 rounded-lg px-3 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <option value="All">All statuses</option>
+              <option value="Connected">Connected</option>
+              <option value="Not Connected">Not connected</option>
+            </select>
+          </div>
+
+          {filteredCards.length === 0 ? (
+            <div className="border border-slate-200 rounded-lg p-8 text-center text-sm text-slate-500">
+              No integrations match these filters.
+            </div>
+          ) : (
+            <div className="max-h-[62vh] overflow-y-auto custom-scrollbar pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCards.map((card) => (
+                  <article key={card.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-slate-100 text-slate-700">{card.icon}</div>
+                      <Badge variant={card.enabled ? 'emerald' : 'neutral'}>
+                        {card.enabled ? 'Connected' : 'Not Connected'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold">{card.name}</h3>
+                      <p className="text-sm text-slate-600 mt-1">{card.description}</p>
+                    </div>
+                    <Button
+                      onClick={card.onClick}
+                      variant={card.enabled ? 'outline' : 'primary'}
+                      className="w-full"
+                    >
+                      {card.actionLabel}
+                    </Button>
+                  </article>
+                ))}
               </div>
-              <div>
-                <h3 className="text-base font-semibold">{card.name}</h3>
-                <p className="text-sm text-slate-600 mt-1">{card.description}</p>
-              </div>
-              <Button
-                onClick={card.onClick}
-                variant={card.enabled ? 'outline' : 'primary'}
-                className="w-full"
-              >
-                {card.actionLabel}
-              </Button>
-            </article>
-          ))}
-        </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

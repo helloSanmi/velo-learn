@@ -4,7 +4,6 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import { User, Project, MainViewType } from '../../types';
 import { SettingsTabType } from '../SettingsModal';
-import { Globe, Cpu, Zap } from 'lucide-react';
 
 interface WorkspaceLayoutProps {
   user: User;
@@ -131,42 +130,6 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
              {children}
           </div>
           
-          <footer className="flex-none bg-white border-t border-slate-200 px-6 py-2.5">
-            <div className="max-w-[1800px] mx-auto flex items-center justify-between gap-8">
-              <div className="hidden md:flex items-center gap-5">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span className="font-mono text-[10px] font-medium text-slate-500 uppercase tracking-wide">System healthy</span>
-                </div>
-                <div className="h-3 w-px bg-slate-200" />
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Globe className="w-3 h-3" />
-                  <span className="font-mono text-[10px] font-medium uppercase tracking-wide">US-East</span>
-                </div>
-              </div>
-              <div className="flex-1 flex justify-center">
-                <div className="flex items-center gap-3 px-4 py-1 bg-slate-50 rounded-full border border-slate-200">
-                   <p className="font-mono text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                     Velo <span className="text-slate-700">v3.0.1</span>
-                   </p>
-                   <div className="w-1 h-1 rounded-full bg-slate-300" />
-                   <p className="font-mono text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                     Workspace
-                   </p>
-                </div>
-              </div>
-              <div className="hidden lg:flex items-center gap-6">
-                <div className="flex items-center gap-2 text-slate-400">
-                   <Cpu className="w-3 h-3" />
-                   <span className="font-mono text-[10px] font-medium uppercase tracking-wide">Latency: 38ms</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                   <Zap className="w-3 h-3" />
-                   <span className="font-mono text-[10px] font-medium uppercase tracking-wide">Sync: Active</span>
-                </div>
-              </div>
-            </div>
-          </footer>
         </div>
       </div>
     </div>

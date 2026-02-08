@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { WorkflowAction, WorkflowRule, WorkflowTrigger, User } from '../types';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import Button from './ui/Button';
 import { workflowService } from '../services/workflowService';
 
@@ -8,6 +8,8 @@ interface WorkflowBuilderProps {
   orgId: string;
   allUsers: User[];
 }
+
+type RuleFilter = 'All' | 'Active' | 'Paused';
 
 const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
   const [rules, setRules] = useState<WorkflowRule[]>(workflowService.getRules(orgId));
@@ -18,6 +20,25 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
   const [triggerVal, setTriggerVal] = useState('done');
   const [action, setAction] = useState<WorkflowAction>('SET_PRIORITY');
   const [actionVal, setActionVal] = useState('High');
+
+  const [query, setQuery] = useState('');
+  const [ruleFilter, setRuleFilter] = useState<RuleFilter>('All');
+
+  const filteredRules = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return rules.filter((rule) => {
+      const matchesQuery =
+        !normalized ||
+        `${rule.name} ${rule.trigger} ${rule.triggerValue || ''} ${rule.action} ${rule.actionValue || ''}`
+          .toLowerCase()
+          .includes(normalized);
+      const matchesState =
+        ruleFilter === 'All' ||
+        (ruleFilter === 'Active' && rule.isActive) ||
+        (ruleFilter === 'Paused' && !rule.isActive);
+      return matchesQuery && matchesState;
+    });
+  }, [rules, query, ruleFilter]);
 
   const handleSave = () => {
     const saved = workflowService.saveRule({
@@ -104,34 +125,57 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
         </div>
       )}
 
-      <div className="space-y-2">
-        {rules.length === 0 && (
-          <div className="bg-white border border-slate-200 rounded-xl p-6 text-sm text-slate-500 text-center">
-            No rules created yet.
-          </div>
-        )}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <label className="h-10 border border-slate-300 rounded-lg px-3 flex items-center gap-2 bg-white">
+            <Search className="w-4 h-4 text-slate-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Filter rules"
+              className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
+            />
+          </label>
+          <select
+            value={ruleFilter}
+            onChange={(event) => setRuleFilter(event.target.value as RuleFilter)}
+            className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 outline-none"
+          >
+            <option value="All">All states</option>
+            <option value="Active">Active</option>
+            <option value="Paused">Paused</option>
+          </select>
+        </div>
 
-        {rules.map((rule) => (
-          <div key={rule.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{rule.name}</p>
-              <p className="text-xs text-slate-500 truncate">
-                IF {rule.trigger} ({rule.triggerValue || '-'}) THEN {rule.action} ({rule.actionValue || '-'})
-              </p>
+        <div className="space-y-2 max-h-[55vh] overflow-y-auto custom-scrollbar pr-1">
+          {filteredRules.length === 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 text-sm text-slate-500 text-center">
+              No rules match these filters.
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => toggleRule(rule.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
-              >
-                {rule.isActive ? 'Active' : 'Paused'}
-              </button>
-              <button onClick={() => removeRule(rule.id)} className="p-2 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-700">
-                <Trash2 className="w-4 h-4" />
-              </button>
+          )}
+
+          {filteredRules.map((rule) => (
+            <div key={rule.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">{rule.name}</p>
+                <p className="text-xs text-slate-500 truncate">
+                  IF {rule.trigger} ({rule.triggerValue || '-'}) THEN {rule.action} ({rule.actionValue || '-'})
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => toggleRule(rule.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+                >
+                  {rule.isActive ? 'Active' : 'Paused'}
+                </button>
+                <button onClick={() => removeRule(rule.id)} className="p-2 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-700">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

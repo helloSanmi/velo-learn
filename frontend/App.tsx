@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [settingsTab, setSettingsTab] = useState<SettingsTabType>('general');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [templateQuery, setTemplateQuery] = useState('');
   
   const toggleTaskSelection = useCallback((id: string) => {
     setSelectedTaskIds(prev => prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]);
@@ -101,6 +102,15 @@ const App: React.FC = () => {
   };
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [activeProjectId, projects]);
+  const templates = useMemo(
+    () =>
+      workflowService
+        .getTemplates()
+        .filter((template) =>
+          `${template.name} ${template.description}`.toLowerCase().includes(templateQuery.trim().toLowerCase())
+        ),
+    [templateQuery]
+  );
 
   if (publicProject) {
       const projectTasks = tasks.filter(t => t.projectId === publicProject.id);
@@ -128,7 +138,6 @@ const App: React.FC = () => {
         </div>
       );
       case 'templates':
-        const templates = workflowService.getTemplates();
         return (
           <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-5">
@@ -136,19 +145,35 @@ const App: React.FC = () => {
                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900">Templates</h2>
                  <p className="text-sm text-slate-600 mt-1">Start faster with predefined project structures.</p>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 {templates.map(t => (
-                   <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col">
-                      <h3 className="text-base font-semibold text-slate-900">{t.name}</h3>
-                      <p className="text-sm text-slate-600 mt-1 flex-1">{t.description}</p>
-                      <button
-                        onClick={() => setIsProjectModalOpen(true)}
-                        className="mt-4 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
-                      >
-                        Use template
-                      </button>
+               <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                 <input
+                   value={templateQuery}
+                   onChange={(event) => setTemplateQuery(event.target.value)}
+                   placeholder="Filter templates"
+                   className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-300"
+                 />
+                 {templates.length === 0 ? (
+                   <div className="border border-slate-200 rounded-lg p-8 text-center text-sm text-slate-500">
+                     No templates match your filter.
                    </div>
-                 ))}
+                 ) : (
+                   <div className="max-h-[62vh] overflow-y-auto custom-scrollbar pr-1">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                       {templates.map(t => (
+                         <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col">
+                            <h3 className="text-base font-semibold text-slate-900">{t.name}</h3>
+                            <p className="text-sm text-slate-600 mt-1 flex-1">{t.description}</p>
+                            <button
+                              onClick={() => setIsProjectModalOpen(true)}
+                              className="mt-4 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
+                            >
+                              Use template
+                            </button>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
                </div>
             </div>
           </div>
