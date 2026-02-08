@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Zap } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Task, TaskStatus } from '../../types';
 import TaskItem from '../TaskItem';
 
@@ -21,15 +21,15 @@ interface ColumnProps {
   onToggleTimer?: (id: string) => void;
 }
 
-const Column: React.FC<ColumnProps> = ({ 
-  title, 
-  status, 
-  icon, 
-  tasks, 
+const Column: React.FC<ColumnProps> = ({
+  title,
+  status,
+  icon,
+  tasks,
   selectedTaskIds = [],
   onToggleTaskSelection,
-  onDeleteTask, 
-  onUpdateStatus, 
+  onDeleteTask,
+  onUpdateStatus,
   onMoveTask,
   onAIAssist,
   onSelectTask,
@@ -38,11 +38,6 @@ const Column: React.FC<ColumnProps> = ({
   onToggleTimer
 }) => {
   const [isOver, setIsOver] = useState(false);
-
-  // Soft limit for "Focus Density"
-  const CAPACITY_LIMIT = 5;
-  const loadPercentage = Math.min((tasks.length / CAPACITY_LIMIT) * 100, 100);
-  const isOverCapacity = tasks.length > CAPACITY_LIMIT;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -64,53 +59,48 @@ const Column: React.FC<ColumnProps> = ({
   };
 
   return (
-    <div 
-      className="flex flex-col w-full h-full min-h-0"
+    <section
+      className={`h-full min-h-0 bg-white border rounded-xl flex flex-col transition-colors ${
+        isOver ? 'border-slate-400 bg-slate-50' : 'border-slate-200'
+      }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="flex flex-col mb-5 px-1 gap-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600">
-              {icon}
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-900">{title}</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[11px] font-medium ${isOverCapacity ? 'text-rose-600' : 'text-slate-500'}`}>
-                  {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
-                </span>
-              </div>
-            </div>
+      <header className="px-3.5 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-600">
+            {icon}
           </div>
-          <button 
-            onClick={onAddNewTask} 
-            className="p-2 text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
+            <p className="text-xs text-slate-500">{tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}</p>
+          </div>
         </div>
-        
-        {/* Capacity Gauge */}
-        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden flex items-center">
-          <div 
-            className={`h-full transition-all duration-700 ease-out ${isOverCapacity ? 'bg-rose-500' : loadPercentage > 70 ? 'bg-amber-500' : 'bg-slate-700'}`}
-            style={{ width: `${loadPercentage}%` }}
-          />
-        </div>
-      </div>
-      
-      {/* Scrollable Task Area */}
-      <div className={`flex-1 flex flex-col gap-4 transition-all pb-12 overflow-y-auto min-h-0 custom-scrollbar pr-2 -mr-2 ${isOver ? 'bg-slate-100/70 rounded-[1.5rem] ring-2 ring-slate-200 ring-inset' : ''}`}>
-        {tasks.map(task => (
-          <TaskItem 
-            key={task.id} 
-            task={task} 
+
+        <button
+          onClick={onAddNewTask}
+          className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center"
+          title="Add task"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </header>
+
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-3">
+        {tasks.length === 0 && (
+          <div className="h-full min-h-[180px] border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-sm text-slate-500 bg-slate-50">
+            Drop tasks here
+          </div>
+        )}
+
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
             isSelected={selectedTaskIds.includes(task.id)}
             onToggleSelection={onToggleTaskSelection}
-            onDelete={onDeleteTask} 
+            onDelete={onDeleteTask}
             onUpdateStatus={onUpdateStatus}
             onAIAssist={onAIAssist}
             onSelect={onSelectTask}
@@ -118,16 +108,8 @@ const Column: React.FC<ColumnProps> = ({
             onToggleTimer={onToggleTimer}
           />
         ))}
-        {tasks.length === 0 && !isOver && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-slate-200 rounded-[1.5rem] bg-slate-50">
-             <div className="p-4 bg-white rounded-2xl border border-slate-200 mb-4">
-                <Zap className="w-8 h-8 text-slate-200" />
-             </div>
-             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">No tasks yet</p>
-          </div>
-        )}
       </div>
-    </div>
+    </section>
   );
 };
 

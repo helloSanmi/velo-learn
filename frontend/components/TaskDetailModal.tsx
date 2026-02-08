@@ -98,7 +98,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-3">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignee Node</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignee</h4>
                   <select 
                     value={assigneeId}
                     onChange={(e) => {
@@ -115,7 +115,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </select>
                </div>
                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col gap-3">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Telemetry Tracked</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Time Tracked</h4>
                   <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-black bg-white border-slate-200 text-emerald-600">
                     <Clock className="w-4 h-4" /> {Math.floor((task.timeLogged || 0) / 60000)} Minutes Logged
                   </div>
@@ -267,42 +267,43 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()} className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-3xl rounded-t-[3rem] md:rounded-[4rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-12 md:zoom-in-95 duration-500 max-h-[92vh] md:max-h-[90vh] flex flex-col border border-white/20">
-        <div className="px-8 py-10 md:px-12 flex items-start justify-between border-b border-slate-100 flex-shrink-0 bg-slate-50/50">
+    <div onClick={(e) => e.target === e.currentTarget && onClose()} className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/45 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 max-h-[88vh] md:max-h-[84vh] flex flex-col border border-slate-200">
+        <div className="px-4 py-4 md:px-5 flex items-start justify-between border-b border-slate-200 flex-shrink-0 bg-white">
           <div className="flex-1 overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              <Badge variant="indigo">NODE: {task.status.toUpperCase()}</Badge>
-              {task.isAtRisk && <Badge variant="rose">HIGH RISK</Badge>}
+              <Badge variant="indigo">{task.status.toUpperCase()}</Badge>
+              {task.isAtRisk && <Badge variant="rose">AT RISK</Badge>}
               <Badge variant="amber">{task.priority.toUpperCase()}</Badge>
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight truncate md:whitespace-normal">{task.title}</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 tracking-tight leading-tight truncate md:whitespace-normal">{task.title}</h2>
           </div>
-          <button onClick={onClose} className="p-3 bg-white border border-slate-200 text-slate-400 rounded-2xl hover:bg-rose-50 hover:text-rose-600 transition-all shrink-0 shadow-sm active:scale-90"><X className="w-6 h-6" /></button>
+          <button onClick={onClose} className="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100 transition-all shrink-0 active:scale-95"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex items-center gap-8 md:gap-10 px-8 md:px-12 border-b border-slate-100 flex-shrink-0 overflow-x-auto no-scrollbar bg-white">
+        <div className="flex items-center gap-6 px-5 md:px-6 border-b border-slate-200 flex-shrink-0 overflow-x-auto no-scrollbar bg-white">
           {[
             { id: 'general', label: 'Summary', icon: <UserIcon className="w-4 h-4" /> },
             { id: 'subtasks', label: 'Steps', icon: <ListChecks className="w-4 h-4" /> },
-            { id: 'dependencies', label: 'Blocking', icon: <Lock className="w-4 h-4" /> },
-            { id: 'comments', label: 'Liaison', icon: <MessageSquare className="w-4 h-4" /> },
-            { id: 'activity', label: 'Temporal', icon: <History className="w-4 h-4" /> },
+            { id: 'dependencies', label: 'Dependencies', icon: <Lock className="w-4 h-4" /> },
+            { id: 'comments', label: 'Comments', icon: <MessageSquare className="w-4 h-4" /> },
+            { id: 'activity', label: 'Activity', icon: <History className="w-4 h-4" /> },
           ].map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} className={`flex items-center gap-2.5 py-6 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap group ${activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-900'}`}>
-              <span className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`}>{tab.icon}</span>
-              {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-indigo-600 rounded-t-full shadow-[0_-4px_12px_rgba(79,70,229,0.4)]" />}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} className={`flex items-center gap-2 py-4 text-[11px] font-medium transition-colors relative whitespace-nowrap ${activeTab === tab.id ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
+              <span>{tab.icon}</span>
+              {tab.label}
+              {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900 rounded-t-full" />}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-y-auto p-4 md:p-5 custom-scrollbar scroll-smooth">
           {renderTabContent()}
         </div>
 
-        <div className="p-8 md:p-12 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-4 flex-shrink-0">
-          <Button variant="outline" className="flex-1 py-5 rounded-[1.75rem] font-black text-xs uppercase tracking-widest bg-white" onClick={() => setIsEditing(true)}>Modify Identity Node</Button>
-          <Button variant="danger" className="py-5 px-8 rounded-[1.75rem] font-black text-xs uppercase tracking-widest" onClick={() => { if(confirm('Purge this node?')) { onDelete(task.id); onClose(); } }}><Trash2 className="w-5 h-5" /></Button>
+        <div className="p-4 md:p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row gap-2 flex-shrink-0">
+          <Button variant="outline" className="flex-1" onClick={() => setIsEditing(true)}>Edit Task</Button>
+          <Button variant="danger" className="px-6" onClick={() => { if(confirm('Delete this task?')) { onDelete(task.id); onClose(); } }}><Trash2 className="w-4 h-4" /></Button>
         </div>
       </div>
     </div>

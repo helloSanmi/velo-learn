@@ -68,10 +68,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="space-y-1.5">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-3 truncate">Overview</p>
-          <NavButton active={currentView === 'board' && activeProjectId === null} onClick={() => { onProjectSelect(null); onViewChange('board'); }} icon={LayoutDashboard} label="Global Board" />
-          <NavButton active={currentView === 'roadmap'} onClick={() => onViewChange('roadmap')} icon={GanttChartSquare} label="Strategic Roadmap" />
-          <NavButton active={currentView === 'analytics'} onClick={() => onViewChange('analytics')} icon={Activity} label="Velocity Center" />
-          <NavButton active={currentView === 'resources'} onClick={() => onViewChange('resources')} icon={Users} label="Resource Hub" badge="AI" />
+          <NavButton active={currentView === 'board' && activeProjectId === null} onClick={() => { onProjectSelect(null); onViewChange('board'); }} icon={LayoutDashboard} label="Board" />
+          <NavButton active={currentView === 'roadmap'} onClick={() => onViewChange('roadmap')} icon={GanttChartSquare} label="Roadmap" />
+          <NavButton active={currentView === 'analytics'} onClick={() => onViewChange('analytics')} icon={Activity} label="Analytics" />
+          <NavButton active={currentView === 'resources'} onClick={() => onViewChange('resources')} icon={Users} label="Resources" badge="AI" />
         </div>
 
         <div className="space-y-1.5">
@@ -99,21 +99,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="space-y-1.5">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-3 truncate">Workflows</p>
-          <NavButton active={currentView === 'workflows'} onClick={() => onViewChange('workflows')} icon={Zap} label="Workflow Engine" badge="Pro" />
+          <NavButton active={currentView === 'workflows'} onClick={() => onViewChange('workflows')} icon={Zap} label="Workflows" badge="Pro" />
           <NavButton active={currentView === 'integrations'} onClick={() => onViewChange('integrations')} icon={Link2} label="Integrations" />
-          <NavButton active={currentView === 'templates'} onClick={() => onViewChange('templates')} icon={LayoutGrid} label="Strategy Gallery" />
+          <NavButton active={currentView === 'templates'} onClick={() => onViewChange('templates')} icon={LayoutGrid} label="Templates" />
         </div>
 
         <div className="space-y-1.5">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-3 truncate">Tools</p>
-          <button onClick={onOpenCommandCenter} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium transition-colors text-left">
+          <button onClick={onOpenCommandCenter} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium text-sm transition-colors text-left">
             <div className="flex items-center gap-3.5 min-w-0"><Terminal className="w-4 h-4 text-slate-400 shrink-0" /><span className="truncate">AI Assistant</span></div>
           </button>
-          <button onClick={onOpenVoiceCommander} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium transition-colors text-left">
+          <button onClick={onOpenVoiceCommander} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium text-sm transition-colors text-left">
             <div className="flex items-center gap-3.5 min-w-0"><Mic className="w-4 h-4 text-slate-400 shrink-0" /><span className="truncate">Voice Assistant</span></div>
             <span className="text-[9px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full shrink-0">Live</span>
           </button>
-          <button onClick={onOpenVisionModal} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium transition-colors text-left">
+          <button onClick={onOpenVisionModal} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 font-medium text-sm transition-colors text-left">
             <div className="flex items-center gap-3.5 min-w-0"><Camera className="w-4 h-4 text-slate-400 shrink-0" /><span className="truncate">Image to Tasks</span></div>
             <Sparkles className="w-3 h-3 text-slate-400 shrink-0" />
           </button>

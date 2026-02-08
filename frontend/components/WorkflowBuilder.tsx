@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { WorkflowRule, WorkflowTrigger, WorkflowAction, TaskPriority, User } from '../types';
-import { Zap, Play, Plus, Trash2, ArrowRight, Settings, Activity, CheckCircle2 } from 'lucide-react';
+import { WorkflowAction, WorkflowRule, WorkflowTrigger, User } from '../types';
+import { Plus, Trash2 } from 'lucide-react';
 import Button from './ui/Button';
-import Badge from './ui/Badge';
 import { workflowService } from '../services/workflowService';
 
 interface WorkflowBuilderProps {
@@ -10,11 +9,11 @@ interface WorkflowBuilderProps {
   allUsers: User[];
 }
 
-const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId, allUsers }) => {
+const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
   const [rules, setRules] = useState<WorkflowRule[]>(workflowService.getRules(orgId));
   const [isAdding, setIsAdding] = useState(false);
-  
-  const [newName, setNewName] = useState('New Automation Rule');
+
+  const [newName, setNewName] = useState('New rule');
   const [trigger, setTrigger] = useState<WorkflowTrigger>('STATUS_CHANGED');
   const [triggerVal, setTriggerVal] = useState('done');
   const [action, setAction] = useState<WorkflowAction>('SET_PRIORITY');
@@ -30,147 +29,109 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId, allUsers }) =>
       actionValue: actionVal,
       isActive: true
     });
-    setRules([...rules, saved]);
+    setRules((prev) => [...prev, saved]);
     setIsAdding(false);
   };
 
-  const handleDelete = (id: string) => {
-    workflowService.deleteRule(id);
-    setRules(rules.filter(r => r.id !== id));
+  const toggleRule = (id: string) => {
+    workflowService.toggleRule(id);
+    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r)));
   };
 
-  const handleToggle = (id: string) => {
-    workflowService.toggleRule(id);
-    setRules(rules.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
+  const removeRule = (id: string) => {
+    workflowService.deleteRule(id);
+    setRules((prev) => prev.filter((r) => r.id !== id));
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-black text-slate-900 tracking-tight">Automation Engine</h3>
-          <p className="text-xs text-slate-500 font-medium">Create visual rules to eliminate manual busywork.</p>
+          <h3 className="text-xl font-semibold tracking-tight">Workflows</h3>
+          <p className="text-sm text-slate-600">Automate repetitive updates with simple rules.</p>
         </div>
-        <Button size="sm" variant="secondary" className="rounded-xl px-6" onClick={() => setIsAdding(true)}>
-          <Plus className="w-4 h-4 mr-2" /> New Rule
+        <Button size="sm" onClick={() => setIsAdding(true)}>
+          <Plus className="w-4 h-4 mr-1.5" /> New rule
         </Button>
       </div>
 
       {isAdding && (
-        <div className="bg-white border-2 border-indigo-600 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-100 animate-in zoom-in-95">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200">
-              <Zap className="w-5 h-5" />
-            </div>
-            <input 
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="text-lg font-black text-slate-900 outline-none bg-transparent border-b border-dashed border-indigo-200 focus:border-indigo-600"
-            />
-          </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-300"
+            placeholder="Rule name"
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="indigo">TRIGGER</Badge>
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">When event occurs</p>
-              </div>
-              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
-                <select 
-                  value={trigger}
-                  onChange={(e) => setTrigger(e.target.value as any)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="TASK_CREATED">Task is created</option>
-                  <option value="STATUS_CHANGED">Task status changes</option>
-                  <option value="PRIORITY_CHANGED">Task priority changes</option>
-                </select>
-                <div className="flex items-center gap-3">
-                  <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">Target value:</p>
-                  <input 
-                    value={triggerVal}
-                    onChange={(e) => setTriggerVal(e.target.value)}
-                    placeholder="e.g. done"
-                    className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
-              </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-xs text-slate-500">Trigger</label>
+              <select value={trigger} onChange={(e) => setTrigger(e.target.value as WorkflowTrigger)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white">
+                <option value="TASK_CREATED">Task created</option>
+                <option value="STATUS_CHANGED">Status changed</option>
+                <option value="PRIORITY_CHANGED">Priority changed</option>
+              </select>
+              <input
+                value={triggerVal}
+                onChange={(e) => setTriggerVal(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                placeholder="Trigger value"
+              />
             </div>
 
-            <div className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full border-2 border-indigo-100 items-center justify-center text-indigo-400 shadow-sm z-10">
-              <ArrowRight className="w-5 h-5" />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="rose">ACTION</Badge>
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Execute logic</p>
-              </div>
-              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
-                <select 
-                  value={action}
-                  onChange={(e) => setAction(e.target.value as any)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="SET_PRIORITY">Set task priority</option>
-                  <option value="ASSIGN_USER">Assign specific user</option>
-                  <option value="ADD_TAG">Add workspace tag</option>
-                  <option value="NOTIFY_OWNER">Notify board owner</option>
-                </select>
-                <div className="flex items-center gap-3">
-                  <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap">Parameter:</p>
-                  <input 
-                    value={actionVal}
-                    onChange={(e) => setActionVal(e.target.value)}
-                    placeholder="e.g. High"
-                    className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs text-slate-500">Action</label>
+              <select value={action} onChange={(e) => setAction(e.target.value as WorkflowAction)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white">
+                <option value="SET_PRIORITY">Set priority</option>
+                <option value="ASSIGN_USER">Assign user</option>
+                <option value="ADD_TAG">Add tag</option>
+                <option value="NOTIFY_OWNER">Notify owner</option>
+              </select>
+              <input
+                value={actionVal}
+                onChange={(e) => setActionVal(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                placeholder="Action value"
+              />
             </div>
           </div>
 
-          <div className="mt-10 flex gap-3">
-            <Button className="flex-1 py-4 rounded-2xl" onClick={handleSave}>Initialize Rule</Button>
-            <Button variant="outline" className="px-10 py-4 rounded-2xl" onClick={() => setIsAdding(false)}>Cancel</Button>
+          <div className="flex gap-2 pt-1">
+            <Button onClick={handleSave}>Save rule</Button>
+            <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
           </div>
         </div>
       )}
 
-      <div className="grid gap-4">
-        {rules.length > 0 ? rules.map((rule) => (
-          <div key={rule.id} className={`flex items-center justify-between p-6 bg-white border rounded-[2rem] transition-all hover:shadow-xl hover:shadow-slate-200/50 ${rule.isActive ? 'border-slate-200' : 'border-slate-100 opacity-60'}`}>
-            <div className="flex items-center gap-5">
-              <div className={`p-3 rounded-2xl ${rule.isActive ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
-                <Activity className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900 tracking-tight">{rule.name}</h4>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{rule.trigger.replace('_', ' ')}: {rule.triggerValue}</span>
-                  <div className="w-1 h-1 rounded-full bg-slate-300" />
-                  <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{rule.action.replace('_', ' ')}: {rule.actionValue}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => handleToggle(rule.id)}
-                className={`w-12 h-7 rounded-full flex items-center px-1 transition-all ${rule.isActive ? 'bg-indigo-600' : 'bg-slate-300'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform ${rule.isActive ? 'translate-x-5' : ''}`} />
-              </button>
-              <button onClick={() => handleDelete(rule.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
-                <Trash2 className="w-4.5 h-4.5" />
-              </button>
-            </div>
-          </div>
-        )) : (
-          <div className="py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-            <Settings className="w-12 h-12 text-slate-300" />
-            <p className="text-sm font-black uppercase text-slate-400 tracking-widest">No active automations</p>
+      <div className="space-y-2">
+        {rules.length === 0 && (
+          <div className="bg-white border border-slate-200 rounded-xl p-6 text-sm text-slate-500 text-center">
+            No rules created yet.
           </div>
         )}
+
+        {rules.map((rule) => (
+          <div key={rule.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">{rule.name}</p>
+              <p className="text-xs text-slate-500 truncate">
+                IF {rule.trigger} ({rule.triggerValue || '-'}) THEN {rule.action} ({rule.actionValue || '-'})
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => toggleRule(rule.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                {rule.isActive ? 'Active' : 'Paused'}
+              </button>
+              <button onClick={() => removeRule(rule.id)} className="p-2 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-700">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

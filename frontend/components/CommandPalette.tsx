@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Command, ArrowRight, Target, Box } from 'lucide-react';
-import { Task, Project } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Search } from 'lucide-react';
+import { Project, Task } from '../types';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -12,51 +11,86 @@ interface CommandPaletteProps {
   onSelectProject: (id: string) => void;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ 
-  isOpen, onClose, tasks, projects, onSelectTask, onSelectProject 
+const CommandPalette: React.FC<CommandPaletteProps> = ({
+  isOpen,
+  onClose,
+  tasks,
+  projects,
+  onSelectTask,
+  onSelectProject
 }) => {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setTimeout(() => inputRef.current?.focus(), 10);
-    }
+    if (!isOpen) return;
+    setQuery('');
+    setTimeout(() => inputRef.current?.focus(), 10);
   }, [isOpen]);
-
-  const filteredTasks = tasks.filter(t => 
-    t.title.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 5);
 
   if (!isOpen) return null;
 
+  const q = query.toLowerCase().trim();
+  const taskResults = tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 6);
+  const projectResults = projects.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 4);
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-20 px-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in slide-in-from-top-4 duration-300">
-        <div className="relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+    <div
+      className="fixed inset-0 z-[200] bg-slate-900/45 backdrop-blur-sm flex items-start justify-center pt-12 px-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-xl bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="relative border-b border-slate-200">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             ref={inputRef}
-            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tasks, projects, or commands..."
-            className="w-full pl-16 pr-6 py-6 text-lg font-medium text-slate-800 outline-none border-b border-slate-100"
+            placeholder="Search tasks or projects..."
+            className="w-full h-12 pl-11 pr-4 text-sm outline-none"
           />
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto p-4">
-          {filteredTasks.map((task) => (
-            <button
-              key={task.id}
-              onClick={() => { onSelectTask(task); onClose(); }}
-              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left"
-            >
-              <span className="text-sm font-bold text-slate-700">{task.title}</span>
-              <ArrowRight className="w-4 h-4 text-slate-300" />
-            </button>
-          ))}
+        <div className="max-h-[52vh] overflow-y-auto custom-scrollbar p-3 space-y-4">
+          <section>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 px-2 mb-2">Tasks</p>
+            <div className="space-y-1">
+              {taskResults.length === 0 && <p className="text-sm text-slate-500 px-2 py-1.5">No matching tasks.</p>}
+              {taskResults.map((task) => (
+                <button
+                  key={task.id}
+                  onClick={() => {
+                    onSelectTask(task);
+                    onClose();
+                  }}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-100 flex items-center justify-between"
+                >
+                  <span className="text-sm text-slate-800 truncate">{task.title}</span>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 px-2 mb-2">Projects</p>
+            <div className="space-y-1">
+              {projectResults.length === 0 && <p className="text-sm text-slate-500 px-2 py-1.5">No matching projects.</p>}
+              {projectResults.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => {
+                    onSelectProject(project.id);
+                    onClose();
+                  }}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-100 flex items-center justify-between"
+                >
+                  <span className="text-sm text-slate-800 truncate">{project.name}</span>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </div>

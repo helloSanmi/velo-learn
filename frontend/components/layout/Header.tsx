@@ -71,7 +71,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onT
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center border-r border-slate-200 pr-4 gap-2">
             <button 
-              onClick={() => { if(confirm('Reset all Velo nodes?')) { taskService.clearData(); onReset(); } }}
+              onClick={() => { if(confirm('Reset all demo data?')) { taskService.clearData(); onReset(); } }}
               className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"
               title="Reset System"
             >
@@ -120,14 +120,14 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onT
               <div className="absolute right-0 mt-4 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-top-4 z-[100]">
                 <div className="p-3">
                   <button onClick={() => { onOpenSettings('profile'); setIsProfileOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
-                    <User className="w-4 h-4" /> Identity Details
+                    <User className="w-4 h-4" /> Profile
                   </button>
                   <button onClick={() => { onOpenSettings('general'); setIsProfileOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
-                    <Settings className="w-4 h-4" /> Preferences
+                    <Settings className="w-4 h-4" /> Settings
                   </button>
                   <div className="h-px bg-slate-100 my-2 mx-2" />
                   <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-600 font-bold text-sm hover:bg-rose-50 transition-all">
-                    <LogOut className="w-4 h-4" /> Exit Session
+                    <LogOut className="w-4 h-4" /> Sign out
                   </button>
                 </div>
               </div>

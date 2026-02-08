@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, Modality, LiveServerMessage, Blob } from '@google/genai';
-import { Mic, MicOff, X, Bot, Loader2, Sparkles } from 'lucide-react';
+import { Bot, Loader2, Mic, MicOff, X } from 'lucide-react';
 import { Task } from '../types';
 
 interface VoiceCommanderProps {
@@ -13,7 +12,6 @@ interface VoiceCommanderProps {
 const VoiceCommander: React.FC<VoiceCommanderProps> = ({ isOpen, onClose, tasks }) => {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [transcription, setTranscription] = useState('');
 
   const sessionRef = useRef<any>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -22,25 +20,19 @@ const VoiceCommander: React.FC<VoiceCommanderProps> = ({ isOpen, onClose, tasks 
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
   useEffect(() => {
-    if (!isOpen && isActive) {
-      stopSession();
-    }
-  }, [isOpen]);
+    if (!isOpen && isActive) stopSession();
+  }, [isOpen, isActive]);
 
   const decode = (base64: string) => {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
     return bytes;
   };
 
   const encode = (bytes: Uint8Array) => {
     let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
     return btoa(binary);
   };
 
@@ -59,85 +51,64 @@ const VoiceCommander: React.FC<VoiceCommanderProps> = ({ isOpen, onClose, tasks 
 
   const createBlob = (data: Float32Array): Blob => {
     const int16 = new Int16Array(data.length);
-    for (let i = 0; i < data.length; i++) {
-      int16[i] = data[i] * 32768;
-    }
-    return {
-      data: encode(new Uint8Array(int16.buffer)),
-      mimeType: 'audio/pcm;rate=16000',
-    };
+    for (let i = 0; i < data.length; i++) int16[i] = data[i] * 32768;
+    return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
   };
 
   const startSession = async () => {
     setIsConnecting(true);
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+
     inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
             setIsConnecting(false);
             setIsActive(true);
-            
+
             const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
             const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
-            
             scriptProcessor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               const pcmBlob = createBlob(inputData);
-              sessionPromise.then(session => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
+              sessionPromise.then((session) => session.sendRealtimeInput({ media: pcmBlob }));
             };
-            
+
             source.connect(scriptProcessor);
             scriptProcessor.connect(inputAudioContextRef.current!.destination);
           },
           onmessage: async (message: LiveServerMessage) => {
             const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (audioData) {
-              const ctx = outputAudioContextRef.current!;
-              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
-              const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
-              const source = ctx.createBufferSource();
-              source.buffer = buffer;
-              source.connect(ctx.destination);
-              source.start(nextStartTimeRef.current);
-              nextStartTimeRef.current += buffer.duration;
-              sourcesRef.current.add(source);
-              source.onended = () => sourcesRef.current.delete(source);
-            }
+            if (!audioData) return;
 
-            if (message.serverContent?.outputTranscription) {
-              setTranscription(prev => prev + message.serverContent!.outputTranscription!.text);
-            }
+            const ctx = outputAudioContextRef.current!;
+            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+            const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(nextStartTimeRef.current);
+            nextStartTimeRef.current += buffer.duration;
+            sourcesRef.current.add(source);
+            source.onended = () => sourcesRef.current.delete(source);
           },
-          onerror: (e) => {
-            console.error("Live API Error:", e);
-            stopSession();
-          },
-          onclose: () => {
-            stopSession();
-          }
+          onerror: () => stopSession(),
+          onclose: () => stopSession()
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } }
-          },
-          systemInstruction: `You are the Velo AI Commander, a specialized enterprise PM assistant. You have absolute authority over this workspace node. Context: ${JSON.stringify(tasks.map(t => t.title))}. Assist the user with speed and clarity.`
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
+          systemInstruction: `You are an AI project assistant. Context: ${JSON.stringify(tasks.map((t) => t.title))}. Keep responses concise.`
         }
       });
 
       sessionRef.current = await sessionPromise;
-    } catch (err) {
-      console.error(err);
+    } catch {
       setIsConnecting(false);
     }
   };
@@ -149,7 +120,7 @@ const VoiceCommander: React.FC<VoiceCommanderProps> = ({ isOpen, onClose, tasks 
     }
     inputAudioContextRef.current?.close();
     outputAudioContextRef.current?.close();
-    sourcesRef.current.forEach(s => s.stop());
+    sourcesRef.current.forEach((s) => s.stop());
     sourcesRef.current.clear();
     setIsActive(false);
     setIsConnecting(false);
@@ -158,45 +129,38 @@ const VoiceCommander: React.FC<VoiceCommanderProps> = ({ isOpen, onClose, tasks 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
-        <div className="p-8 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-2xl ${isActive ? 'bg-indigo-500 animate-pulse' : 'bg-slate-800'}`}>
-              <Bot className="w-6 h-6" />
+    <div className="fixed inset-0 z-[120] bg-slate-900/45 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+        <div className="h-12 px-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <Bot className="w-4 h-4" />
             </div>
-            <h2 className="text-xl font-black tracking-tight">Velo AI Commander</h2>
+            <h2 className="text-sm font-semibold">Voice Assistant</h2>
           </div>
-          <button onClick={onClose} className="p-2.5 hover:bg-white/10 rounded-xl transition-colors">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-12 flex flex-col items-center text-center">
-          <div className="mb-12">
-            {isActive ? (
-              <div className="flex gap-1 h-12 items-center">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-2 bg-indigo-500 rounded-full animate-bounce" style={{ height: '100%', animationDelay: `${i * 0.1}s` }} />
-                ))}
-              </div>
+        <div className="p-4 space-y-4">
+          <div className="h-36 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center">
+            {isConnecting ? (
+              <div className="inline-flex items-center gap-2 text-sm text-slate-600"><Loader2 className="w-4 h-4 animate-spin" /> Connecting...</div>
+            ) : isActive ? (
+              <div className="inline-flex items-center gap-2 text-sm text-emerald-700"><Mic className="w-4 h-4" /> Listening</div>
             ) : (
-              <MicOff className="w-20 h-20 text-slate-200" />
+              <div className="inline-flex items-center gap-2 text-sm text-slate-500"><MicOff className="w-4 h-4" /> Idle</div>
             )}
           </div>
 
-          <button 
+          <button
             onClick={isActive ? stopSession : startSession}
             disabled={isConnecting}
-            className={`w-full py-4 rounded-[1.5rem] font-black uppercase tracking-widest transition-all ${isActive ? 'bg-rose-600 text-white' : 'bg-indigo-600 text-white'}`}
+            className={`w-full h-10 rounded-lg text-sm font-medium ${isActive ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} disabled:opacity-60`}
           >
-            {isConnecting ? "Establishing Sync..." : isActive ? "Stop Transmission" : "Start Transmission"}
+            {isConnecting ? 'Connecting...' : isActive ? 'Stop' : 'Start'}
           </button>
-        </div>
-        
-        <div className="px-12 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-500" />
-          <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ultra-low latency powered by Velo AI Core</span>
         </div>
       </div>
     </div>

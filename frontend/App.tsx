@@ -21,8 +21,6 @@ import WorkflowBuilder from './components/WorkflowBuilder';
 import WorkloadView from './components/WorkloadView';
 import IntegrationHub from './components/IntegrationHub';
 import { SettingsTabType } from './components/SettingsModal';
-import { LayoutGrid, Terminal, Zap, ArrowRight } from 'lucide-react';
-import Button from './components/ui/Button';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -123,22 +121,32 @@ const App: React.FC = () => {
       case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => updateTask(tid, { assigneeId: uid }, user.displayName)} />;
       case 'integrations': return <IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />;
       case 'workflows': return (
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-12 custom-scrollbar">
-          <div className="max-w-4xl mx-auto bg-white rounded-[3rem] p-10 md:p-16 border border-slate-200 shadow-sm"><WorkflowBuilder orgId={user.orgId} allUsers={allUsers} /></div>
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 md:p-6 border border-slate-200">
+            <WorkflowBuilder orgId={user.orgId} allUsers={allUsers} />
+          </div>
         </div>
       );
       case 'templates':
         const templates = workflowService.getTemplates();
         return (
-          <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-12 custom-scrollbar">
-            <div className="max-w-6xl mx-auto space-y-12">
-               <div><h2 className="text-4xl font-black text-slate-900 tracking-tighter">Strategy Gallery</h2><p className="text-slate-500 font-medium mt-2">Initialize specialized workspaces.</p></div>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
+            <div className="max-w-6xl mx-auto space-y-5">
+               <div>
+                 <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900">Templates</h2>
+                 <p className="text-sm text-slate-600 mt-1">Start faster with predefined project structures.</p>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {templates.map(t => (
-                   <div key={t.id} className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col">
-                      <div className="p-5 bg-slate-50 rounded-[2rem] w-fit mb-8 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all"><LayoutGrid className="w-8 h-8" /></div>
-                      <h3 className="text-xl font-black text-slate-900 mb-3">{t.name}</h3><p className="text-slate-500 text-sm font-medium leading-relaxed mb-10 flex-1">{t.description}</p>
-                      <Button onClick={() => setIsProjectModalOpen(true)} className="w-full py-4 rounded-2xl" variant="secondary">Deploy Node <ArrowRight className="ml-2 w-5 h-5" /></Button>
+                   <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col">
+                      <h3 className="text-base font-semibold text-slate-900">{t.name}</h3>
+                      <p className="text-sm text-slate-600 mt-1 flex-1">{t.description}</p>
+                      <button
+                        onClick={() => setIsProjectModalOpen(true)}
+                        className="mt-4 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
+                      >
+                        Use template
+                      </button>
                    </div>
                  ))}
                </div>

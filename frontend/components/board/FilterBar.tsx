@@ -1,6 +1,6 @@
 import React from 'react';
-import { Filter } from 'lucide-react';
-import { TaskStatus, TaskPriority, User } from '../../types';
+import { SlidersHorizontal } from 'lucide-react';
+import { TaskPriority, TaskStatus, User } from '../../types';
 
 interface FilterBarProps {
   statusFilter: TaskStatus | 'All';
@@ -15,78 +15,74 @@ interface FilterBarProps {
   onAssigneeChange: (assigneeId: string) => void;
 }
 
+const controlClass =
+  'h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-300';
+
 const FilterBar: React.FC<FilterBarProps> = ({
   statusFilter,
   priorityFilter,
+  tagFilter,
   assigneeFilter,
+  uniqueTags,
   allUsers,
   onStatusChange,
   onPriorityChange,
+  onTagChange,
   onAssigneeChange
 }) => {
   return (
-    <div className="flex-none bg-white border-b border-slate-200 overflow-x-auto no-scrollbar">
-      <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-3 flex items-center gap-8 whitespace-nowrap">
-        <div className="flex items-center gap-2.5 text-slate-400">
-          <Filter className="w-3.5 h-3.5" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide">Filters</span>
+    <div className="flex-none px-4 md:px-8 pt-4">
+      <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-3">
+        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-3">
+          <SlidersHorizontal className="w-4 h-4" />
+          Filters
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Assignee</span>
-            <div className="flex items-center p-1 bg-slate-50 border border-slate-200 rounded-xl">
-               <select 
-                value={assigneeFilter}
-                onChange={(e) => onAssigneeChange(e.target.value)}
-                className="bg-transparent text-[12px] font-medium rounded-lg px-2 py-0.5 outline-none border-none cursor-pointer text-slate-700"
-               >
-                 <option value="All">Global Staff</option>
-                 <option value="Me">My Identity</option>
-                 {allUsers.map(u => (
-                   <option key={u.id} value={u.id}>{u.displayName}</option>
-                 ))}
-               </select>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <select
+            value={statusFilter}
+            onChange={(e) => onStatusChange(e.target.value as TaskStatus | 'All')}
+            className={controlClass}
+          >
+            <option value="All">All statuses</option>
+            {Object.values(TaskStatus).map((status) => (
+              <option key={status} value={status}>{status.replace('-', ' ')}</option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Status</span>
-            <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-xl">
-              {['All', ...Object.values(TaskStatus)].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => onStatusChange(status as any)}
-                  className={`px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-lg transition-colors ${
-                    statusFilter === status 
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {status === 'All' ? 'All' : status.split('-')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
+          <select
+            value={priorityFilter}
+            onChange={(e) => onPriorityChange(e.target.value as TaskPriority | 'All')}
+            className={controlClass}
+          >
+            <option value="All">All priorities</option>
+            {Object.values(TaskPriority).map((priority) => (
+              <option key={priority} value={priority}>{priority}</option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Priority</span>
-            <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-xl">
-              {['All', ...Object.values(TaskPriority)].map((priority) => (
-                <button
-                  key={priority}
-                  onClick={() => onPriorityChange(priority as any)}
-                  className={`px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-lg transition-colors ${
-                    priorityFilter === priority 
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {priority === 'All' ? 'All' : priority.charAt(0)}
-                </button>
-              ))}
-            </div>
-          </div>
+          <select
+            value={assigneeFilter}
+            onChange={(e) => onAssigneeChange(e.target.value)}
+            className={controlClass}
+          >
+            <option value="All">All assignees</option>
+            <option value="Me">Assigned to me</option>
+            {allUsers.map((u) => (
+              <option key={u.id} value={u.id}>{u.displayName}</option>
+            ))}
+          </select>
+
+          <select
+            value={tagFilter}
+            onChange={(e) => onTagChange(e.target.value)}
+            className={controlClass}
+          >
+            <option value="All">All tags</option>
+            {uniqueTags.map((tag) => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
         </div>
       </div>
     </div>
