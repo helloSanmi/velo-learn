@@ -99,45 +99,45 @@ const TaskItem: React.FC<TaskItemProps> = ({
         }
       }}
       data-task-id={task.id}
-      className={`bg-white rounded-[1.25rem] shadow-sm border transition-all duration-300 cursor-grab active:cursor-grabbing relative flex flex-col ${
+      className={`group bg-white rounded-2xl border transition-all duration-200 cursor-grab active:cursor-grabbing relative flex flex-col ${
         isCompact ? 'p-3.5 gap-2.5' : 'p-6 gap-4'
       } ${
-        isSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-xl' : 'border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/30'
-      } ${task.isTimerRunning ? 'ring-2 ring-emerald-500/20 active-node border-emerald-500/30' : ''} ${isBlocked ? 'bg-slate-50/50 grayscale-[0.4]' : ''}`}
+        isSelected ? 'border-slate-900 ring-2 ring-slate-200' : 'border-slate-200 hover:border-slate-300'
+      } ${task.isTimerRunning ? 'ring-2 ring-emerald-200 border-emerald-300' : ''} ${isBlocked ? 'bg-slate-50/80 grayscale-[0.2]' : ''}`}
     >
       {task.isTimerRunning && (
-        <div className="absolute inset-0 bg-emerald-50/5 pointer-events-none rounded-[1.25rem]" />
+        <div className="absolute inset-0 bg-emerald-50/40 pointer-events-none rounded-2xl" />
       )}
 
       <div className="flex justify-between items-start">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={priorityVariants[task.priority]}>{task.priority}</Badge>
           {isBlocked && (
-            <div className="flex items-center gap-1 text-[8px] font-black text-rose-500 uppercase tracking-widest bg-rose-50 px-1.5 py-0.5 rounded-lg border border-rose-100">
+            <div className="flex items-center gap-1 text-[9px] font-semibold text-rose-700 uppercase tracking-wide bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
                <Lock className="w-2.5 h-2.5" /> Blocked
             </div>
           )}
           {project && (
-            <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase text-slate-500 tracking-wide bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
               <div className={`w-1.5 h-1.5 rounded-full ${project.color}`} />
               {project.name}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {!readOnly && (
             <>
               {settings.aiSuggestions && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); onAIAssist(task); }} 
-                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                  className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                 </button>
               )}
               <button 
                 onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} 
-                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -147,7 +147,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
       </div>
       
       <div className={isCompact ? 'space-y-0.5' : 'space-y-1.5'}>
-        <h3 className={`font-heading font-extrabold text-slate-900 leading-tight tracking-tight ${isCompact ? 'text-sm' : 'text-[15px]'} ${isBlocked ? 'text-slate-400' : ''}`}>
+        <h3 className={`font-heading font-semibold text-slate-900 leading-tight tracking-tight ${isCompact ? 'text-sm' : 'text-[15px]'} ${isBlocked ? 'text-slate-500' : ''}`}>
           {task.title}
         </h3>
       </div>
@@ -167,14 +167,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {totalMs > 0 && !isBlocked && (
-              <div className={`flex items-center gap-1 font-mono text-[9px] font-black uppercase tracking-widest ${task.isTimerRunning ? 'text-emerald-600' : 'text-slate-400'}`}>
+              <div className={`flex items-center gap-1 font-mono text-[10px] font-medium uppercase tracking-wide ${task.isTimerRunning ? 'text-emerald-700' : 'text-slate-500'}`}>
                 <Clock className={`w-2.5 h-2.5 ${task.isTimerRunning ? 'animate-spin' : ''}`} style={{animationDuration: '4s'}} />
                 {formatTime()}
               </div>
             )}
             <div className="flex flex-wrap gap-1">
               {task.tags?.slice(0, 1).map(tag => (
-                <span key={tag} className="text-[8px] font-black text-slate-400 bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-lg uppercase tracking-widest">
+                <span key={tag} className="text-[9px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg uppercase tracking-wide">
                   {tag}
                 </span>
               ))}
@@ -186,7 +186,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               <img 
                 src={assignee.avatar} 
                 alt={assignee.username} 
-                className={`w-6 h-6 rounded-xl border-2 border-white shadow-md ring-1 ring-slate-100 transition-all duration-300 ${task.isTimerRunning ? 'ring-emerald-500' : 'group-hover/avatar:scale-110'}`} 
+                className={`w-6 h-6 rounded-xl border border-slate-200 ring-1 ring-slate-100 transition-all duration-200 ${task.isTimerRunning ? 'ring-emerald-500' : 'group-hover/avatar:scale-105'}`} 
               />
               {task.isTimerRunning && (
                 <div className="absolute inset-0 rounded-xl bg-emerald-500 animate-ping opacity-20" />

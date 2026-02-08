@@ -25,21 +25,21 @@ const FilterBar: React.FC<FilterBarProps> = ({
   onAssigneeChange
 }) => {
   return (
-    <div className="flex-none bg-white border-b border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
-      <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-2.5 flex items-center gap-8 whitespace-nowrap">
+    <div className="flex-none bg-white border-b border-slate-200 overflow-x-auto no-scrollbar">
+      <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-3 flex items-center gap-8 whitespace-nowrap">
         <div className="flex items-center gap-2.5 text-slate-400">
           <Filter className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Filter Node</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide">Filters</span>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Assignee</span>
+            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Assignee</span>
             <div className="flex items-center p-1 bg-slate-50 border border-slate-200 rounded-xl">
                <select 
                 value={assigneeFilter}
                 onChange={(e) => onAssigneeChange(e.target.value)}
-                className="bg-transparent text-[11px] font-bold tracking-tight rounded-lg px-2 py-0.5 outline-none border-none cursor-pointer text-slate-700"
+                className="bg-transparent text-[12px] font-medium rounded-lg px-2 py-0.5 outline-none border-none cursor-pointer text-slate-700"
                >
                  <option value="All">Global Staff</option>
                  <option value="Me">My Identity</option>
@@ -51,16 +51,16 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Status</span>
+            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Status</span>
             <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-xl">
               {['All', ...Object.values(TaskStatus)].map((status) => (
                 <button
                   key={status}
                   onClick={() => onStatusChange(status as any)}
-                  className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide rounded-lg transition-all ${
+                  className={`px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-lg transition-colors ${
                     statusFilter === status 
-                      ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {status === 'All' ? 'All' : status.split('-')[0]}
@@ -70,16 +70,16 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Priority</span>
+            <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wide">Priority</span>
             <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-200 rounded-xl">
               {['All', ...Object.values(TaskPriority)].map((priority) => (
                 <button
                   key={priority}
                   onClick={() => onPriorityChange(priority as any)}
-                  className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide rounded-lg transition-all ${
+                  className={`px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-lg transition-colors ${
                     priorityFilter === priority 
-                      ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {priority === 'All' ? 'All' : priority.charAt(0)}

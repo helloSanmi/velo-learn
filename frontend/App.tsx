@@ -17,7 +17,6 @@ import LandingPage from './components/LandingPage';
 import PublicBoardView from './components/board/PublicBoardView';
 import SelectionActionBar from './components/board/SelectionActionBar';
 import Confetti from './components/ui/Confetti';
-import PresenceOverlay from './components/PresenceOverlay';
 import WorkflowBuilder from './components/WorkflowBuilder';
 import WorkloadView from './components/WorkloadView';
 import IntegrationHub from './components/IntegrationHub';
@@ -154,7 +153,7 @@ const App: React.FC = () => {
 
   return (
     <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => setIsProjectModalOpen(true)}>
-      <PresenceOverlay users={allUsers} /><Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
+      <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
       <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u }); setSelectedTaskIds([]); }} onBulkDelete={() => { if(confirm('Bulk delete?')) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
       <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 

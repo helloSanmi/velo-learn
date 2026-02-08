@@ -99,7 +99,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <main className={`flex-1 overflow-x-auto min-h-0 w-full px-4 md:px-8 pb-8 scroll-smooth custom-scrollbar ${activeResizer ? 'cursor-col-resize select-none' : ''}`}>
-      <div className="flex gap-6 md:gap-10 h-full min-w-max pb-4">
+      <div className="flex gap-5 md:gap-7 h-full min-w-max pb-4">
         {visibleColumns.map(col => (
           <div 
             key={col.id} 
@@ -128,9 +128,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <div 
                 id={`resizer-${col.id}`}
                 onMouseDown={() => setActiveResizer(col.id)}
-                className={`absolute right-[-12px] top-0 bottom-12 w-[12px] cursor-col-resize z-10 transition-all ${activeResizer === col.id ? 'bg-indigo-600/10' : 'hover:bg-indigo-600/5 hover:opacity-100'}`}
+                className={`absolute right-[-12px] top-0 bottom-12 w-[12px] cursor-col-resize z-10 transition-all ${activeResizer === col.id ? 'bg-slate-300/50' : 'hover:bg-slate-300/30 hover:opacity-100'}`}
               >
-                <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 bg-indigo-600/20 rounded-full transition-opacity ${activeResizer === col.id ? 'opacity-100' : 'opacity-0 group-hover/col:opacity-100'}`} />
+                <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 bg-slate-400/30 rounded-full transition-opacity ${activeResizer === col.id ? 'opacity-100' : 'opacity-0 group-hover/col:opacity-100'}`} />
               </div>
             )}
           </div>

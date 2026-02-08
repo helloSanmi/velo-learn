@@ -70,40 +70,40 @@ const Column: React.FC<ColumnProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="flex flex-col mb-6 px-1 gap-4 shrink-0">
+      <div className="flex flex-col mb-5 px-1 gap-3 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600`}>
+            <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600">
               {icon}
             </div>
             <div>
-              <h2 className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-900">{title}</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-900">{title}</h2>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[10px] font-bold ${isOverCapacity ? 'text-rose-500' : 'text-slate-400'}`}>
-                  {tasks.length} {tasks.length === 1 ? 'Node' : 'Nodes'}
+                <span className={`text-[11px] font-medium ${isOverCapacity ? 'text-rose-600' : 'text-slate-500'}`}>
+                  {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
                 </span>
               </div>
             </div>
           </div>
           <button 
             onClick={onAddNewTask} 
-            className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all active:scale-90"
+            className="p-2 text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
         </div>
         
         {/* Capacity Gauge */}
-        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden flex items-center shadow-inner">
+        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden flex items-center">
           <div 
-            className={`h-full transition-all duration-1000 ease-out ${isOverCapacity ? 'bg-rose-500' : loadPercentage > 70 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+            className={`h-full transition-all duration-700 ease-out ${isOverCapacity ? 'bg-rose-500' : loadPercentage > 70 ? 'bg-amber-500' : 'bg-slate-700'}`}
             style={{ width: `${loadPercentage}%` }}
           />
         </div>
       </div>
       
       {/* Scrollable Task Area */}
-      <div className={`flex-1 flex flex-col gap-4 transition-all pb-12 overflow-y-auto min-h-0 custom-scrollbar pr-2 -mr-2 ${isOver ? 'bg-indigo-50/40 rounded-[2.5rem] ring-4 ring-indigo-100 ring-inset scale-[0.98]' : ''}`}>
+      <div className={`flex-1 flex flex-col gap-4 transition-all pb-12 overflow-y-auto min-h-0 custom-scrollbar pr-2 -mr-2 ${isOver ? 'bg-slate-100/70 rounded-[1.5rem] ring-2 ring-slate-200 ring-inset' : ''}`}>
         {tasks.map(task => (
           <TaskItem 
             key={task.id} 
@@ -119,11 +119,11 @@ const Column: React.FC<ColumnProps> = ({
           />
         ))}
         {tasks.length === 0 && !isOver && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/30">
-             <div className="p-6 bg-white rounded-full shadow-sm mb-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-slate-200 rounded-[1.5rem] bg-slate-50">
+             <div className="p-4 bg-white rounded-2xl border border-slate-200 mb-4">
                 <Zap className="w-8 h-8 text-slate-200" />
              </div>
-             <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Cluster Idle</p>
+             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">No tasks yet</p>
           </div>
         )}
       </div>

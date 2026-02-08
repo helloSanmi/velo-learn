@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import FilterBar from './FilterBar';
 import KanbanBoard from './KanbanBoard';
 import { Task, TaskStatus, TaskPriority, User, Project } from '../../types';
-import { X, Sparkles, Loader2, ListOrdered } from 'lucide-react';
+import { X, Loader2, ListOrdered } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { taskService } from '../../services/taskService';
 
@@ -95,27 +95,27 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         onAssigneeChange={setAssigneeFilter}
       />
 
-      <div className={`flex-none px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4 ${compactMode ? 'pt-4 pb-2' : 'pt-8 pb-4'}`}>
+      <div className={`flex-none px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4 ${compactMode ? 'pt-4 pb-2' : 'pt-6 pb-4'}`}>
         <div className="flex items-center gap-5">
-          <h2 className={`font-black text-slate-900 tracking-tight truncate max-w-[240px] md:max-w-none ${compactMode ? 'text-lg' : 'text-3xl'}`}>
+          <h2 className={`font-bold text-slate-900 tracking-tight truncate max-w-[240px] md:max-w-none ${compactMode ? 'text-lg' : 'text-2xl'}`}>
             {activeProject ? activeProject.name : "Global Workspace"}
           </h2>
           {activeProject && (
             <button 
               onClick={handleStrategicTriage}
               disabled={isTriaging}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[11px] font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
-              {isTriaging ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListOrdered className="w-3 h-3 text-indigo-400" />}
-              Optimize Flow
+              {isTriaging ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListOrdered className="w-3 h-3 text-slate-500" />}
+              Optimize Order
             </button>
           )}
         </div>
         {selectedTaskIds.length > 0 && (
-           <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-2xl animate-in fade-in slide-in-from-right-4">
-             <span className="text-xs font-black text-indigo-700 uppercase tracking-widest">{selectedTaskIds.length} Items Active</span>
-             <button onClick={() => setSelectedTaskIds([])} className="p-1 hover:bg-indigo-100 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-indigo-400" />
+           <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl animate-in fade-in slide-in-from-right-4">
+             <span className="text-xs font-medium text-slate-700">{selectedTaskIds.length} selected</span>
+             <button onClick={() => setSelectedTaskIds([])} className="p-1 hover:bg-slate-200 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-500" />
              </button>
            </div>
         )}

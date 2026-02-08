@@ -15,20 +15,20 @@ const Button: React.FC<ButtonProps> = ({
   className = '', 
   ...props 
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none rounded-xl";
+  const baseStyles = "inline-flex items-center justify-center font-semibold transition-colors duration-200 disabled:opacity-50 disabled:pointer-events-none rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300";
   
   const variants = {
-    primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200",
-    secondary: "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100",
-    outline: "bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50",
-    ghost: "text-slate-500 hover:text-slate-900 hover:bg-slate-100",
-    danger: "text-rose-600 hover:bg-rose-50"
+    primary: "bg-slate-900 text-white hover:bg-slate-800",
+    secondary: "bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200",
+    outline: "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50",
+    ghost: "text-slate-600 hover:text-slate-900 hover:bg-slate-100",
+    danger: "text-rose-700 hover:bg-rose-50"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
+    sm: "px-3 py-2 text-xs",
     md: "px-5 py-2.5 text-sm",
-    lg: "px-8 py-4 text-base",
+    lg: "px-7 py-3.5 text-base",
     icon: "p-2.5"
   };
 
