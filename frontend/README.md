@@ -1,15 +1,25 @@
 
-# CloudTasks Frontend
+# Frontend
 
-This directory contains the high-performance React UI for the CloudTasks Enterprise application.
+This folder contains the active React application UI.
 
-## Structure
-- **/components**: Highly modular UI components decomposed to avoid the "God Component" pattern.
-- **/hooks**: Custom React hooks for encapsulating complex state logic (e.g., `useTasks`).
-- **/services**: Business logic and API client abstractions (AI, Auth, Projects, Tasks).
-- **/types.ts**: Global TypeScript interfaces ensuring type safety across the application.
+## What Lives Here
 
-## Key Features
-- **Kanban Board**: Real-time drag-and-drop task management.
-- **AI Integration**: Gemini-powered task breakdown and risk assessment.
-- **PWA Ready**: Offline resilience and installable application shell.
+- `App.tsx`: Main app shell and top-level routing/view switching.
+- `components/`: Reusable UI, layouts, modals, and feature views.
+- `hooks/`: Custom hooks for state and behavior (for example, task state management).
+- `services/`: Frontend-side business logic (AI helpers, task/project/user services, settings).
+- `types.ts`: Frontend type definitions.
+
+## Key UI Areas
+
+- Workspace layout (header, sidebar, board container)
+- Kanban board (columns, task cards, filtering, selection)
+- AI tools (assistant, triage, generation helpers)
+- Modals (task/project/settings/command interactions)
+
+## Notes
+
+- Styling is primarily Tailwind utility classes.
+- The app expects `GEMINI_API_KEY` to be configured at project root (`.env.local`).
+- Local app data is persisted through browser storage and seeded from mock data services.

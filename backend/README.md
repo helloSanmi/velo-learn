@@ -1,12 +1,22 @@
 
-# CloudTasks Backend (Mock)
+# Backend (Mock Data)
 
-This directory simulates the data layer for the CloudTasks application.
+This folder provides mock backend seed data used by the frontend services.
 
-## Data Schema
-- **/data/users.json**: User profiles and authentication identities.
-- **/data/tasks.json**: Core task records including metadata, time tracking, and audit logs.
-- **/data/projects.json**: Workspace project definitions and membership mappings.
+## Purpose
 
-## Persistence
-While this environment uses `localStorage` for runtime persistence, these JSON files serve as the "Seed" data for initializing new workspaces.
+- Simulate backend datasets for local development.
+- Provide predictable starter records for users, projects, and tasks.
+- Support reset/initialization flows without a real API server.
+
+## Data Files
+
+- `data/users.json`: User identities and profile metadata.
+- `data/projects.json`: Project/workspace definitions.
+- `data/tasks.json`: Task records, status, priority, assignees, and related metadata.
+
+## How It Is Used
+
+- The running app uses local browser persistence for day-to-day state.
+- These files act as seed inputs when mock initialization runs.
+- No standalone backend process is required for local development.
