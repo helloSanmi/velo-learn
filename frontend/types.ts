@@ -35,6 +35,12 @@ export interface Project {
   description: string;
   color: string;
   members: string[];
+  isArchived?: boolean;
+  archivedAt?: number;
+  isCompleted?: boolean;
+  completedAt?: number;
+  isDeleted?: boolean;
+  deletedAt?: number;
   guestIds?: string[];
   isPublic?: boolean;
   publicToken?: string;
@@ -123,4 +129,4 @@ export interface ProjectTemplate {
   }>;
 }
 
-export type MainViewType = 'board' | 'analytics' | 'roadmap' | 'workflows' | 'templates' | 'resources' | 'integrations';
+export type MainViewType = 'board' | 'projects' | 'analytics' | 'roadmap' | 'workflows' | 'templates' | 'resources' | 'integrations';

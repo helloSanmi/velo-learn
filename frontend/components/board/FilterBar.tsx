@@ -1,5 +1,4 @@
 import React from 'react';
-import { SlidersHorizontal } from 'lucide-react';
 import { TaskPriority, TaskStatus, User } from '../../types';
 
 interface FilterBarProps {
@@ -9,14 +8,13 @@ interface FilterBarProps {
   assigneeFilter: string | 'All';
   uniqueTags: string[];
   allUsers: User[];
+  embedded?: boolean;
+  compact?: boolean;
   onStatusChange: (status: TaskStatus | 'All') => void;
   onPriorityChange: (priority: TaskPriority | 'All') => void;
   onTagChange: (tag: string) => void;
   onAssigneeChange: (assigneeId: string) => void;
 }
-
-const controlClass =
-  'h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-300';
 
 const FilterBar: React.FC<FilterBarProps> = ({
   statusFilter,
@@ -25,20 +23,30 @@ const FilterBar: React.FC<FilterBarProps> = ({
   assigneeFilter,
   uniqueTags,
   allUsers,
+  embedded = false,
+  compact = false,
   onStatusChange,
   onPriorityChange,
   onTagChange,
   onAssigneeChange
 }) => {
-  return (
-    <div className="flex-none px-4 md:px-8 pt-4 sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm">
-      <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-3">
-        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-3">
-          <SlidersHorizontal className="w-4 h-4" />
-          Filters
-        </div>
+  const controlClass = compact
+    ? 'h-6 min-w-[112px] px-1.5 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700 outline-none focus:ring-2 focus:ring-slate-300'
+    : 'h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:ring-2 focus:ring-slate-300';
+  const containerClass = embedded
+    ? 'w-full'
+    : 'flex-none px-4 md:px-8 pt-1.5 sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm';
+  const frameClass = embedded
+    ? 'w-full'
+    : 'max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-2';
+  const listClass = compact
+    ? 'flex flex-wrap items-center justify-start md:justify-end gap-1'
+    : 'grid grid-cols-2 lg:grid-cols-4 gap-1.5';
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+  return (
+    <div className={containerClass}>
+      <div className={frameClass}>
+        <div className={listClass}>
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value as TaskStatus | 'All')}

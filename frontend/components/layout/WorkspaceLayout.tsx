@@ -24,6 +24,10 @@ interface WorkspaceLayoutProps {
   onOpenVoiceCommander: () => void;
   onOpenVisionModal: () => void;
   onAddProject: () => void;
+  onRenameProject: (id: string, name: string) => void;
+  onCompleteProject: (id: string) => void;
+  onArchiveProject: (id: string) => void;
+  onDeleteProject: (id: string) => void;
   children: React.ReactNode;
 }
 
@@ -31,7 +35,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   user, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
   themeClass, compactMode, onLogout, onNewTask, onReset, onOpenSettings,
   onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
-  onOpenVisionModal, onAddProject, children
+  onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, children
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('velo_sidebar_width');
@@ -71,7 +75,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   }, [isResizing, resize, stopResizing]);
 
   return (
-    <div className={`h-screen w-screen flex flex-col bg-slate-50 overflow-hidden ${themeClass} ${compactMode ? 'compact-layout' : ''} ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
+    <div className={`h-[100dvh] min-h-[100dvh] w-screen flex flex-col bg-[#f7f3f6] overflow-hidden ${themeClass} ${compactMode ? 'compact-layout' : ''} ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
       <Header 
         user={user} 
         onLogout={onLogout} 
@@ -81,7 +85,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         onOpenSettings={onOpenSettings} 
       />
       
-      <div className="flex-1 flex relative overflow-hidden">
+      <div className="flex-1 flex min-h-0 relative overflow-hidden">
         {isSidebarOpen && <div className="fixed inset-0 z-[55] bg-slate-900/30 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setIsSidebarOpen(false)} />}
         
         <div 
@@ -99,6 +103,10 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onOpenVoiceCommander={onOpenVoiceCommander} 
             onOpenVisionModal={onOpenVisionModal} 
             onAddProject={onAddProject} 
+            onRenameProject={onRenameProject}
+            onCompleteProject={onCompleteProject}
+            onArchiveProject={onArchiveProject}
+            onDeleteProject={onDeleteProject}
             onOpenSettings={() => onOpenSettings('general')} 
           />
           <div 
@@ -121,12 +129,16 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onOpenVoiceCommander={onOpenVoiceCommander} 
             onOpenVisionModal={onOpenVisionModal} 
             onAddProject={onAddProject} 
+            onRenameProject={onRenameProject}
+            onCompleteProject={onCompleteProject}
+            onArchiveProject={onArchiveProject}
+            onDeleteProject={onDeleteProject}
             onOpenSettings={() => onOpenSettings('general')} 
           />
         </div>
         
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-50 relative">
-          <div className={`flex-1 flex flex-col overflow-hidden relative ${isResizing ? 'pointer-events-none' : ''}`}>
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#f7f3f6] relative">
+          <div className={`flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative ${isResizing ? 'pointer-events-none' : ''}`}>
              {children}
           </div>
           

@@ -1,0 +1,35 @@
+# Privacy Policy
+
+Last updated: February 9, 2026
+
+## Overview
+Velo provides a project and task management workspace. This policy explains what data is stored and how it is used in this demo application.
+
+## Data We Store
+- Account information: username, display name, role, avatar URL, and email.
+- Workspace data: projects, tasks, comments, subtasks, workflow rules, and settings.
+- Session data: current signed-in user session.
+
+## How Data Is Used
+- To provide core product features (boards, assignments, analytics, workflows).
+- To personalize your interface and settings.
+- To keep your workspace state available between sessions.
+
+## Storage
+- In this demo, data is primarily stored in browser local storage.
+- If integrated with external services, data handling may depend on those providers.
+
+## AI Features
+- Optional AI features may process task/project text you submit.
+- Do not submit sensitive personal or regulated data unless your deployment is configured for that use case.
+
+## Security
+- Access is controlled by account session state and role-based UI controls.
+- Demo mode is not intended for production-grade compliance requirements.
+
+## Your Choices
+- You can clear demo data using the app reset flow.
+- You can stop using AI features in settings.
+
+## Contact
+For privacy questions, use your organization’s support channel.

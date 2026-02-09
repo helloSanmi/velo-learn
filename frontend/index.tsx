@@ -1,8 +1,9 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './frontend/App';
-import { mockDataService } from './frontend/services/mockDataService';
+import App from './App';
+import { mockDataService } from './services/mockDataService';
+import AppErrorBoundary from './components/ui/AppErrorBoundary';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -21,7 +22,9 @@ const startApp = async () => {
 
   root.render(
     <React.StrictMode>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </React.StrictMode>
   );
 };

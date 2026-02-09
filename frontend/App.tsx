@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task, User, Project, TaskPriority, TaskStatus, MainViewType } from './types';
 import { userService } from './services/userService';
 import { projectService } from './services/projectService';
+import { taskService } from './services/taskService';
 import { workflowService } from './services/workflowService';
 import { useTasks } from './hooks/useTasks';
 import { mockDataService } from './services/mockDataService';
@@ -14,19 +15,28 @@ import AnalyticsView from './components/analytics/AnalyticsView';
 import RoadmapView from './components/RoadmapView';
 import AuthView from './components/AuthView';
 import LandingPage from './components/LandingPage';
+import PricingPage from './components/PricingPage';
+import SupportPage from './components/SupportPage';
 import PublicBoardView from './components/board/PublicBoardView';
 import SelectionActionBar from './components/board/SelectionActionBar';
 import Confetti from './components/ui/Confetti';
 import WorkflowBuilder from './components/WorkflowBuilder';
 import WorkloadView from './components/WorkloadView';
 import IntegrationHub from './components/IntegrationHub';
+import ProjectsLifecycleView from './components/ProjectsLifecycleView';
 import { SettingsTabType } from './components/SettingsModal';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [authView, setAuthView] = useState<'landing' | 'login' | 'register'>('landing');
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [user, setUser] = useState<User | null>(() => userService.getCurrentUser());
+  const [authView, setAuthView] = useState<'landing' | 'pricing' | 'support' | 'login' | 'register'>('landing');
+  const [allUsers, setAllUsers] = useState<User[]>(() => {
+    const current = userService.getCurrentUser();
+    return current ? userService.getUsers(current.orgId) : [];
+  });
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const current = userService.getCurrentUser();
+    return current ? projectService.getProjects(current.orgId) : [];
+  });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<MainViewType>('board');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -73,7 +83,7 @@ const App: React.FC = () => {
         if (proj) setPublicProject(proj);
     }
     const currentUser = userService.getCurrentUser();
-    if (currentUser && (!hash || !hash.startsWith('#public/'))) {
+    if (currentUser && !hash.startsWith('#public/')) {
       setUser(currentUser);
       setAllUsers(userService.getUsers(currentUser.orgId));
       setProjects(projectService.getProjects(currentUser.orgId));
@@ -101,7 +111,90 @@ const App: React.FC = () => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
+  const handleRenameProject = (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    projectService.renameProject(id, trimmed);
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p)));
+  };
+
+  const handleArchiveProject = (id: string) => {
+    projectService.archiveProject(id);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, isArchived: true, archivedAt: Date.now(), isCompleted: false, completedAt: undefined, isDeleted: false, deletedAt: undefined }
+          : p
+      )
+    );
+    if (activeProjectId === id) setActiveProjectId(null);
+    refreshTasks();
+  };
+
+  const handleCompleteProject = (id: string) => {
+    projectService.completeProject(id);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, isCompleted: true, completedAt: Date.now(), isArchived: false, archivedAt: undefined, isDeleted: false, deletedAt: undefined }
+          : p
+      )
+    );
+    if (activeProjectId === id) setActiveProjectId(null);
+    refreshTasks();
+  };
+
+  const handleReopenProject = (id: string) => {
+    projectService.reopenProject(id);
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, isCompleted: false, completedAt: undefined } : p)));
+    refreshTasks();
+  };
+
+  const handleRestoreProject = (id: string) => {
+    projectService.restoreProject(id);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              isArchived: false,
+              archivedAt: undefined,
+              isCompleted: false,
+              completedAt: undefined,
+              isDeleted: false,
+              deletedAt: undefined
+            }
+          : p
+      )
+    );
+    refreshTasks();
+  };
+
+  const handleDeleteProject = (id: string) => {
+    projectService.deleteProject(id);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, isDeleted: true, deletedAt: Date.now(), isArchived: false, archivedAt: undefined, isCompleted: false, completedAt: undefined }
+          : p
+      )
+    );
+    if (activeProjectId === id) setActiveProjectId(null);
+    setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
+    refreshTasks();
+  };
+
+  const handlePurgeProject = (id: string) => {
+    projectService.purgeProject(id);
+    taskService.deleteTasksByProject(user.id, user.orgId, id);
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    if (activeProjectId === id) setActiveProjectId(null);
+    setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
+    refreshTasks();
+  };
+
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [activeProjectId, projects]);
+  const allProjectTasks = useMemo(() => (user ? taskService.getAllTasksForOrg(user.orgId) : []), [user, tasks, projects]);
   const templates = useMemo(
     () =>
       workflowService
@@ -118,14 +211,65 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    if (authView === 'landing') return <LandingPage onGetStarted={() => setAuthView('register')} onLogin={() => setAuthView('login')} />;
-    return <AuthView onAuthSuccess={setUser} initialMode={authView as any} />;
+    if (authView === 'landing') {
+      return (
+        <LandingPage
+          onGetStarted={() => setAuthView('register')}
+          onLogin={() => setAuthView('login')}
+          onOpenPricing={() => setAuthView('pricing')}
+          onOpenSupport={() => setAuthView('support')}
+        />
+      );
+    }
+    if (authView === 'pricing') {
+      return (
+        <PricingPage
+          onBackToHome={() => setAuthView('landing')}
+          onOpenSupport={() => setAuthView('support')}
+          onSignIn={() => setAuthView('login')}
+          onGetStarted={() => setAuthView('register')}
+        />
+      );
+    }
+    if (authView === 'support') {
+      return (
+        <SupportPage
+          onBackToHome={() => setAuthView('landing')}
+          onOpenPricing={() => setAuthView('pricing')}
+          onSignIn={() => setAuthView('login')}
+          onGetStarted={() => setAuthView('register')}
+        />
+      );
+    }
+    return (
+      <AuthView
+        onAuthSuccess={setUser}
+        initialMode={authView as any}
+        onBackToHome={() => setAuthView('landing')}
+        onOpenPricing={() => setAuthView('pricing')}
+        onOpenSupport={() => setAuthView('support')}
+      />
+    );
   }
 
   const themeClass = settings.theme === 'Dark' ? 'dark-theme' : settings.theme === 'Aurora' ? 'aurora-theme' : '';
 
   const renderMainView = () => {
     switch (currentView) {
+      case 'projects':
+        return (
+          <ProjectsLifecycleView
+            projects={projects}
+            projectTasks={allProjectTasks}
+            onRenameProject={handleRenameProject}
+            onCompleteProject={handleCompleteProject}
+            onReopenProject={handleReopenProject}
+            onArchiveProject={handleArchiveProject}
+            onRestoreProject={handleRestoreProject}
+            onDeleteProject={handleDeleteProject}
+            onPurgeProject={handlePurgeProject}
+          />
+        );
       case 'analytics': return <AnalyticsView tasks={tasks} projects={projects} allUsers={allUsers} />;
       case 'roadmap': return <RoadmapView tasks={tasks} projects={projects} />;
       case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => updateTask(tid, { assigneeId: uid }, user.displayName)} />;
@@ -185,11 +329,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => setIsProjectModalOpen(true)}>
+    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => setIsProjectModalOpen(true)} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
       <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u }); setSelectedTaskIds([]); }} onBulkDelete={() => { if(confirm('Bulk delete?')) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
-      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
+      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
         handleAddProject={(n, d, c, m, tid, aiGeneratedTasks) => {
             const proj = projectService.createProject(user.orgId, n, d, c, m);
             setProjects([...projects, proj]);
@@ -205,7 +349,19 @@ const App: React.FC = () => {
         }}
         handleUpdateTask={(id, u) => { updateTask(id, u, user.displayName); if(selectedTask?.id === id) setSelectedTask({...selectedTask, ...u}); }}
         handleCommentOnTask={(id, t) => { const updated = addComment(id, t); if(updated) setSelectedTask(updated); }}
-        deleteTask={deleteTask} applyAISuggestions={applyAISuggestions} handleGeneratedTasks={(g) => g.forEach(x => createTask(x.title, x.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1'))} setActiveProjectId={setActiveProjectId} refreshTasks={refreshTasks}
+        deleteTask={deleteTask}
+        onToggleTimer={toggleTimer}
+        applyAISuggestions={applyAISuggestions}
+        handleGeneratedTasks={(g) => g.forEach(x => createTask(x.title, x.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1'))}
+        setActiveProjectId={setActiveProjectId}
+        refreshTasks={refreshTasks}
+        onRenameProject={handleRenameProject}
+        onCompleteProject={handleCompleteProject}
+        onReopenProject={handleReopenProject}
+        onArchiveProject={handleArchiveProject}
+        onRestoreProject={handleRestoreProject}
+        onDeleteProject={handleDeleteProject}
+        onPurgeProject={handlePurgeProject}
       />
     </WorkspaceLayout>
   );

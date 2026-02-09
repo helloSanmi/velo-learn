@@ -1,9 +1,0 @@
-[
-  { "id": "u-1", "username": "Alex Rivera", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex", "email": "alex@runa.ai" },
-  { "id": "u-2", "username": "Sarah Chen", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", "email": "sarah@runa.ai" },
-  { "id": "u-3", "username": "Michael Scott", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike", "email": "mike@runa.ai" },
-  { "id": "u-4", "username": "Elena Rodriguez", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Elena", "email": "elena@runa.ai" },
-  { "id": "u-5", "username": "James Wilson", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=James", "email": "james@runa.ai" },
-  { "id": "u-6", "username": "Sophia Lee", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia", "email": "sophia@runa.ai" },
-  { "id": "demo-user-uuid", "username": "Demo Admin", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin", "email": "admin@runa.ai" }
-]

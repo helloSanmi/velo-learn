@@ -21,10 +21,6 @@ const INITIAL_USERS = [
   { "id": "u-1", "orgId": DEFAULT_ORG_ID, "username": "alex", "displayName": "Alex Rivera", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex", "email": "alex@velo.ai", "role": "member" },
   { "id": "u-2", "orgId": DEFAULT_ORG_ID, "username": "sarah", "displayName": "Sarah Chen", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", "email": "sarah@velo.ai", "role": "member" },
   { "id": "u-3", "orgId": DEFAULT_ORG_ID, "username": "mike", "displayName": "Michael Scott", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike", "email": "mike@velo.ai", "role": "member" },
-  { "id": "u-4", "orgId": DEFAULT_ORG_ID, "username": "elena", "displayName": "Elena Rodriguez", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Elena", "email": "elena@velo.ai", "role": "member" },
-  { "id": "u-5", "orgId": DEFAULT_ORG_ID, "username": "jamal", "displayName": "Jamal Williams", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jamal", "email": "jamal@velo.ai", "role": "member" },
-  { "id": "u-6", "orgId": DEFAULT_ORG_ID, "username": "yuki", "displayName": "Yuki Tanaka", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Yuki", "email": "yuki@velo.ai", "role": "member" },
-  { "id": "u-7", "orgId": DEFAULT_ORG_ID, "username": "clara", "displayName": "Clara Oswald", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Clara", "email": "clara@velo.ai", "role": "member" },
   { "id": "demo-admin", "orgId": DEFAULT_ORG_ID, "username": "admin", "displayName": "System Admin", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin", "email": "admin@velo.ai", "role": "admin" }
 ];
 
@@ -35,7 +31,7 @@ const INITIAL_PROJECTS = [
     "name": "Product Roadmap 2025",
     "description": "Core product strategy and high-level feature development.",
     "color": "bg-indigo-600",
-    "members": ["u-1", "u-2", "u-3", "u-4", "u-5", "u-6", "u-7", "demo-admin"],
+    "members": ["u-1", "u-2", "u-3", "demo-admin"],
     "isPublic": false,
     "publicToken": "roadmap25"
   },
@@ -45,7 +41,7 @@ const INITIAL_PROJECTS = [
     "name": "Infrastructure Scaling",
     "description": "Kubernetes cluster expansion and global load balancing strategy.",
     "color": "bg-emerald-600",
-    "members": ["u-1", "u-5", "demo-admin"],
+    "members": ["u-1", "u-3", "demo-admin"],
     "isPublic": false,
     "publicToken": "infra-scale"
   },
@@ -55,7 +51,7 @@ const INITIAL_PROJECTS = [
     "name": "Z-Core Security",
     "description": "Zero-trust protocol implementation and hardware security key integration.",
     "color": "bg-rose-500",
-    "members": ["u-6", "u-1", "demo-admin"],
+    "members": ["u-2", "u-1", "demo-admin"],
     "isPublic": true,
     "publicToken": "z-core-sec"
   },
@@ -65,7 +61,7 @@ const INITIAL_PROJECTS = [
     "name": "UX Pulse UI",
     "description": "Next-generation design system and accessibility compliance audit.",
     "color": "bg-amber-500",
-    "members": ["u-2", "u-4", "u-7"],
+    "members": ["u-2", "u-3", "u-1", "demo-admin"],
     "isPublic": false,
     "publicToken": "ux-pulse"
   }
@@ -117,8 +113,8 @@ const INITIAL_TASKS = [
   {
     "id": "task-3",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-5",
-    "assigneeId": "u-5",
+    "userId": "u-3",
+    "assigneeId": "u-3",
     "projectId": "p2",
     "title": "K8s Multi-Region Cluster Deployment",
     "description": "Deploying the Velo Core nodes across EU-West and US-East regions for redundancy.",
@@ -139,8 +135,8 @@ const INITIAL_TASKS = [
   {
     "id": "task-4",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-6",
-    "assigneeId": "u-6",
+    "userId": "u-2",
+    "assigneeId": "u-2",
     "projectId": "p3",
     "title": "FIDO2 Hardware Key Protocol",
     "description": "Implementation of hardware-based authentication for administrative access nodes.",
@@ -160,7 +156,7 @@ const INITIAL_TASKS = [
     "id": "task-5",
     "orgId": DEFAULT_ORG_ID,
     "userId": "u-2",
-    "assigneeId": "u-7",
+    "assigneeId": "u-2",
     "projectId": "p4",
     "title": "Accessibility WCAG 2.1 Audit",
     "description": "Deep scan of the Velo dashboard for screen reader compliance and keyboard navigation focus traps.",
@@ -205,8 +201,8 @@ const INITIAL_TASKS = [
   {
     "id": "task-7",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-7",
-    "assigneeId": "u-4",
+    "userId": "u-2",
+    "assigneeId": "u-2",
     "projectId": "p4",
     "title": "Identity Node Avatar System",
     "description": "Switching to high-performance SVG generation for identity nodes.",
@@ -224,8 +220,8 @@ const INITIAL_TASKS = [
   {
     "id": "task-8",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-5",
-    "assigneeId": "u-5",
+    "userId": "u-3",
+    "assigneeId": "u-3",
     "projectId": "p2",
     "title": "Global Edge Caching Layer",
     "description": "Implementing Cloudflare Workers for metadata acceleration across the distributed fabric.",
@@ -243,8 +239,8 @@ const INITIAL_TASKS = [
   {
     "id": "task-9",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-6",
-    "assigneeId": "u-6",
+    "userId": "u-2",
+    "assigneeId": "u-2",
     "projectId": "p3",
     "title": "Velo Shield Encryption Upgrade",
     "description": "Upgrading current AES-256 implementation to post-quantum resistant standards.",
@@ -287,7 +283,7 @@ const INITIAL_TASKS = [
   {
     "id": "task-11",
     "orgId": DEFAULT_ORG_ID,
-    "userId": "u-4",
+    "userId": "u-2",
     "assigneeId": "u-1",
     "projectId": "p1",
     "title": "Telemetry Visualization Core",
@@ -307,7 +303,7 @@ const INITIAL_TASKS = [
     "id": "task-12",
     "orgId": DEFAULT_ORG_ID,
     "userId": "u-1",
-    "assigneeId": "u-5",
+    "assigneeId": "u-3",
     "projectId": "p2",
     "title": "PostgreSQL Migration Node 4",
     "description": "Shifting heavy audit logs to a dedicated high-performance partition.",
@@ -344,7 +340,8 @@ export const mockDataService = {
         localStorage.setItem(TASKS_KEY, JSON.stringify(INITIAL_TASKS));
       }
       if (!localStorage.getItem(SESSION_KEY)) {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(INITIAL_USERS[7])); // Start as Admin
+        const adminUser = INITIAL_USERS.find((u) => u.username === 'admin') || INITIAL_USERS[0];
+        localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
       }
     } catch (error) {
       console.error('Failed to initialize Velo cluster data:', error);

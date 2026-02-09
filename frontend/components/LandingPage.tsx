@@ -1,120 +1,182 @@
-import React from 'react';
-import { ArrowRight, CheckCircle2, Cloud, Layers3, Sparkles, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, Globe } from 'lucide-react';
 import Button from './ui/Button';
 
 interface LandingPageProps {
   onGetStarted: () => void;
   onLogin: () => void;
+  onOpenPricing: () => void;
+  onOpenSupport: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin }) => {
-  const featureCards = [
-    {
-      title: 'Focused board',
-      description: 'Keep priorities obvious with clear status lanes and less visual noise.',
-      icon: <Layers3 className="w-4 h-4" />
-    },
-    {
-      title: 'Team clarity',
-      description: 'See ownership, deadlines, and progress in one place across projects.',
-      icon: <Users className="w-4 h-4" />
-    },
-    {
-      title: 'Smart support',
-      description: 'Use AI tools when helpful without bloating your day-to-day workflow.',
-      icon: <Sparkles className="w-4 h-4" />
-    }
-  ];
+const megaColumns = [
+  { title: 'Platform', links: ['Workspace overview', 'Board and roadmap', 'Analytics', 'Automation', 'Integrations', 'Security'] },
+  { title: 'Use cases', links: ['Product launches', 'Campaign operations', 'Strategic planning', 'Cross-team execution', 'Project intake', 'Resource planning'] },
+  { title: 'Solutions', links: ['Small teams', 'Operations leaders', 'Product organizations', 'Marketing teams', 'PMO offices', 'Enterprise'] },
+  { title: 'Resources', links: ['Help center', 'Implementation guide', 'Support', 'Template gallery', 'Webinars', 'Developer docs'] },
+  { title: 'Company', links: ['About Velo', 'Customers', 'Careers', 'Trust and privacy', 'Terms', 'Contact'] }
+];
 
-  const trustPoints = [
-    'Professional layout with minimal noise',
-    'Clear ownership and delivery tracking',
-    'Fast setup for individuals and teams'
-  ];
+const useCaseCards = [
+  ['Campaign management', 'Plan, approve, and ship campaigns with clearer handoffs and status.'],
+  ['Creative production', 'Coordinate briefs, reviews, and final delivery across teams.'],
+  ['Project intake', 'Capture requests, prioritize quickly, and assign ownership with context.'],
+  ['Product launches', 'Align product, engineering, marketing, and operations on release readiness.']
+];
+
+const footerLinks = ['Platform', 'Pricing', 'Support', 'Templates', 'Privacy', 'Terms'];
+
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpenPricing, onOpenSupport }) => {
+  const [megaOpen, setMegaOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.10),transparent_42%),radial-gradient(circle_at_0%_35%,_rgba(14,165,233,0.08),transparent_36%)]" />
+    <div className="min-h-screen bg-[#efefef] text-slate-900">
+      <header className="sticky top-0 z-30 border-b border-slate-300 bg-white">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 md:px-6">
+          <div className="flex items-center gap-6">
+            <button className="text-3xl font-bold tracking-tight text-[#6f093f]">velo</button>
+            <nav className="hidden items-center gap-6 text-[15px] text-slate-700 md:flex">
+              <button onMouseEnter={() => setMegaOpen(true)} className="inline-flex items-center gap-1 hover:text-slate-900">
+                Product <ChevronDown className="h-4 w-4" />
+              </button>
+              <button className="inline-flex items-center gap-1 hover:text-slate-900">
+                Solutions <ChevronDown className="h-4 w-4" />
+              </button>
+              <button onClick={onOpenSupport} className="inline-flex items-center gap-1 hover:text-slate-900">
+                Learning & support <ChevronDown className="h-4 w-4" />
+              </button>
+              <button onClick={onOpenPricing} className="hover:text-slate-900">Pricing</button>
+            </nav>
+          </div>
 
-      <div className="relative z-10">
-        <header className="border-b border-slate-200 bg-white/95 backdrop-blur-md">
-          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-slate-900 text-white">
-                <Cloud className="w-4 h-4" />
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">
-                Velo<span className="text-indigo-600">.</span>
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={onLogin}>Sign in</Button>
-              <Button variant="primary" size="sm" onClick={onGetStarted}>Get started</Button>
+          <div className="flex items-center gap-2">
+            <button className="hidden items-center gap-2 text-[15px] text-slate-700 md:inline-flex">
+              <Globe className="h-4 w-4" /> Contact sales
+            </button>
+            <Button variant="ghost" size="sm" onClick={onLogin}>Log in</Button>
+            <Button size="sm" onClick={onGetStarted} className="rounded-full bg-black px-5 text-white hover:bg-slate-900">Get started</Button>
+          </div>
+        </div>
+
+        {megaOpen ? (
+          <div onMouseLeave={() => setMegaOpen(false)} className="border-t border-slate-200 bg-[#410327] text-white">
+            <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-6 py-8 md:grid-cols-5">
+              {megaColumns.map((column) => (
+                <div key={column.title}>
+                  <p className="text-sm font-semibold text-white/95">{column.title}</p>
+                  <ul className="mt-3 space-y-2.5 text-sm text-white/80">
+                    {column.links.map((link) => (
+                      <li key={link}>
+                        <button className="text-left hover:text-white">{link}</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
-        </header>
+        ) : null}
+      </header>
 
-        <main className="max-w-6xl mx-auto px-6 py-12 md:py-16 space-y-8 md:space-y-10">
-          <section className="grid lg:grid-cols-[1.1fr_0.9fr] gap-5 md:gap-6 items-stretch">
-            <article className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 lg:p-10 shadow-sm">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium">
-                <Sparkles className="w-3.5 h-3.5" />
-                Built for focused execution
+      <main>
+        <section className="bg-[#76003f] px-5 pb-9 pt-9 text-center text-white md:px-6 md:pb-12 md:pt-12">
+          <div className="mx-auto max-w-[1120px]">
+            <h1 className="mx-auto max-w-[920px] text-[34px] font-semibold leading-[1.02] tracking-tight sm:text-[42px] md:text-[52px] lg:text-[60px]">
+              All your project work, all in one place
+            </h1>
+            <p className="mx-auto mt-4 max-w-[760px] text-[16px] leading-snug text-white/90 md:text-[20px]">
+              Bring teams and AI together to plan, execute, and report with less operational noise.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <Button onClick={onGetStarted} className="h-11 rounded-full bg-[#f5e8ec] px-6 text-[#76003f] hover:bg-[#f7eff2] md:h-12 md:px-8 md:text-[16px]">Get started</Button>
+              <Button variant="outline" onClick={onOpenSupport} className="h-11 rounded-full border-white/50 bg-transparent px-6 text-white hover:bg-white/10 md:h-12 md:px-8 md:text-[16px]">View demo</Button>
+            </div>
+
+            <div className="mt-8 rounded-[28px] border border-white/15 bg-white/10 p-4 md:mt-10 md:p-5">
+              <div className="rounded-[20px] bg-white p-4 text-left text-slate-900 md:p-5">
+                <p className="text-[17px] font-semibold md:text-[20px]">Velo annual planning workspace</p>
+                <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 p-3 text-[13px] md:text-[15px]">Goals by status: 35</div>
+                  <div className="rounded-lg border border-slate-200 p-3 text-[13px] md:text-[15px]">Stakeholder review due this week</div>
+                  <div className="rounded-lg border border-slate-200 p-3 text-[13px] md:text-[15px]">Generate status update with AI</div>
+                </div>
               </div>
+            </div>
+          </div>
+        </section>
 
-              <h2 className="mt-5 text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight text-slate-900">
-                Project management
-                <span className="block text-slate-700">that stays clear and simple.</span>
-              </h2>
-
-              <p className="mt-4 text-slate-600 text-base leading-relaxed max-w-2xl">
-                Velo keeps planning, delivery, and team coordination in one calm workspace with practical defaults and professional structure.
+        <section className="px-5 py-9 md:px-6 md:py-10">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid items-center gap-5 md:grid-cols-[1.1fr_1.9fr]">
+              <p className="text-[24px] font-semibold leading-tight tracking-tight text-slate-900 md:text-[32px]">
+                85% of Fortune 100 companies choose structured execution platforms
               </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Button size="lg" onClick={onGetStarted}>
-                  Start workspace <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-                <Button size="lg" variant="outline" onClick={onLogin}>
-                  Continue to sign in
-                </Button>
+              <div className="grid grid-cols-2 gap-2 text-center text-[16px] font-semibold text-slate-700 md:grid-cols-5 md:text-[18px]">
+                {['Amazon', 'Accenture', 'J&J', 'Dell', 'Merck'].map((logo) => (
+                  <div key={logo} className="rounded-lg border border-slate-300 bg-white px-2 py-4">{logo}</div>
+                ))}
               </div>
-            </article>
+            </div>
+          </div>
+        </section>
 
-            <aside className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col justify-between">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-slate-900">Why teams choose Velo</h3>
-                <div className="mt-4 space-y-3">
-                  {trustPoints.map((point) => (
-                    <div key={point} className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600" />
-                      <p className="text-sm text-slate-700">{point}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        <section className="px-5 py-2 md:px-6">
+          <div className="mx-auto max-w-7xl rounded-3xl bg-[#efdce3] p-6 md:p-8">
+            <div className="max-w-4xl">
+              <h2 className="text-[30px] font-semibold leading-[1] tracking-tight text-[#76003f] md:text-[40px]">
+                Build your most reliable delivery year
+              </h2>
+              <p className="mt-3 text-[18px] leading-relaxed text-[#76003f]/90 md:text-[22px]">
+                Set measurable goals, standardize project flow, and use AI to keep execution on track.
+              </p>
+              <Button onClick={onGetStarted} className="mt-6 rounded-full bg-[#76003f] px-7 py-3 text-white hover:bg-[#640035] md:text-[16px]">Get started</Button>
+            </div>
+          </div>
+        </section>
 
-              <div className="mt-6 border border-slate-200 rounded-2xl p-4 bg-slate-50">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Typical setup time</p>
-                <p className="text-2xl font-semibold mt-1 text-slate-900">Under 10 minutes</p>
-                <p className="text-xs text-slate-500 mt-1">Create your workspace, first project, and invite collaborators.</p>
-              </div>
-            </aside>
-          </section>
+        <section className="px-5 pb-12 pt-10 md:px-6 md:pt-12">
+          <div className="mx-auto max-w-7xl">
+            <h2 className="max-w-5xl text-[32px] font-semibold leading-[1] tracking-tight text-slate-900 md:text-[44px]">
+              See how Velo keeps delivery moving across use cases
+            </h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {useCaseCards.map(([title, body]) => (
+                <article key={title} className="rounded-2xl border border-slate-300 bg-white p-6">
+                  <p className="text-[24px] font-semibold leading-tight tracking-tight text-slate-900 md:text-[28px]">{title}</p>
+                  <p className="mt-3 text-[16px] leading-relaxed text-slate-600 md:text-[18px]">{body}</p>
+                  <button className="mt-6 text-[16px] font-semibold text-slate-900 hover:text-[#76003f] md:text-[18px]">
+                    See {title.toLowerCase()} →
+                  </button>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
 
-          <section className="grid md:grid-cols-3 gap-3 md:gap-4">
-            {featureCards.map((card) => (
-              <article key={card.title} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center">
-                  {card.icon}
-                </div>
-                <h3 className="mt-3 text-sm font-semibold text-slate-900">{card.title}</h3>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">{card.description}</p>
-              </article>
+      <footer className="border-t border-slate-300 bg-[#1b0a14] text-white">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xl font-bold tracking-tight">Velo</p>
+            <p className="mt-1 text-sm text-white/70">Project operations for focused teams.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/75">
+            {footerLinks.map((link) => (
+              <button key={link} className="hover:text-white">{link}</button>
             ))}
-          </section>
-        </main>
-      </div>
+            <button onClick={onOpenSupport} className="hover:text-white">Contact</button>
+          </div>
+        </div>
+        <div className="border-t border-white/10">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3 text-xs text-white/60">
+            <p>© {new Date().getFullYear()} Velo</p>
+            <div className="flex items-center gap-3">
+              <a href="/PRIVACY_POLICY.md" target="_blank" rel="noreferrer" className="hover:text-white">Privacy</a>
+              <a href="/TERMS_OF_SERVICE.md" target="_blank" rel="noreferrer" className="hover:text-white">Terms</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

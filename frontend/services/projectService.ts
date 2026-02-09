@@ -20,12 +20,19 @@ export const projectService = {
 
   getProjectByToken: (token: string): Project | undefined => {
     const all = projectService.getProjects();
-    return all.find(p => p.publicToken === token && p.isPublic);
+    return all.find(p => p.publicToken === token && p.isPublic && !p.isArchived && !p.isCompleted && !p.isDeleted);
   },
 
   getProjectsForUser: (userId: string, orgId: string): Project[] => {
     const projects = projectService.getProjects(orgId);
-    return projects.filter(p => p.members && p.members.includes(userId));
+    return projects.filter(
+      p =>
+        p.members &&
+        p.members.includes(userId) &&
+        !p.isArchived &&
+        !p.isCompleted &&
+        !p.isDeleted
+    );
   },
 
   createProject: (orgId: string, name: string, description: string, color: string, members: string[]): Project => {
@@ -37,6 +44,9 @@ export const projectService = {
       description,
       color,
       members,
+      isArchived: false,
+      isCompleted: false,
+      isDeleted: false,
       isPublic: false,
       publicToken: crypto.randomUUID().slice(0, 8)
     };
@@ -63,9 +73,66 @@ export const projectService = {
       p.id === id ? { ...p, ...updates } : p
     );
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    return projects.find((p) => p.id === id);
+  },
+
+  renameProject: (id: string, name: string): Project | undefined => {
+    return projectService.updateProject(id, { name: name.trim() });
+  },
+
+  archiveProject: (id: string): Project | undefined => {
+    return projectService.updateProject(id, {
+      isArchived: true,
+      archivedAt: Date.now(),
+      isCompleted: false,
+      completedAt: undefined,
+      isDeleted: false,
+      deletedAt: undefined
+    });
+  },
+
+  unarchiveProject: (id: string): Project | undefined => {
+    return projectService.updateProject(id, { isArchived: false, archivedAt: undefined });
+  },
+
+  completeProject: (id: string): Project | undefined => {
+    return projectService.updateProject(id, {
+      isCompleted: true,
+      completedAt: Date.now(),
+      isArchived: false,
+      archivedAt: undefined,
+      isDeleted: false,
+      deletedAt: undefined
+    });
+  },
+
+  reopenProject: (id: string): Project | undefined => {
+    return projectService.updateProject(id, { isCompleted: false, completedAt: undefined });
+  },
+
+  restoreProject: (id: string): Project | undefined => {
+    return projectService.updateProject(id, {
+      isArchived: false,
+      archivedAt: undefined,
+      isCompleted: false,
+      completedAt: undefined,
+      isDeleted: false,
+      deletedAt: undefined
+    });
   },
 
   deleteProject: (id: string) => {
+    return projectService.updateProject(id, {
+      isDeleted: true,
+      deletedAt: Date.now(),
+      isArchived: false,
+      archivedAt: undefined,
+      isCompleted: false,
+      completedAt: undefined
+    });
+  },
+
+  purgeProject: (id: string) => {
     const projects = projectService.getProjects().filter(p => p.id !== id);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
   }

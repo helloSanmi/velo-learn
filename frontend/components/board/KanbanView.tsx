@@ -87,51 +87,55 @@ const KanbanView: React.FC<KanbanViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
-      <FilterBar
-        statusFilter={statusFilter}
-        priorityFilter={priorityFilter}
-        tagFilter={tagFilter}
-        assigneeFilter={assigneeFilter}
-        uniqueTags={uniqueTags}
-        allUsers={allUsers}
-        onStatusChange={setStatusFilter}
-        onPriorityChange={setPriorityFilter}
-        onTagChange={setTagFilter}
-        onAssigneeChange={setAssigneeFilter}
-      />
-
-      <div className={`flex-none px-4 md:px-8 ${compactMode ? 'pt-3 pb-2' : 'pt-4 pb-3'}`}>
-        <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`flex-none px-4 md:px-8 ${compactMode ? 'pt-2 pb-2' : 'pt-2 pb-2.5'}`}>
+        <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-2.5">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-2.5">
             <div>
-              <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-slate-900">
+              <h2 className="text-base md:text-lg font-semibold tracking-tight text-slate-900">
                 {activeProject ? activeProject.name : 'All Projects'}
               </h2>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-[11px] text-slate-600 mt-0.5">
                 {totals.total} tasks • {totals.todo} to do • {totals.inProgress} in progress • {totals.done} done
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {activeProject && (
-                <button
-                  onClick={handleOptimizeOrder}
-                  disabled={isTriaging}
-                  className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-sm font-medium text-slate-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
-                >
-                  {isTriaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListOrdered className="w-4 h-4" />}
-                  Optimize To Do
-                </button>
-              )}
+            <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:items-end">
+              <FilterBar
+                embedded
+                compact
+                statusFilter={statusFilter}
+                priorityFilter={priorityFilter}
+                tagFilter={tagFilter}
+                assigneeFilter={assigneeFilter}
+                uniqueTags={uniqueTags}
+                allUsers={allUsers}
+                onStatusChange={setStatusFilter}
+                onPriorityChange={setPriorityFilter}
+                onTagChange={setTagFilter}
+                onAssigneeChange={setAssigneeFilter}
+              />
 
-              {selectedTaskIds.length > 0 && (
-                <div className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 inline-flex items-center gap-2">
-                  <span className="text-sm text-slate-700">{selectedTaskIds.length} selected</span>
-                  <button onClick={() => setSelectedTaskIds([])} className="p-0.5 rounded hover:bg-slate-200">
-                    <X className="w-4 h-4 text-slate-500" />
+              <div className="flex items-center gap-1.5">
+                {activeProject && (
+                  <button
+                    onClick={handleOptimizeOrder}
+                    disabled={isTriaging}
+                    className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+                  >
+                    {isTriaging ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListOrdered className="w-3 h-3" />}
+                    Optimize To Do
                   </button>
-                </div>
-              )}
+                )}
+
+                {selectedTaskIds.length > 0 && (
+                  <div className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 inline-flex items-center gap-1">
+                    <span className="text-[11px] text-slate-700">{selectedTaskIds.length} selected</span>
+                    <button onClick={() => setSelectedTaskIds([])} className="p-0.5 rounded hover:bg-slate-200">
+                      <X className="w-3 h-3 text-slate-500" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

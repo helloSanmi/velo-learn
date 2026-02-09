@@ -61,7 +61,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
+    <div className="bg-[#f7f3f6] p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -77,7 +77,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
         {suggestions && suggestions.length > 0 && (
           <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold">AI Suggestions</h3>
-            <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-3">
               {suggestions.map((s, idx) => {
                 const task = tasks.find((t) => t.id === s.taskId);
                 const from = users.find((u) => u.id === s.fromUserId);
@@ -127,47 +127,45 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
               No team members match these filters.
             </div>
           ) : (
-            <div className="max-h-[56vh] overflow-y-auto custom-scrollbar pr-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredUserStats.map((u) => (
-                  <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img src={u.avatar} className="w-10 h-10 rounded-xl border border-slate-200" alt={u.displayName} />
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-slate-900 truncate">{u.displayName}</h3>
-                          <p className="text-xs text-slate-500 capitalize">{u.role || 'member'}</p>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredUserStats.map((u) => (
+                <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img src={u.avatar} className="w-10 h-10 rounded-xl border border-slate-200" alt={u.displayName} />
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-slate-900 truncate">{u.displayName}</h3>
+                        <p className="text-xs text-slate-500 capitalize">{u.role || 'member'}</p>
                       </div>
-                      <Badge variant={u.status === 'High' ? 'rose' : u.status === 'Medium' ? 'amber' : 'emerald'}>{u.status} load</Badge>
                     </div>
+                    <Badge variant={u.status === 'High' ? 'rose' : u.status === 'Medium' ? 'amber' : 'emerald'}>{u.status} load</Badge>
+                  </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-slate-500">
-                        <span>Active</span>
-                        <span>{u.load}</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${u.status === 'High' ? 'bg-rose-500' : u.status === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${Math.min(u.load * 16, 100)}%` }}
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>Active</span>
+                      <span>{u.load}</span>
                     </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${u.status === 'High' ? 'bg-rose-500' : u.status === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${Math.min(u.load * 16, 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="border border-slate-200 rounded-lg py-2">
-                        <p className="text-sm font-semibold text-slate-900">{u.done}</p>
-                        <p className="text-[11px] text-slate-500">Done</p>
-                      </div>
-                      <div className="border border-slate-200 rounded-lg py-2">
-                        <p className="text-sm font-semibold text-slate-900">{u.highCount}</p>
-                        <p className="text-[11px] text-slate-500">High Priority</p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div className="border border-slate-200 rounded-lg py-2">
+                      <p className="text-sm font-semibold text-slate-900">{u.done}</p>
+                      <p className="text-[11px] text-slate-500">Done</p>
                     </div>
-                  </article>
-                ))}
-              </div>
+                    <div className="border border-slate-200 rounded-lg py-2">
+                      <p className="text-sm font-semibold text-slate-900">{u.highCount}</p>
+                      <p className="text-[11px] text-slate-500">High Priority</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>

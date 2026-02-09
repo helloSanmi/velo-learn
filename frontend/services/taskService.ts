@@ -8,10 +8,39 @@ import { userService } from './userService';
 const STORAGE_KEY = 'velo_data';
 
 export const taskService = {
+  getAllTasksForOrg: (orgId: string): Task[] => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      const allTasks: Task[] = data ? JSON.parse(data) : [];
+      return allTasks
+        .filter((t) => t.orgId === orgId)
+        .map((t) => ({
+          ...t,
+          comments: t.comments || [],
+          auditLog: t.auditLog || [],
+          subtasks: t.subtasks || [],
+          tags: t.tags || [],
+          timeLogged: t.timeLogged || 0,
+          blockedByIds: t.blockedByIds || []
+        }))
+        .sort((a, b) => a.order - b.order);
+    } catch (e) {
+      console.error('Error fetching all org tasks:', e);
+      return [];
+    }
+  },
+
   getTasks: (userId: string, orgId: string): Task[] => {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       const allTasks: Task[] = data ? JSON.parse(data) : [];
+      const activeProjectIds = new Set(
+        projectService
+          .getProjects(orgId)
+          .filter((p) => !p.isArchived && !p.isCompleted && !p.isDeleted)
+          .map((p) => p.id)
+      );
+      activeProjectIds.add('general');
       const allUsers = userService.getUsers(orgId);
       const currentUser = allUsers.find(u => u.id === userId);
       const isAdmin = currentUser?.role === 'admin';
@@ -19,14 +48,11 @@ export const taskService = {
       const userProjectIds = userProjects.map(p => p.id);
       
       return allTasks
-        .filter(t => 
-          t.orgId === orgId && (
-            isAdmin ||
-            t.userId === userId || 
-            t.assigneeId === userId || 
-            userProjectIds.includes(t.projectId) ||
-            t.projectId === 'general'
-          )
+        .filter(
+          (t) =>
+            t.orgId === orgId &&
+            activeProjectIds.has(t.projectId) &&
+            (isAdmin || t.userId === userId || t.assigneeId === userId || userProjectIds.includes(t.projectId) || t.projectId === 'general')
         )
         .map(t => ({
           ...t,
@@ -198,6 +224,14 @@ export const taskService = {
     const allTasksStr = localStorage.getItem(STORAGE_KEY);
     const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
     const updated = allTasks.filter(t => t.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    return taskService.getTasks(userId, orgId);
+  },
+
+  deleteTasksByProject: (userId: string, orgId: string, projectId: string): Task[] => {
+    const allTasksStr = localStorage.getItem(STORAGE_KEY);
+    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const updated = allTasks.filter((t) => t.projectId !== projectId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     return taskService.getTasks(userId, orgId);
   },

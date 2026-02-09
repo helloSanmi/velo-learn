@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Clock, Lock, Sparkles, Trash2 } from 'lucide-react';
+import { Clock, Lock, Pause, Play, Sparkles, Trash2 } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus } from '../types';
 import Badge from './ui/Badge';
 import { projectService } from '../services/projectService';
@@ -25,6 +25,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onDelete,
   onAIAssist,
   onSelect,
+  onToggleTimer,
   readOnly = false
 }) => {
   const [settings, setSettings] = useState(settingsService.getSettings());
@@ -71,6 +72,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const minutes = Math.floor(totalMs / 60000);
   const hours = Math.floor(minutes / 60);
   const formattedTime = hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+  const isTimerActive = !!task.isTimerRunning;
 
   const isBlocked = (task.blockedByIds?.length || 0) > 0;
   const isCompact = settings.compactMode;
@@ -98,20 +100,20 @@ const TaskItem: React.FC<TaskItemProps> = ({
         onSelect(task);
       }}
       data-task-id={task.id}
-      className={`group border rounded-xl bg-white p-3.5 cursor-pointer transition-all ${
-        isSelected ? 'border-slate-900 ring-2 ring-slate-200' : 'border-slate-200 hover:border-slate-300'
+      className={`group border rounded-lg bg-white p-3 cursor-pointer transition-all ${
+        isSelected ? 'border-slate-700 ring-1 ring-slate-300' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
       } ${isBlocked ? 'bg-slate-50' : ''}`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2.5 min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           <Badge variant={priorityVariants[task.priority]}>{task.priority}</Badge>
           {project && (
-            <span className="text-[11px] px-2 py-0.5 rounded-md border border-slate-200 text-slate-600 bg-slate-50 max-w-[140px] truncate">
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 bg-slate-50 max-w-[140px] truncate">
               {project.name}
             </span>
           )}
           {isBlocked && (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-rose-100 bg-rose-50 text-rose-700">
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-100 bg-rose-50 text-rose-700">
               <Lock className="w-3 h-3" /> Blocked
             </span>
           )}
@@ -145,33 +147,53 @@ const TaskItem: React.FC<TaskItemProps> = ({
         )}
       </div>
 
-      <h4 className={`text-sm font-medium text-slate-900 leading-snug ${isCompact ? '' : 'mb-1.5'}`}>{task.title}</h4>
+      <h4 className={`text-sm font-medium text-slate-900 leading-snug ${isCompact ? '' : 'mb-1'}`}>{task.title}</h4>
 
       {!isCompact && task.description && (
-        <p className="text-xs text-slate-600 line-clamp-2 mb-2.5">{task.description}</p>
+        <p className="text-xs text-slate-600 line-clamp-2 mb-2">{task.description}</p>
       )}
 
-      <div className="flex items-center justify-between gap-2 mt-2 min-w-0">
+      <div className="flex items-center justify-between gap-2 mt-1.5 min-w-0">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {task.tags?.slice(0, 2).map((tag) => (
-            <span key={tag} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-600">
+            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-600">
               {tag}
             </span>
           ))}
-          {totalMs > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+          {(totalMs > 0 || isTimerActive) && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-slate-600">
               <Clock className="w-3 h-3" /> {formattedTime}
             </span>
           )}
         </div>
 
-        {assignee && (
-          <img
-            src={assignee.avatar}
-            alt={assignee.displayName}
-            className="w-6 h-6 rounded-md border border-slate-200"
-          />
-        )}
+        <div className="flex items-center gap-1.5">
+          {!readOnly && onToggleTimer && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleTimer(task.id);
+              }}
+              className={`h-6 px-1.5 rounded-md border text-[10px] font-medium inline-flex items-center gap-1 transition-colors ${
+                isTimerActive
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title={isTimerActive ? 'Stop timer' : 'Start timer'}
+            >
+              {isTimerActive ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              {isTimerActive ? 'Stop' : 'Start'}
+            </button>
+          )}
+
+          {assignee && (
+            <img
+              src={assignee.avatar}
+              alt={assignee.displayName}
+              className="w-6 h-6 rounded-lg border border-slate-200"
+            />
+          )}
+        </div>
       </div>
     </article>
   );

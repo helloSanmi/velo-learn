@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // Fix: Added missing 'CheckSquare' to lucide-react imports
-import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTriangle, CheckCircle2, ListChecks, MessageSquare, Clock, Trash2, Plus, Check, Zap, Terminal, Link2, Lock, ShieldCheck, CheckSquare } from 'lucide-react';
+import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTriangle, CheckCircle2, ListChecks, MessageSquare, Clock, Trash2, Plus, Check, Zap, Terminal, Link2, Lock, ShieldCheck, CheckSquare, Search, Play, Pause } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, User, Subtask } from '../types';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
@@ -16,12 +16,13 @@ interface TaskDetailModalProps {
   onDelete: (id: string) => void;
   currentUser?: User;
   aiEnabled?: boolean;
+  onToggleTimer?: (id: string) => void;
 }
 
 type TabType = 'general' | 'subtasks' | 'comments' | 'dependencies' | 'activity';
 
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ 
-  task, tasks, onClose, onUpdate, onAddComment, onDelete, currentUser, aiEnabled = true 
+  task, tasks, onClose, onUpdate, onAddComment, onDelete, currentUser, aiEnabled = true, onToggleTimer
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isEditing, setIsEditing] = useState(false);
@@ -36,6 +37,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState('');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [dependencyQuery, setDependencyQuery] = useState('');
+  const [manualHours, setManualHours] = useState('');
+  const [manualMinutes, setManualMinutes] = useState('');
+  const [manualTimeError, setManualTimeError] = useState('');
+  const [elapsed, setElapsed] = useState(0);
 
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const allUsers = userService.getUsers(currentUser?.orgId);
@@ -54,14 +60,28 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setStatus(task.status);
       setAssigneeId(task.assigneeId || '');
       setRiskAssessment(task.isAtRisk ? { isAtRisk: true, reason: "Health scan previously flagged this node." } : null);
+      setDependencyQuery('');
     }
   }, [task]);
+
+  useEffect(() => {
+    let interval: any;
+    if (task?.isTimerRunning && task.timerStartedAt) {
+      interval = setInterval(() => {
+        setElapsed(Date.now() - task.timerStartedAt);
+      }, 1000);
+    } else {
+      setElapsed(0);
+    }
+    return () => clearInterval(interval);
+  }, [task?.isTimerRunning, task?.timerStartedAt]);
 
   const potentialDependencies = useMemo(() => {
     return tasks.filter(t => t.id !== task?.id && t.projectId === task?.projectId);
   }, [tasks, task]);
 
   if (!task) return null;
+  const totalTrackedMs = (task.timeLogged || 0) + elapsed;
 
   const handleToggleDependency = (depId: string) => {
     const currentDeps = task.blockedByIds || [];
@@ -91,35 +111,169 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  const handleAddSubtask = (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = newSubtaskTitle.trim();
+    if (!value) return;
+    const nextSubtasks: Subtask[] = [
+      ...(task.subtasks || []),
+      { id: `sub-${Date.now()}`, title: value, isCompleted: false }
+    ];
+    onUpdate(task.id, { subtasks: nextSubtasks });
+    setNewSubtaskTitle('');
+  };
+
+  const handleToggleSubtask = (subtaskId: string) => {
+    const nextSubtasks = (task.subtasks || []).map((subtask) =>
+      subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask
+    );
+    onUpdate(task.id, { subtasks: nextSubtasks });
+  };
+
+  const handleRemoveSubtask = (subtaskId: string) => {
+    const nextSubtasks = (task.subtasks || []).filter((subtask) => subtask.id !== subtaskId);
+    onUpdate(task.id, { subtasks: nextSubtasks });
+  };
+
+  const addManualTime = (minutesToAdd?: number) => {
+    const computedMinutes =
+      minutesToAdd ??
+      (Number(manualHours || 0) * 60 + Number(manualMinutes || 0));
+
+    if (!Number.isFinite(computedMinutes) || computedMinutes <= 0) {
+      setManualTimeError('Enter hours or minutes greater than zero.');
+      return;
+    }
+
+    onUpdate(task.id, { timeLogged: (task.timeLogged || 0) + Math.round(computedMinutes) * 60000 });
+    setManualHours('');
+    setManualMinutes('');
+    setManualTimeError('');
+  };
+
+  const formatTrackedTime = (ms: number) => {
+    const totalMinutes = Math.floor((ms || 0) / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours === 0) return `${minutes}m`;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h ${minutes}m`;
+  };
+
+  const runAIAudit = async () => {
+    if (!aiEnabled) return;
+    setIsAIThinking(true);
+    const assessment = await aiService.predictRisk(task);
+    setRiskAssessment(assessment);
+    onUpdate(task.id, { isAtRisk: assessment.isAtRisk });
+    setIsAIThinking(false);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
         return (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-3">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignee</h4>
-                  <select 
-                    value={assigneeId}
-                    onChange={(e) => {
-                      const newId = e.target.value;
-                      setAssigneeId(newId);
-                      onUpdate(task.id, { assigneeId: newId || undefined });
-                    }}
-                    className="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {allUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.displayName}</option>
-                    ))}
-                  </select>
-               </div>
-               <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col gap-3">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Time Tracked</h4>
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-black bg-white border-slate-200 text-emerald-600">
-                    <Clock className="w-4 h-4" /> {Math.floor((task.timeLogged || 0) / 60000)} Minutes Logged
+            <div className={`grid grid-cols-1 ${aiEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignee</h4>
+                <select
+                  value={assigneeId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setAssigneeId(newId);
+                    onUpdate(task.id, { assigneeId: newId || undefined });
+                  }}
+                  className="h-9 bg-white border border-slate-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-300 appearance-none cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  {allUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.displayName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Time Tracked</h4>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Clock className="w-3.5 h-3.5" />
+                    <p className="text-sm font-semibold">Total tracked</p>
                   </div>
-               </div>
+                  <p className="mt-1 text-xl font-bold text-emerald-800">{formatTrackedTime(totalTrackedMs)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleTimer?.(task.id)}
+                  className={`h-8 rounded-lg border px-2.5 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors ${
+                    task.isTimerRunning
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {task.isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  {task.isTimerRunning ? 'Stop timer' : 'Start timer'}
+                </button>
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <label className="h-9 px-2 rounded-lg border border-slate-300 bg-white flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={manualHours}
+                      onChange={(e) => {
+                        setManualHours(e.target.value);
+                        if (manualTimeError) setManualTimeError('');
+                      }}
+                      placeholder="0"
+                      className="w-full bg-transparent text-xs outline-none"
+                    />
+                    <span className="text-[11px] text-slate-500">h</span>
+                  </label>
+                  <label className="h-9 px-2 rounded-lg border border-slate-300 bg-white flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={manualMinutes}
+                      onChange={(e) => {
+                        setManualMinutes(e.target.value);
+                        if (manualTimeError) setManualTimeError('');
+                      }}
+                      placeholder="0"
+                      className="w-full bg-transparent text-xs outline-none"
+                    />
+                    <span className="text-[11px] text-slate-500">m</span>
+                  </label>
+                  <Button type="button" variant="secondary" className="h-9 px-2.5 text-xs" onClick={() => addManualTime()}>
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                  </Button>
+                </div>
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={() => addManualTime(15)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+15m</button>
+                  <button type="button" onClick={() => addManualTime(30)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+30m</button>
+                  <button type="button" onClick={() => addManualTime(60)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+1h</button>
+                </div>
+                {manualTimeError ? <p className="text-xs text-rose-600">{manualTimeError}</p> : null}
+              </div>
+
+              {aiEnabled ? (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">AI Audit</h4>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-xs font-semibold ${riskAssessment ? (riskAssessment.isAtRisk ? 'text-rose-700' : 'text-emerald-700') : 'text-slate-500'}`}>
+                      {riskAssessment ? (riskAssessment.isAtRisk ? 'At risk' : 'Healthy') : 'Not checked'}
+                    </p>
+                    <Button size="sm" onClick={runAIAudit} disabled={isAIThinking} className="h-8 px-2 rounded-lg text-xs">
+                      {isAIThinking ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                      Check
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                    {riskAssessment?.reason || 'Run a quick health check for risk signals.'}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-100 relative group">
@@ -140,115 +294,205 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               )}
             </div>
 
-            {aiEnabled && (
-              <div className="p-6 bg-indigo-50/50 rounded-[2rem] border border-indigo-100">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-indigo-600" />
-                      <h4 className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">AI Audit</h4>
-                    </div>
-                    <Button 
-                      size="sm"
-                      onClick={async () => {
-                          setIsAIThinking(true);
-                          const assessment = await aiService.predictRisk(task);
-                          setRiskAssessment(assessment);
-                          onUpdate(task.id, { isAtRisk: assessment.isAtRisk });
-                          setIsAIThinking(false);
-                      }}
-                      disabled={isAIThinking}
-                      className="rounded-xl px-4"
-                    >
-                      {isAIThinking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Run Health Check"}
-                    </Button>
-                </div>
-                {riskAssessment && (
-                  <div className={`flex gap-4 p-5 rounded-2xl border animate-in slide-in-from-top-2 duration-300 ${riskAssessment.isAtRisk ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    {riskAssessment.isAtRisk ? <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" /> : <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />}
-                    <div>
-                      <p className={`text-sm font-black ${riskAssessment.isAtRisk ? 'text-rose-800' : 'text-emerald-800'}`}>{riskAssessment.isAtRisk ? "Risk detected" : "Structural Integrity Valid"}</p>
-                      <p className="text-xs mt-1 font-bold leading-relaxed opacity-70">{riskAssessment.reason}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
       case 'dependencies':
+        const selectedDeps = potentialDependencies.filter((dep) => task.blockedByIds?.includes(dep.id));
+        const availableDeps = potentialDependencies.filter((dep) => {
+          if (task.blockedByIds?.includes(dep.id)) return false;
+          if (!dependencyQuery.trim()) return true;
+          return dep.title.toLowerCase().includes(dependencyQuery.trim().toLowerCase());
+        });
+
+        const renderDependencyRow = (dep: Task, isSelected: boolean) => (
+          <button
+            key={dep.id}
+            onClick={() => handleToggleDependency(dep.id)}
+            className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all group ${
+              isSelected
+                ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
+                : 'bg-white border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start gap-3 text-left min-w-0">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {isSelected ? <Lock className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <p className={`text-sm font-semibold truncate ${isSelected ? 'text-rose-900' : 'text-slate-900'}`}>{dep.title}</p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide bg-slate-100 text-slate-600 border border-slate-200">
+                    {dep.status.replace('-', ' ')}
+                  </span>
+                  <span className="text-[10px] text-slate-400">#{dep.id.slice(-4)}</span>
+                </div>
+              </div>
+            </div>
+            {isSelected ? (
+              <CheckCircle2 className="w-4 h-4 text-rose-600 shrink-0" />
+            ) : (
+              <Plus className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0" />
+            )}
+          </button>
+        );
+
         return (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white flex items-center justify-between overflow-hidden relative group">
-               <div className="absolute top-0 right-0 p-12 bg-white/5 rounded-full -mr-8 -mt-8" />
-               <div className="relative z-10">
-                 <h4 className="text-xl font-black tracking-tight flex items-center gap-3">
-                   <Lock className="w-6 h-6 text-rose-400" /> Blocked By
-                 </h4>
-                 <p className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-widest">Connect preceding operational nodes</p>
-               </div>
-               <Badge variant="rose">{(task.blockedByIds?.length || 0)} BLOCKS</Badge>
+          <div className="space-y-4 animate-in fade-in duration-300 h-full flex flex-col">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-rose-600" /> Dependencies
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">Choose tasks that must be completed first.</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-semibold text-slate-900">{selectedDeps.length}</p>
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">selected</p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {potentialDependencies.map(dep => {
-                const isSelected = task.blockedByIds?.includes(dep.id);
-                return (
-                  <button 
-                    key={dep.id} 
-                    onClick={() => handleToggleDependency(dep.id)}
-                    className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all group ${isSelected ? 'bg-rose-50 border-rose-500 shadow-lg shadow-rose-100' : 'bg-white border-slate-100 hover:border-slate-300'}`}
-                  >
-                    <div className="flex items-center gap-4 text-left">
-                       <div className={`p-2 rounded-xl transition-colors ${isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
-                         {isSelected ? <Lock className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
-                       </div>
-                       <div>
-                         <p className={`text-sm font-black tracking-tight ${isSelected ? 'text-rose-900' : 'text-slate-800'}`}>{dep.title}</p>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Status: {dep.status}</p>
-                       </div>
+            <label className="h-10 border border-slate-300 rounded-lg px-3 flex items-center gap-2 bg-white">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                value={dependencyQuery}
+                onChange={(e) => setDependencyQuery(e.target.value)}
+                placeholder="Search available tasks"
+                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
+              />
+            </label>
+
+            <div className="grid md:grid-cols-2 gap-3 flex-1 min-h-0">
+              <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Selected</p>
+                  <span className="text-xs text-slate-500">{selectedDeps.length}</span>
+                </div>
+                <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                  {selectedDeps.length === 0 ? (
+                    <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
+                      No dependencies yet.
                     </div>
-                    {isSelected && <CheckCircle2 className="w-5 h-5 text-rose-600" />}
-                  </button>
-                );
-              })}
+                  ) : (
+                    selectedDeps.map((dep) => renderDependencyRow(dep, true))
+                  )}
+                </div>
+              </section>
+
+              <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Available</p>
+                  <span className="text-xs text-slate-500">{availableDeps.length}</span>
+                </div>
+                <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                  {availableDeps.length === 0 ? (
+                    <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
+                      {dependencyQuery.trim() ? 'No tasks match this search.' : 'No other tasks available.'}
+                    </div>
+                  ) : (
+                    availableDeps.map((dep) => renderDependencyRow(dep, false))
+                  )}
+                </div>
+              </section>
             </div>
           </div>
         );
       case 'subtasks':
+        const completedSubtasks = (task.subtasks || []).filter((subtask) => subtask.isCompleted).length;
         return (
-          <div className="space-y-8 animate-in fade-in duration-300">
-             {/* Subtask list UI ... same as previous but condensed for space */}
-             <div className="grid gap-3">
-               {task.subtasks.map(s => (
-                 <div key={s.id} className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                   {/* Fix: Added missing 'CheckSquare' icon */}
-                   <CheckSquare className="w-5 h-5 text-indigo-600" />
-                   <span className="text-sm font-bold text-slate-700">{s.title}</span>
-                 </div>
-               ))}
-               <div className="relative group mt-4">
-                  <input value={newSubtaskTitle} onChange={(e) => setNewSubtaskTitle(e.target.value)} placeholder="Add specific milestone..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-6 pr-6 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50/10 transition-all" />
-               </div>
-             </div>
+          <div className="space-y-4 animate-in fade-in duration-300 h-full flex flex-col">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-indigo-600" /> Subtasks
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">Break work into small, trackable steps.</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-semibold text-slate-900">{completedSubtasks}/{task.subtasks.length}</p>
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">done</p>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white p-3">
+              <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1 h-full">
+                {task.subtasks.length === 0 ? (
+                  <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
+                    No subtasks yet.
+                  </div>
+                ) : (
+                  task.subtasks.map((subtask) => (
+                    <div key={subtask.id} className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-white">
+                      <button
+                        onClick={() => handleToggleSubtask(subtask.id)}
+                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
+                          subtask.isCompleted
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400'
+                        }`}
+                      >
+                        {subtask.isCompleted ? <Check className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
+                      </button>
+                      <p className={`text-sm flex-1 min-w-0 truncate ${subtask.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                        {subtask.title}
+                      </p>
+                      <button
+                        onClick={() => handleRemoveSubtask(subtask.id)}
+                        className="w-7 h-7 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <form onSubmit={handleAddSubtask} className="flex gap-2">
+              <input
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                placeholder="Add subtask..."
+                className="flex-1 h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+              />
+              <Button type="submit" variant="secondary" className="px-3 h-10">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </form>
           </div>
         );
       case 'comments':
         return (
-          <div className="flex flex-col h-[450px] animate-in fade-in duration-300">
-            <div className="flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar pb-6 px-2">
+          <div className="flex flex-col h-full animate-in fade-in duration-300">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar pb-4">
+              {task.comments?.length === 0 && (
+                <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
+                  No comments yet.
+                </div>
+              )}
               {task.comments?.map(c => (
-                <div key={c.id} className={`flex gap-4 ${c.userId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className="w-10 h-10 rounded-2xl bg-slate-200 overflow-hidden shrink-0"><img src={allUsers.find(u => u.id === c.userId)?.avatar} /></div>
-                  <div className={`p-4 rounded-2xl text-sm font-medium ${c.userId === currentUser?.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}>{c.text}</div>
+                <div key={c.id} className={`flex gap-3 ${c.userId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className="w-8 h-8 rounded-lg bg-slate-200 overflow-hidden shrink-0">
+                    <img src={allUsers.find(u => u.id === c.userId)?.avatar} alt={c.displayName} className="w-full h-full object-cover" />
+                  </div>
+                  <div className={`max-w-[78%] px-3 py-2 rounded-xl text-sm ${c.userId === currentUser?.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                    {c.text}
+                  </div>
                 </div>
               ))}
+              {isTyping && (
+                <p className="text-xs text-slate-400 px-1">{typingUser} is typing…</p>
+              )}
               <div ref={commentsEndRef} />
             </div>
-            {/* Fix: Now correctly using 'handleAddComment' handler */}
-            <form onSubmit={handleAddComment} className="mt-4 relative group">
-              {/* Fix: Now correctly using 'handleTypingStart' handler */}
-              <input value={commentText} onChange={(e) => { setCommentText(e.target.value); handleTypingStart(); }} placeholder="Liaison message..." className="w-full bg-slate-50 border border-slate-200 rounded-[1.75rem] py-4.5 pl-6 pr-16 text-sm font-bold outline-none focus:bg-white transition-all" />
-              <button type="submit" className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-indigo-600 text-white rounded-2xl shadow-lg"><Send className="w-5 h-5" /></button>
+            <form onSubmit={handleAddComment} className="mt-3 relative group">
+              <input value={commentText} onChange={(e) => { setCommentText(e.target.value); handleTypingStart(); }} placeholder="Write a comment..." className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-12 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-300 transition-all" />
+              <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center">
+                <Send className="w-4 h-4" />
+              </button>
             </form>
           </div>
         );
@@ -268,7 +512,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && onClose()} className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/45 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 max-h-[88vh] md:max-h-[84vh] flex flex-col border border-slate-200">
+      <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 h-[88vh] md:h-[84vh] flex flex-col border border-slate-200">
         <div className="px-4 py-4 md:px-5 flex items-start justify-between border-b border-slate-200 flex-shrink-0 bg-white">
           <div className="flex-1 overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -281,20 +525,34 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <button onClick={onClose} className="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-100 transition-all shrink-0 active:scale-95"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex items-center gap-6 px-5 md:px-6 border-b border-slate-200 flex-shrink-0 overflow-x-auto no-scrollbar bg-white">
-          {[
-            { id: 'general', label: 'Summary', icon: <UserIcon className="w-4 h-4" /> },
-            { id: 'subtasks', label: 'Steps', icon: <ListChecks className="w-4 h-4" /> },
-            { id: 'dependencies', label: 'Dependencies', icon: <Lock className="w-4 h-4" /> },
-            { id: 'comments', label: 'Comments', icon: <MessageSquare className="w-4 h-4" /> },
-            { id: 'activity', label: 'Activity', icon: <History className="w-4 h-4" /> },
-          ].map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} className={`flex items-center gap-2 py-4 text-[11px] font-medium transition-colors relative whitespace-nowrap ${activeTab === tab.id ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
-              <span>{tab.icon}</span>
-              {tab.label}
-              {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900 rounded-t-full" />}
-            </button>
-          ))}
+        <div className="px-4 md:px-5 py-3 border-b border-slate-200 flex-shrink-0 bg-white">
+          <div className="grid grid-cols-5 gap-1.5">
+            {[
+              { id: 'general', label: 'Summary', icon: <UserIcon className="w-3.5 h-3.5" />, count: '' },
+              { id: 'subtasks', label: 'Steps', icon: <ListChecks className="w-3.5 h-3.5" />, count: String(task.subtasks.length) },
+              { id: 'dependencies', label: 'Deps', icon: <Lock className="w-3.5 h-3.5" />, count: String(task.blockedByIds?.length || 0) },
+              { id: 'comments', label: 'Comments', icon: <MessageSquare className="w-3.5 h-3.5" />, count: String(task.comments?.length || 0) },
+              { id: 'activity', label: 'Activity', icon: <History className="w-3.5 h-3.5" />, count: String(task.auditLog?.length || 0) },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`h-10 rounded-lg px-2 inline-flex items-center justify-center gap-1.5 text-[11px] font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                {tab.icon}
+                <span className="truncate">{tab.label}</span>
+                {tab.count && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === tab.id ? 'bg-white/15 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-5 custom-scrollbar scroll-smooth">

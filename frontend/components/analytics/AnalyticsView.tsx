@@ -70,7 +70,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
+    <div className="bg-[#f7f3f6] p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -109,7 +109,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
         {healthInsights && (
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold">AI Health Check</h3>
-            <div className="max-h-52 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+            <div className="space-y-2">
               {healthInsights.bottlenecks.map((item, idx) => (
                 <div key={idx} className="flex gap-2 text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-2.5">
                   <AlertTriangle className="w-4 h-4 mt-0.5" />
@@ -152,7 +152,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
               />
             </label>
 
-            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-2">
               {filteredPeople.length === 0 ? (
                 <p className="text-sm text-slate-500 border border-slate-200 rounded-lg px-3 py-2.5">No people match these filters.</p>
               ) : (
@@ -186,7 +186,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
               </select>
             </div>
 
-            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-2">
               {recentActivity.length === 0 && <p className="text-sm text-slate-500">No activity yet.</p>}
               {recentActivity.map((entry, idx) => (
                 <div key={idx} className="border border-slate-200 rounded-lg px-3 py-2">
