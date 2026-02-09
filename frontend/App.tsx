@@ -261,6 +261,7 @@ const App: React.FC = () => {
           <ProjectsLifecycleView
             projects={projects}
             projectTasks={allProjectTasks}
+            activeProjectId={activeProjectId}
             onRenameProject={handleRenameProject}
             onCompleteProject={handleCompleteProject}
             onReopenProject={handleReopenProject}

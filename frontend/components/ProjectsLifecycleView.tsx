@@ -5,6 +5,7 @@ import { Project, Task, TaskStatus } from '../types';
 interface ProjectsLifecycleViewProps {
   projects: Project[];
   projectTasks: Task[];
+  activeProjectId: string | null;
   onRenameProject: (id: string, name: string) => void;
   onCompleteProject: (id: string) => void;
   onReopenProject: (id: string) => void;
@@ -19,6 +20,7 @@ type StatusFilter = 'All' | 'Active' | 'Archived' | 'Completed' | 'Deleted';
 const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
   projects,
   projectTasks,
+  activeProjectId,
   onRenameProject,
   onCompleteProject,
   onReopenProject,
@@ -124,17 +126,17 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                 filteredProjects.map((project) => {
                   const status = getProjectStatus(project);
                   return (
-                    <button
-                      key={project.id}
-                      onClick={() => setFocusedProjectId(project.id)}
+                      <button
+                        key={project.id}
+                        onClick={() => setFocusedProjectId(project.id)}
                       className={`w-full text-left border rounded-lg p-3 transition-colors ${
                         focusedProjectId === project.id ? 'border-slate-900 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${project.color} shrink-0`} />
-                        <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
-                      </div>
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${activeProjectId === project.id ? 'active-node ring-2 ring-[#76003f]/25 ring-offset-1 ring-offset-white' : ''}`} />
+                          <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
+                        </div>
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[11px] px-2 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600">{status}</span>
                         <span className="text-[11px] text-slate-500">

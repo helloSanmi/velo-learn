@@ -116,11 +116,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1 max-h-[26vh] lg:max-h-[calc(100dvh-460px)] 2xl:max-h-[calc(100dvh-420px)] overflow-y-auto custom-scrollbar pr-1 pl-3 border-l border-[#ead4df] ml-3">
             {activeProjects.length > 0 ? activeProjects.map((project) => {
               const isActive = currentView === 'board' && activeProjectId === project.id;
+              const isLiveProject = activeProjectId === project.id;
               const isEditing = editingProjectId === project.id;
               return (
                 <div key={project.id} className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors font-medium border group ${isActive ? 'bg-white border-[#e6d2dc] text-[#76003f] shadow-sm' : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'}`}>
                   <button onClick={() => { onProjectSelect(project.id); onViewChange('board'); }} className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
-                    <div className={`w-2.5 h-2.5 rounded-full ${project.color} shrink-0`} />
+                    <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${isLiveProject ? 'active-node ring-2 ring-[#76003f]/25 ring-offset-1 ring-offset-white' : ''}`} />
                     {isEditing ? (
                       <input
                         autoFocus

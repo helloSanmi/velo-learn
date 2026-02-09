@@ -490,167 +490,138 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         );
       case 'admin':
-        if (isManagingSubscription) {
-          return (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-               <div className="flex items-center gap-4">
-                 <button onClick={() => setIsManagingSubscription(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-                 <div>
-                   <h3 className="text-xl font-black text-slate-900 leading-tight">Plan</h3>
-                   <p className="text-xs text-slate-500 font-medium">Change seats for your workspace</p>
-                 </div>
-               </div>
-
-               <div className="grid gap-3">
-                  {[
-                    { id: 'starter', name: 'Starter', price: '$0', seats: 3, icon: <LayoutGrid className="w-5 h-5" /> },
-                    { id: 'pro', name: 'Professional', price: '$29', seats: 15, icon: <Zap className="w-5 h-5" />, popular: true },
-                    { id: 'enterprise', name: 'Enterprise', price: '$99', seats: 100, icon: <ShieldCheck className="w-5 h-5" /> }
-                  ].map((tier) => (
-                    <button
-                      key={tier.id}
-                      onClick={() => handleUpgradeTier(tier.id as any)}
-                      disabled={isUpgrading}
-                      className={`flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all group relative ${
-                        org?.totalSeats === tier.seats 
-                        ? 'border-indigo-600 bg-indigo-50/20' 
-                        : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                      }`}
-                    >
-                      {org?.totalSeats === tier.seats && (
-                        <span className="absolute top-0 right-6 -translate-y-1/2 px-3 py-1 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-widest rounded-full">Active</span>
-                      )}
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl transition-colors ${org?.totalSeats === tier.seats ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 group-hover:text-indigo-600 shadow-sm'}`}>
-                          {tier.icon}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-black text-slate-900">{tier.name}</p>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{tier.seats} Seats</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-base font-black text-slate-900">{tier.price}</p>
-                        {org?.totalSeats === tier.seats && <CheckCircle2 className="w-5 h-5 text-indigo-600 mt-1 inline" />}
-                      </div>
-                    </button>
-                  ))}
-               </div>
-               
-               {isUpgrading && (
-                 <div className="p-8 flex flex-col items-center justify-center gap-4 animate-pulse">
-                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Updating workspace...</p>
-                 </div>
-               )}
-            </div>
-          );
-        }
-
         const seatUsage = (allUsers.length / (org?.totalSeats || 1)) * 100;
         return (
-          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between">
+          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">{org?.name} Settings</h3>
-                <p className="text-sm text-slate-500 font-medium mt-1">Workspace ID: {org?.id?.slice(0,8) || 'N/A'}... • Created {new Date(org?.createdAt || 0).toLocaleDateString()}</p>
+                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Team</h3>
+                <p className="text-xs text-slate-500 mt-1">{org?.name || 'Workspace'} • ID {org?.id?.slice(0, 8) || 'N/A'} • Created {new Date(org?.createdAt || 0).toLocaleDateString()}</p>
               </div>
-              <div className="hidden sm:flex px-4 py-2 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> Admin
+              <span className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-600 inline-flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" /> Admin
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <p className="text-[11px] text-slate-500">Members</p>
+                <p className="text-lg font-semibold text-slate-900 mt-1">{allUsers.length}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <p className="text-[11px] text-slate-500">Seat limit</p>
+                <p className="text-lg font-semibold text-slate-900 mt-1">{org?.totalSeats || 0}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <p className="text-[11px] text-slate-500">Usage</p>
+                <p className="text-lg font-semibold text-slate-900 mt-1">{Math.round(seatUsage)}%</p>
               </div>
             </div>
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 text-white relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-16 bg-white/5 rounded-full -mr-12 -mt-12" />
-              <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-indigo-600 rounded-2xl"><Users className="w-6 h-6" /></div>
-                <div>
-                   <h4 className="text-lg font-black tracking-tight">Seat Usage</h4>
-                   <p className="text-xs text-slate-400 font-medium tracking-tight">Manage seats and members</p>
-                </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-900">Seat usage</p>
+                <p className="text-xs text-slate-500">{allUsers.length} / {org?.totalSeats || 0}</p>
               </div>
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                   <p className="text-4xl font-black tracking-tighter">{allUsers.length}<span className="text-slate-500 text-2xl font-bold ml-2">/ {org?.totalSeats} seats used</span></p>
-                   <p className="text-xs font-black uppercase text-indigo-400 tracking-widest">{Math.round(seatUsage)}% Capacity</p>
-                </div>
-                <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden flex shadow-inner">
-                   <div style={{ width: `${Math.min(seatUsage, 100)}%` }} className="h-full bg-indigo-500 transition-all duration-1000" />
-                </div>
+              <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div style={{ width: `${Math.min(seatUsage, 100)}%` }} className="h-full bg-slate-900 transition-all duration-500" />
               </div>
-            </div>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.25em]">Members</h4>
-                <Button size="sm" variant="outline" onClick={() => setIsProvisioning(!isProvisioning)} className="rounded-xl border-slate-200">
-                  <UserPlus className="w-3.5 h-3.5 mr-2" /> Add Seat
-                </Button>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'starter', name: 'Starter', seats: 3 },
+                  { id: 'pro', name: 'Pro', seats: 15 },
+                  { id: 'enterprise', name: 'Enterprise', seats: 100 }
+                ].map((tier) => (
+                  <button
+                    key={tier.id}
+                    onClick={() => handleUpgradeTier(tier.id as any)}
+                    disabled={isUpgrading}
+                    className={`h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
+                      org?.totalSeats === tier.seats
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {tier.name} ({tier.seats})
+                  </button>
+                ))}
               </div>
-              {isProvisioning && (
-                <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 animate-in fade-in slide-in-from-top-2">
-                  <form onSubmit={handleProvision} className="flex flex-col sm:flex-row gap-3">
-                    <input autoFocus placeholder="Username for new user" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="flex-1 px-5 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-600 font-bold text-sm bg-white" />
-                    <Button type="submit" size="md" variant="secondary" className="rounded-xl">Add Member</Button>
-                  </form>
-                  {provisionError && <p className="text-rose-600 text-[10px] font-black uppercase mt-2 px-2">{provisionError}</p>}
+              {isUpgrading && (
+                <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating plan...
                 </div>
               )}
-              <div className="grid gap-3">
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-900">Members</p>
+                <Button size="sm" variant="outline" onClick={() => setIsProvisioning(!isProvisioning)} className="h-8 rounded-lg border-slate-200">
+                  <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Add member
+                </Button>
+              </div>
+
+              {isProvisioning && (
+                <div className="p-3 border border-slate-200 rounded-lg bg-slate-50">
+                  <form onSubmit={handleProvision} className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      autoFocus
+                      placeholder="Username"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      className="flex-1 h-9 rounded-lg border border-slate-300 px-3 text-sm outline-none"
+                    />
+                    <Button type="submit" size="sm" className="h-9">Add</Button>
+                  </form>
+                  {provisionError && <p className="text-xs text-rose-600 mt-2">{provisionError}</p>}
+                </div>
+              )}
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
                 {allUsers.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-200 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all group">
-                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 overflow-hidden shrink-0 shadow-sm transition-transform group-hover:scale-105">
-                        <img src={u.avatar} className="w-full h-full object-cover" alt="" />
+                  <div key={u.id} className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-lg bg-white">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                        <img src={u.avatar} className="w-full h-full object-cover" alt={u.displayName} />
                       </div>
                       <div className="min-w-0 flex-1">
                         {editingUserId === u.id ? (
                           <div className="flex items-center gap-2 max-w-xs">
-                             <input 
+                             <input
                               autoFocus
-                              value={editNameValue} 
+                              value={editNameValue}
                               onChange={(e) => setEditNameValue(e.target.value)}
                               onKeyDown={(e) => e.key === 'Enter' && handleCommitEdit()}
-                              className="w-full px-3 py-1 bg-white border border-indigo-200 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="h-8 w-full px-3 bg-white border border-slate-300 rounded-lg text-sm outline-none"
                              />
-                             <button onClick={handleCommitEdit} className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all"><Check className="w-4 h-4" /></button>
+                             <button onClick={handleCommitEdit} className="w-8 h-8 bg-slate-900 text-white rounded-lg inline-flex items-center justify-center"><Check className="w-3.5 h-3.5" /></button>
                           </div>
                         ) : (
-                          <p className="text-base font-black text-slate-900 truncate tracking-tight flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5">
                             {u.displayName} {u.id === user?.id ? '(You)' : ''}
-                            <button onClick={() => handleStartEdit(u)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-indigo-600 transition-all"><Edit2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => handleStartEdit(u)} className="p-1 text-slate-300 hover:text-slate-700 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
                           </p>
                         )}
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate">{u.email}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{u.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                        <select value={u.role || 'member'} onChange={(e) => handleUpdateUserRole(u.id, e.target.value as 'admin' | 'member')} disabled={u.id === user?.id} className="bg-transparent text-[10px] font-black uppercase tracking-widest outline-none border-none cursor-pointer disabled:opacity-40">
+                    <div className="flex items-center gap-2">
+                      <select value={u.role || 'member'} onChange={(e) => handleUpdateUserRole(u.id, e.target.value as 'admin' | 'member')} disabled={u.id === user?.id} className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs outline-none cursor-pointer disabled:opacity-40">
                           <option value="member">Member</option>
                           <option value="admin">Admin</option>
-                        </select>
-                      </div>
-                      <button 
-                        onClick={() => handlePurgeUser(u.id)} 
-                        disabled={u.id === user?.id} 
-                        className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-10"
+                      </select>
+                      <button
+                        onClick={() => handlePurgeUser(u.id)}
+                        disabled={u.id === user?.id}
+                        className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-20"
                         title="Remove user"
                       >
-                        <Trash2 className="w-4.5 h-4.5" />
+                        <Trash2 className="w-4 h-4 mx-auto" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="p-8 border-2 border-dashed border-indigo-100 rounded-[2.5rem] flex flex-col items-center justify-center text-center gap-4 bg-indigo-50/20">
-              <div className="p-4 bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 text-indigo-600 border border-indigo-100">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-lg font-black text-slate-900 tracking-tight">Need more seats?</p>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-xs">Increase seats as your team grows.</p>
-              </div>
-              <Button size="md" variant="secondary" className="rounded-xl px-10 shadow-indigo-200 mt-2" onClick={() => setIsManagingSubscription(true)}>Manage Plan</Button>
             </div>
           </div>
         );
