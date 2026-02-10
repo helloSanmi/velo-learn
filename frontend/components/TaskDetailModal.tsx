@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // Fix: Added missing 'CheckSquare' to lucide-react imports
-import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTriangle, CheckCircle2, ListChecks, MessageSquare, Clock, Trash2, Plus, Check, Zap, Terminal, Link2, Lock, ShieldCheck, CheckSquare, Search, Play, Pause } from 'lucide-react';
+import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTriangle, CheckCircle2, ListChecks, MessageSquare, Clock, Trash2, Plus, Check, Zap, Terminal, Link2, Lock, ShieldCheck, CheckSquare, Search, Play, Pause, RotateCcw } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, User, Subtask } from '../types';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
@@ -182,6 +182,22 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       case 'general':
         return (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {task.movedBackAt && task.movedBackReason ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Moved Backward</p>
+                    <p className="text-sm text-amber-900 mt-0.5">{task.movedBackReason}</p>
+                    <p className="text-[11px] text-amber-700 mt-1">
+                      {task.movedBackBy || 'Unknown'} • {new Date(task.movedBackAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className={`grid grid-cols-1 ${aiEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignees</h4>

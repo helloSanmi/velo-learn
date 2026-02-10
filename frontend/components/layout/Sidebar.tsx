@@ -20,6 +20,7 @@ interface SidebarProps {
   onArchiveProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
   onOpenSettings: () => void;
+  onCloseSidebar: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -37,7 +38,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCompleteProject,
   onArchiveProject,
   onDeleteProject,
-  onOpenSettings
+  onOpenSettings,
+  onCloseSidebar
 }) => {
   const sidebarRef = useRef<HTMLElement | null>(null);
   const [recentActions, setRecentActions] = useState<any[]>([]);
@@ -96,7 +98,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const NavButton = ({ active, onClick, icon: Icon, label, badge }: { active: boolean; onClick: () => void; icon: any; label: string; badge?: string }) => (
     <button 
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        if (window.innerWidth < 1024) onCloseSidebar();
+      }}
       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-sm transition-colors border ${
         active ? 'bg-white text-[#76003f] border-[#e6d2dc] shadow-sm' : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'
       }`}
@@ -116,7 +121,15 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="space-y-1.5">
           <p className="px-3 text-[11px] font-medium tracking-wide text-[#8a506f] mb-2 truncate">Workspace</p>
-          <NavButton active={currentView === 'board' && activeProjectId === null} onClick={() => { onProjectSelect(null); onViewChange('board'); }} icon={LayoutDashboard} label="Board" />
+          <NavButton
+            active={currentView === 'board' && activeProjectId === null}
+            onClick={() => {
+              onProjectSelect(null);
+              onViewChange('board');
+            }}
+            icon={LayoutDashboard}
+            label="Board"
+          />
 
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
@@ -150,7 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <div key={project.id}>
                 <div className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors font-medium border group ${isActive ? 'bg-white border-[#e6d2dc] text-[#76003f] shadow-sm' : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'}`}>
-                  <button onClick={() => { onProjectSelect(project.id); onViewChange('board'); }} className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
+                  <button onClick={() => { onProjectSelect(project.id); onViewChange('board'); if (window.innerWidth < 1024) onCloseSidebar(); }} className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
                     <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${isLiveProject ? 'active-node ring-1 ring-[#76003f]/15 ring-offset-0' : ''}`} />
                     {isEditing ? (
                       <input
@@ -293,7 +306,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="pt-4 border-t border-[#ead4df] shrink-0">
-        <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium transition-colors text-sm group">
+        <button onClick={() => { onOpenSettings(); if (window.innerWidth < 1024) onCloseSidebar(); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium transition-colors text-sm group">
           <Settings className="w-4 h-4 text-slate-400 shrink-0" />
           <span className="truncate">Settings</span>
         </button>

@@ -19,6 +19,7 @@ interface WorkspaceLayoutProps {
   onReset: () => void;
   onOpenSettings: (tab: SettingsTabType) => void;
   onOpenTaskFromNotification: (taskId: string) => void;
+  onCloseSidebar: () => void;
   onProjectSelect: (id: string | null) => void;
   onViewChange: (view: MainViewType) => void;
   onOpenCommandCenter: () => void;
@@ -35,7 +36,7 @@ interface WorkspaceLayoutProps {
 const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   user, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
   themeClass, compactMode, onLogout, onNewTask, onReset, onOpenSettings,
-  onOpenTaskFromNotification, onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
+  onOpenTaskFromNotification, onCloseSidebar, onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
   onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, children
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -110,6 +111,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onArchiveProject={onArchiveProject}
             onDeleteProject={onDeleteProject}
             onOpenSettings={() => onOpenSettings('general')} 
+            onCloseSidebar={onCloseSidebar}
           />
           <div 
             onMouseDown={startResizing}
@@ -136,6 +138,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onArchiveProject={onArchiveProject}
             onDeleteProject={onDeleteProject}
             onOpenSettings={() => onOpenSettings('general')} 
+            onCloseSidebar={onCloseSidebar}
           />
         </div>
         

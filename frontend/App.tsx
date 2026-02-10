@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Task, User, Project, TaskPriority, TaskStatus, MainViewType } from './types';
 import { userService } from './services/userService';
 import { projectService } from './services/projectService';
@@ -33,6 +33,7 @@ import { toastService } from './services/toastService';
 const getActiveProjectStorageKey = (user: User) => `velo_active_project:${user.orgId}:${user.id}`;
 
 const App: React.FC = () => {
+  const hasHydratedActiveProjectRef = useRef(false);
   const [user, setUser] = useState<User | null>(() => userService.getCurrentUser());
   const [authView, setAuthView] = useState<'landing' | 'pricing' | 'support' | 'login' | 'register'>('landing');
   const [allUsers, setAllUsers] = useState<User[]>(() => {
@@ -60,6 +61,9 @@ const App: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [templateQuery, setTemplateQuery] = useState('');
+  const [moveBackRequest, setMoveBackRequest] = useState<{ taskId: string; targetStatus: string; targetTaskId?: string } | null>(null);
+  const [moveBackReason, setMoveBackReason] = useState('');
+  const [moveBackReasonError, setMoveBackReasonError] = useState('');
   
   const toggleTaskSelection = useCallback((id: string) => {
     setSelectedTaskIds(prev => prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]);
@@ -111,10 +115,24 @@ const App: React.FC = () => {
   }, [user, refreshTasks]);
 
   useEffect(() => {
+    hasHydratedActiveProjectRef.current = false;
+  }, [user?.id, user?.orgId]);
+
+  useEffect(() => {
     if (!user) return;
     const activeProjects = projects.filter((project) => !project.isArchived && !project.isCompleted && !project.isDeleted);
     const storageKey = getActiveProjectStorageKey(user);
 
+    if (!hasHydratedActiveProjectRef.current) {
+      hasHydratedActiveProjectRef.current = true;
+      const storedProjectId = localStorage.getItem(storageKey);
+      if (storedProjectId && activeProjects.some((project) => project.id === storedProjectId)) {
+        setActiveProjectId(storedProjectId);
+      }
+      return;
+    }
+
+    if (currentView === 'board' && activeProjectId === null) return;
     if (activeProjectId && activeProjects.some((project) => project.id === activeProjectId)) return;
 
     const storedProjectId = localStorage.getItem(storageKey);
@@ -126,7 +144,7 @@ const App: React.FC = () => {
     if (activeProjectId && !activeProjects.some((project) => project.id === activeProjectId)) {
       setActiveProjectId(null);
     }
-  }, [user, projects, activeProjectId]);
+  }, [user, projects, activeProjectId, currentView]);
 
   useEffect(() => {
     if (!user) return;
@@ -168,6 +186,101 @@ const App: React.FC = () => {
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
     projectService.updateProject(id, updates);
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const getProjectDoneStageId = (projectId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    return project?.stages?.length ? project.stages[project.stages.length - 1].id : TaskStatus.DONE;
+  };
+
+  const isBackwardFromDone = (task: Task, targetStatus: string) => {
+    const doneStageId = getProjectDoneStageId(task.projectId);
+    return task.status === doneStageId && targetStatus !== doneStageId;
+  };
+
+  const openMoveBackPrompt = (taskId: string, targetStatus: string, targetTaskId?: string) => {
+    setMoveBackRequest({ taskId, targetStatus, targetTaskId });
+    setMoveBackReason('');
+    setMoveBackReasonError('');
+  };
+
+  const handleMoveTaskWithPolicy = (taskId: string, targetStatus: string, targetTaskId?: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    if (isBackwardFromDone(task, targetStatus)) {
+      openMoveBackPrompt(taskId, targetStatus, targetTaskId);
+      return;
+    }
+    moveTask(taskId, targetStatus, targetTaskId);
+    const doneStageId = getProjectDoneStageId(task.projectId);
+    if (targetStatus === doneStageId && (task.movedBackAt || task.movedBackReason || task.movedBackFromStatus)) {
+      updateTask(
+        task.id,
+        {
+          movedBackAt: undefined,
+          movedBackBy: undefined,
+          movedBackReason: undefined,
+          movedBackFromStatus: undefined
+        },
+        user.displayName
+      );
+    }
+  };
+
+  const handleStatusUpdateWithPolicy = (taskId: string, targetStatus: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    if (isBackwardFromDone(task, targetStatus)) {
+      openMoveBackPrompt(taskId, targetStatus);
+      return;
+    }
+    updateStatus(taskId, targetStatus, user.displayName);
+    const doneStageId = getProjectDoneStageId(task.projectId);
+    if (targetStatus === doneStageId && (task.movedBackAt || task.movedBackReason || task.movedBackFromStatus)) {
+      updateTask(
+        task.id,
+        {
+          movedBackAt: undefined,
+          movedBackBy: undefined,
+          movedBackReason: undefined,
+          movedBackFromStatus: undefined
+        },
+        user.displayName
+      );
+    }
+  };
+
+  const submitMoveBackReason = () => {
+    if (!moveBackRequest) return;
+    const reason = moveBackReason.trim();
+    if (!reason) {
+      setMoveBackReasonError('A comment is required before moving a completed task backward.');
+      return;
+    }
+    const task = tasks.find((item) => item.id === moveBackRequest.taskId);
+    if (!task) {
+      setMoveBackRequest(null);
+      setMoveBackReason('');
+      setMoveBackReasonError('');
+      return;
+    }
+    const fromStatus = task.status;
+    updateTask(
+      task.id,
+      {
+        status: moveBackRequest.targetStatus,
+        movedBackAt: Date.now(),
+        movedBackBy: user.displayName,
+        movedBackReason: reason,
+        movedBackFromStatus: fromStatus
+      },
+      user.displayName
+    );
+    addComment(task.id, `Moved backward from ${fromStatus} to ${moveBackRequest.targetStatus}: ${reason}`);
+    toastService.info('Task moved backward', 'Reason saved on task history.');
+    setMoveBackRequest(null);
+    setMoveBackReason('');
+    setMoveBackReasonError('');
   };
 
   const handleRenameProject = (id: string, name: string) => {
@@ -398,13 +511,13 @@ const App: React.FC = () => {
           </div>
         );
       default: return (
-        <KanbanView statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={(id, s) => updateStatus(id, s, user.displayName)} moveTask={moveTask} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
+        <KanbanView statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
       );
     }
   };
 
   return (
-    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
+    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
       <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); toastService.success('Priorities updated', `${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's updated' : ' updated'}.`); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={async () => { const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true }); if (confirmed) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
@@ -439,6 +552,45 @@ const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onPurgeProject={handlePurgeProject}
       />
+      {moveBackRequest && (
+        <div className="fixed inset-0 z-[280] bg-slate-900/45 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl p-5">
+            <h3 className="text-lg font-semibold text-slate-900">Reason Required</h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Completed tasks need a comment before moving backward.
+            </p>
+            <textarea
+              autoFocus
+              value={moveBackReason}
+              onChange={(event) => {
+                setMoveBackReason(event.target.value);
+                if (moveBackReasonError) setMoveBackReasonError('');
+              }}
+              placeholder="Explain why this task is moving back..."
+              className="mt-3 w-full min-h-[120px] rounded-xl border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+            />
+            {moveBackReasonError ? <p className="text-xs text-rose-600 mt-1.5">{moveBackReasonError}</p> : null}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setMoveBackRequest(null);
+                  setMoveBackReason('');
+                  setMoveBackReasonError('');
+                }}
+                className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitMoveBackReason}
+                className="h-10 px-4 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+              >
+                Save reason and move
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <DialogHost />
       <ToastHost />
     </WorkspaceLayout>

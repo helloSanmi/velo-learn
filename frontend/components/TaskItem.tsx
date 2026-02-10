@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Clock, Lock, Pause, Play, Sparkles, Trash2 } from 'lucide-react';
+import { Clock, Lock, Pause, Play, Sparkles, Trash2, RotateCcw } from 'lucide-react';
 import { Task, TaskPriority } from '../types';
 import Badge from './ui/Badge';
 import { projectService } from '../services/projectService';
@@ -120,6 +120,11 @@ const TaskItem: React.FC<TaskItemProps> = ({
           {isBlocked && (
             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-100 bg-rose-50 text-rose-700">
               <Lock className="w-3 h-3" /> Blocked
+            </span>
+          )}
+          {task.movedBackAt && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700">
+              <RotateCcw className="w-3 h-3" /> Moved back
             </span>
           )}
         </div>

@@ -108,6 +108,10 @@ export interface Task {
   timeLogged: number;
   isTimerRunning?: boolean;
   timerStartedAt?: number;
+  movedBackAt?: number;
+  movedBackBy?: string;
+  movedBackReason?: string;
+  movedBackFromStatus?: string;
   // New: Dependency Tracking
   blockedByIds?: string[];
   blocksIds?: string[];
