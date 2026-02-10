@@ -2,7 +2,132 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Task, User, TaskPriority, TaskStatus } from "../types";
 
+const buildFallbackProjectTasks = (
+  projectName: string,
+  projectBrief: string,
+  taskCount: number
+): Array<{ title: string; description: string; priority: TaskPriority; tags: string[] }> => {
+  const safeCount = Math.min(Math.max(taskCount || 8, 4), 20);
+  const title = (projectName || "New Project").trim();
+  const brief = (projectBrief || "").trim();
+  const briefSnippet = brief ? brief.slice(0, 220) : `Deliver ${title} with clear milestones and measurable outcomes.`;
+
+  const baseline: Array<{ title: string; description: string; priority: TaskPriority; tags: string[] }> = [
+    {
+      title: `Define scope for ${title}`,
+      description: `Document objectives, constraints, owners, and success metrics. Context: ${briefSnippet}`,
+      priority: TaskPriority.HIGH,
+      tags: ["Planning", "Scope"]
+    },
+    {
+      title: "Create implementation plan",
+      description: "Break work into phases, estimate effort, and map dependencies.",
+      priority: TaskPriority.HIGH,
+      tags: ["Planning", "Execution"]
+    },
+    {
+      title: "Design and architecture review",
+      description: "Validate solution approach, data flow, and integration points with stakeholders.",
+      priority: TaskPriority.MEDIUM,
+      tags: ["Design", "Architecture"]
+    },
+    {
+      title: "Build core functionality",
+      description: "Implement MVP features and confirm requirements are met end-to-end.",
+      priority: TaskPriority.HIGH,
+      tags: ["Build", "Delivery"]
+    },
+    {
+      title: "QA and regression testing",
+      description: "Execute test cases, capture defects, and verify critical flows before release.",
+      priority: TaskPriority.MEDIUM,
+      tags: ["QA", "Testing"]
+    },
+    {
+      title: "Prepare release and rollout",
+      description: "Create release checklist, communication notes, and deployment steps.",
+      priority: TaskPriority.MEDIUM,
+      tags: ["Release", "Ops"]
+    },
+    {
+      title: "Launch monitoring and support",
+      description: "Track post-launch performance, incidents, and user feedback.",
+      priority: TaskPriority.MEDIUM,
+      tags: ["Monitoring", "Support"]
+    },
+    {
+      title: "Retrospective and optimization",
+      description: "Review outcomes, identify improvements, and plan follow-up iterations.",
+      priority: TaskPriority.LOW,
+      tags: ["Retrospective", "Optimization"]
+    }
+  ];
+
+  if (safeCount <= baseline.length) return baseline.slice(0, safeCount);
+
+  const extrasNeeded = safeCount - baseline.length;
+  const extras = Array.from({ length: extrasNeeded }, (_, idx) => ({
+    title: `Execution checkpoint ${idx + 1}`,
+    description: `Validate milestone ${idx + 1} progress, blockers, and stakeholder alignment.`,
+    priority: TaskPriority.MEDIUM,
+    tags: ["Checkpoint", "Tracking"]
+  }));
+
+  return [...baseline, ...extras];
+};
+
 export const aiService = {
+  generateProjectTasksFromBrief: async (
+    projectName: string,
+    projectBrief: string,
+    taskCount: number
+  ): Promise<Array<{ title: string; description: string; priority: TaskPriority; tags: string[] }>> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const safeTaskCount = Math.min(Math.max(taskCount || 8, 4), 20);
+
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `You are helping create a project board in Velo.
+        Project name: ${projectName || 'Untitled Project'}
+        Project brief: ${projectBrief}
+        Generate exactly ${safeTaskCount} clear implementation tasks specific to this project.
+        Keep each task practical and execution-ready for a small product team.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              tasks: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                  },
+                  required: ["title", "description", "priority", "tags"]
+                }
+              }
+            },
+            required: ["tasks"]
+          }
+        }
+      });
+
+      const data = JSON.parse(response.text);
+      const tasks = data.tasks || [];
+      if (tasks.length === 0) {
+        return buildFallbackProjectTasks(projectName, projectBrief, safeTaskCount);
+      }
+      return tasks;
+    } catch (error) {
+      return buildFallbackProjectTasks(projectName, projectBrief, safeTaskCount);
+    }
+  },
+
   breakDownTask: async (title: string, description: string): Promise<string[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
@@ -179,7 +304,7 @@ export const aiService = {
       tasks: tasks.filter(t => t.status !== TaskStatus.DONE).map(t => ({
         id: t.id,
         title: t.title,
-        assigneeId: t.assigneeId,
+        assigneeId: (Array.isArray(t.assigneeIds) && t.assigneeIds.length > 0) ? t.assigneeIds[0] : t.assigneeId,
         priority: t.priority
       }))
     };

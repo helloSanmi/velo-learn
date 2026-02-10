@@ -1,16 +1,17 @@
 import React from 'react';
-import { TaskPriority, TaskStatus, User } from '../../types';
+import { TaskPriority, User } from '../../types';
 
 interface FilterBarProps {
-  statusFilter: TaskStatus | 'All';
+  statusFilter: string | 'All';
   priorityFilter: TaskPriority | 'All';
   tagFilter: string | 'All';
   assigneeFilter: string | 'All';
+  statusOptions: Array<{ id: string; name: string }>;
   uniqueTags: string[];
   allUsers: User[];
   embedded?: boolean;
   compact?: boolean;
-  onStatusChange: (status: TaskStatus | 'All') => void;
+  onStatusChange: (status: string | 'All') => void;
   onPriorityChange: (priority: TaskPriority | 'All') => void;
   onTagChange: (tag: string) => void;
   onAssigneeChange: (assigneeId: string) => void;
@@ -21,6 +22,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   priorityFilter,
   tagFilter,
   assigneeFilter,
+  statusOptions,
   uniqueTags,
   allUsers,
   embedded = false,
@@ -49,12 +51,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <div className={listClass}>
           <select
             value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value as TaskStatus | 'All')}
+            onChange={(e) => onStatusChange(e.target.value)}
             className={controlClass}
           >
             <option value="All">All statuses</option>
-            {Object.values(TaskStatus).map((status) => (
-              <option key={status} value={status}>{status.replace('-', ' ')}</option>
+            {statusOptions.map((status) => (
+              <option key={status.id} value={status.id}>{status.name}</option>
             ))}
           </select>
 

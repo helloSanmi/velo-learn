@@ -26,6 +26,8 @@ import IntegrationHub from './components/IntegrationHub';
 import ProjectsLifecycleView from './components/ProjectsLifecycleView';
 import { SettingsTabType } from './components/SettingsModal';
 
+const getActiveProjectStorageKey = (user: User) => `velo_active_project:${user.orgId}:${user.id}`;
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => userService.getCurrentUser());
   const [authView, setAuthView] = useState<'landing' | 'pricing' | 'support' | 'login' | 'register'>('landing');
@@ -103,7 +105,40 @@ const App: React.FC = () => {
     }
   }, [user, refreshTasks]);
 
-  const handleLogout = () => { userService.logout(); setUser(null); setAuthView('landing'); };
+  useEffect(() => {
+    if (!user) return;
+    const activeProjects = projects.filter((project) => !project.isArchived && !project.isCompleted && !project.isDeleted);
+    const storageKey = getActiveProjectStorageKey(user);
+
+    if (activeProjectId && activeProjects.some((project) => project.id === activeProjectId)) return;
+
+    const storedProjectId = localStorage.getItem(storageKey);
+    if (storedProjectId && activeProjects.some((project) => project.id === storedProjectId)) {
+      setActiveProjectId(storedProjectId);
+      return;
+    }
+
+    if (activeProjectId && !activeProjects.some((project) => project.id === activeProjectId)) {
+      setActiveProjectId(null);
+    }
+  }, [user, projects, activeProjectId]);
+
+  useEffect(() => {
+    if (!user) return;
+    const storageKey = getActiveProjectStorageKey(user);
+    if (activeProjectId) {
+      localStorage.setItem(storageKey, activeProjectId);
+      return;
+    }
+    localStorage.removeItem(storageKey);
+  }, [user, activeProjectId]);
+
+  const handleLogout = () => {
+    userService.logout();
+    setActiveProjectId(null);
+    setUser(null);
+    setAuthView('landing');
+  };
   const handleReset = () => mockDataService.init().then(() => refreshTasks());
   
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
@@ -273,7 +308,7 @@ const App: React.FC = () => {
         );
       case 'analytics': return <AnalyticsView tasks={tasks} projects={projects} allUsers={allUsers} />;
       case 'roadmap': return <RoadmapView tasks={tasks} projects={projects} />;
-      case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => updateTask(tid, { assigneeId: uid }, user.displayName)} />;
+      case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => updateTask(tid, { assigneeId: uid, assigneeIds: [uid] }, user.displayName)} />;
       case 'integrations': return <IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />;
       case 'workflows': return (
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
@@ -324,7 +359,7 @@ const App: React.FC = () => {
           </div>
         );
       default: return (
-        <KanbanView statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={(id, s) => updateStatus(id, s, user.displayName)} moveTask={moveTask} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} />
+        <KanbanView statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={(id, s) => updateStatus(id, s, user.displayName)} moveTask={moveTask} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
       );
     }
   };
@@ -333,10 +368,10 @@ const App: React.FC = () => {
     <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => setIsProjectModalOpen(true)} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
-      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u }); setSelectedTaskIds([]); }} onBulkDelete={() => { if(confirm('Bulk delete?')) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
+      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={() => { if(confirm('Bulk delete?')) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
       <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
-        handleAddProject={(n, d, c, m, tid, aiGeneratedTasks) => {
-            const proj = projectService.createProject(user.orgId, n, d, c, m);
+        handleAddProject={(n, d, c, m, tid, aiGeneratedTasks, meta) => {
+            const proj = projectService.createProject(user.orgId, n, d, c, m, meta);
             setProjects([...projects, proj]);
             setActiveProjectId(proj.id);
             setIsProjectModalOpen(false);

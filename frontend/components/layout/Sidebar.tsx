@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Settings, Activity, Terminal, Plus, Camera, Mic, Sparkles, Zap, LayoutGrid, Users, Link2, Globe, GanttChartSquare, MoreHorizontal, Pencil, Archive, Trash2, Check, X } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Terminal, Plus, Camera, Mic, Sparkles, Zap, LayoutGrid, Users, Link2, Globe, GanttChartSquare, MoreHorizontal, Pencil, Archive, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Project, MainViewType } from '../../types';
 
 interface SidebarProps {
@@ -42,6 +42,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [menuProjectId, setMenuProjectId] = useState<string | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState('');
+  const [isProjectListCollapsed, setIsProjectListCollapsed] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(false);
 
   useEffect(() => {
     const fetchPulse = () => {
@@ -64,6 +66,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   const activeProjects = projects.filter((project) => !project.isArchived && !project.isCompleted && !project.isDeleted);
+  const cappedProjectCount = 8;
+  const visibleProjects = showAllProjects ? activeProjects : activeProjects.slice(0, cappedProjectCount);
 
   const startEditingProject = (project: Project) => {
     setMenuProjectId(null);
@@ -113,15 +117,24 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          <div className="space-y-1 max-h-[26vh] lg:max-h-[calc(100dvh-460px)] 2xl:max-h-[calc(100dvh-420px)] overflow-y-auto custom-scrollbar pr-1 pl-3 border-l border-[#ead4df] ml-3">
-            {activeProjects.length > 0 ? activeProjects.map((project) => {
+          <button
+            onClick={() => setIsProjectListCollapsed((prev) => !prev)}
+            className="w-full h-7 px-3 rounded-md border border-[#ead4df] bg-white text-[11px] font-medium text-[#8a506f] inline-flex items-center justify-between"
+          >
+            <span>{isProjectListCollapsed ? 'Show project list' : 'Hide project list'}</span>
+            {isProjectListCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {!isProjectListCollapsed && (
+            <div className="space-y-1 max-h-[26vh] lg:max-h-[calc(100dvh-460px)] 2xl:max-h-[calc(100dvh-420px)] overflow-y-auto custom-scrollbar pr-1 pl-3 border-l border-[#ead4df] ml-3">
+              {activeProjects.length > 0 ? visibleProjects.map((project) => {
               const isActive = currentView === 'board' && activeProjectId === project.id;
               const isLiveProject = activeProjectId === project.id;
               const isEditing = editingProjectId === project.id;
               return (
                 <div key={project.id} className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors font-medium border group ${isActive ? 'bg-white border-[#e6d2dc] text-[#76003f] shadow-sm' : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'}`}>
                   <button onClick={() => { onProjectSelect(project.id); onViewChange('board'); }} className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
-                    <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${isLiveProject ? 'active-node ring-2 ring-[#76003f]/25 ring-offset-1 ring-offset-white' : ''}`} />
+                    <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${isLiveProject ? 'active-node ring-1 ring-[#76003f]/15 ring-offset-0' : ''}`} />
                     {isEditing ? (
                       <input
                         autoFocus
@@ -229,12 +242,22 @@ const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
               );
-            }) : (
-              <div className="px-4 py-6 text-center border-2 border-dashed border-slate-200 rounded-2xl opacity-40">
-                <p className="text-[10px] font-semibold uppercase tracking-wide">No projects yet</p>
-              </div>
-            )}
-          </div>
+              }) : (
+                <div className="px-4 py-6 text-center border-2 border-dashed border-slate-200 rounded-2xl opacity-40">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">No projects yet</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isProjectListCollapsed && activeProjects.length > cappedProjectCount && (
+            <button
+              onClick={() => setShowAllProjects((prev) => !prev)}
+              className="w-full h-7 px-3 rounded-md border border-[#ead4df] bg-white text-[11px] font-medium text-[#8a506f]"
+            >
+              {showAllProjects ? `Show fewer (${cappedProjectCount})` : `Show all (${activeProjects.length})`}
+            </button>
+          )}
         </div>
 
         <div className="space-y-1.5">

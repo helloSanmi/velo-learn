@@ -3,6 +3,7 @@ import { Task, TaskStatus, TaskPriority, User, Subtask } from '../types';
 import { taskService } from '../services/taskService';
 import { aiService } from '../services/aiService';
 import { historyManager } from '../services/historyService';
+import { projectService } from '../services/projectService';
 
 export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -13,9 +14,14 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [confettiActive, setConfettiActive] = useState(false);
   
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'All'>('All');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'All'>('All');
+  const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
   const [tagFilter, setTagFilter] = useState<string | 'All'>('All');
   const [assigneeFilter, setAssigneeFilter] = useState<string | 'All'>('All');
+  const getTaskAssigneeIds = (task: Task): string[] => {
+    if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
+    if (task.assigneeId) return [task.assigneeId];
+    return [];
+  };
 
   const refreshTasks = useCallback(() => {
     if (user) {
@@ -38,17 +44,34 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     return () => window.removeEventListener('keydown', handleUndoRedo);
   }, [tasks, user]);
 
-  const createTask = (title: string, description: string, priority: TaskPriority, tags: string[] = [], dueDate?: number, projectId: string = 'p1', assigneeId?: string) => {
+  const createTask = (
+    title: string,
+    description: string,
+    priority: TaskPriority,
+    tags: string[] = [],
+    dueDate?: number,
+    projectId: string = 'p1',
+    assigneeIds: string[] = []
+  ) => {
     if (!user) return;
     historyManager.push(tasks);
-    taskService.createTask(user.id, user.orgId, projectId, title, description, priority, tags, dueDate, assigneeId);
+    taskService.createTask(user.id, user.orgId, projectId, title, description, priority, tags, dueDate, assigneeIds);
     refreshTasks();
   };
 
-  const updateStatus = (id: string, status: TaskStatus, username?: string) => {
+  const getDoneStageIds = () => {
+    if (!user) return [TaskStatus.DONE];
+    const projects = projectService.getProjects(user.orgId);
+    const stageIds = projects
+      .map((project) => project.stages?.[project.stages.length - 1]?.id)
+      .filter(Boolean) as string[];
+    return Array.from(new Set([TaskStatus.DONE, ...stageIds]));
+  };
+
+  const updateStatus = (id: string, status: string, username?: string) => {
     if (!user) return;
     historyManager.push(tasks);
-    if (status === TaskStatus.DONE) setConfettiActive(true);
+    if (getDoneStageIds().includes(status)) setConfettiActive(true);
     const updated = taskService.updateTaskStatus(user.id, user.orgId, id, status, username);
     setTasks(updated);
   };
@@ -87,10 +110,10 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     return updated.find(t => t.id === taskId);
   };
 
-  const moveTask = (taskId: string, targetStatus: TaskStatus, targetTaskId?: string) => {
+  const moveTask = (taskId: string, targetStatus: string, targetTaskId?: string) => {
     if (!user) return;
     historyManager.push(tasks);
-    if (targetStatus === TaskStatus.DONE) setConfettiActive(true);
+    if (getDoneStageIds().includes(targetStatus)) setConfettiActive(true);
     setTasks(prevTasks => {
       const updatedTasks = [...prevTasks];
       const taskIndex = updatedTasks.findIndex(t => t.id === taskId);
@@ -170,18 +193,26 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       const matchesPriority = priorityFilter === 'All' || task.priority === priorityFilter;
       const matchesTag = tagFilter === 'All' || task.tags?.includes(tagFilter);
       const matchesProject = !activeProjectId || task.projectId === activeProjectId;
-      const matchesAssignee = assigneeFilter === 'All' || (assigneeFilter === 'Me' && task.assigneeId === user?.id) || task.assigneeId === assigneeFilter;
+      const assigneeIds = getTaskAssigneeIds(task);
+      const matchesAssignee =
+        assigneeFilter === 'All' ||
+        (assigneeFilter === 'Me' && assigneeIds.includes(user?.id || '')) ||
+        assigneeIds.includes(assigneeFilter);
       return matchesPriority && matchesTag && matchesProject && matchesAssignee;
     });
   }, [tasks, priorityFilter, tagFilter, activeProjectId, assigneeFilter, user]);
 
   const categorizedTasks = useMemo(() => {
     const sortFn = (a: Task, b: Task) => a.order - b.order;
-    return {
-      [TaskStatus.TODO]: filteredTasks.filter(t => t.status === TaskStatus.TODO).sort(sortFn),
-      [TaskStatus.IN_PROGRESS]: filteredTasks.filter(t => t.status === TaskStatus.IN_PROGRESS).sort(sortFn),
-      [TaskStatus.DONE]: filteredTasks.filter(t => t.status === TaskStatus.DONE).sort(sortFn),
-    };
+    const grouped = filteredTasks.reduce((acc, task) => {
+      if (!acc[task.status]) acc[task.status] = [];
+      acc[task.status].push(task);
+      return acc;
+    }, {} as Record<string, Task[]>);
+    Object.keys(grouped).forEach((key) => {
+      grouped[key] = grouped[key].sort(sortFn);
+    });
+    return grouped;
   }, [filteredTasks]);
 
   return {

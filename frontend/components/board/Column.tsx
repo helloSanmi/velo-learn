@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Task, TaskStatus } from '../../types';
+import { Task } from '../../types';
 import TaskItem from '../TaskItem';
 
 interface ColumnProps {
   title: string;
-  status: TaskStatus;
+  status: string;
   icon: React.ReactNode;
   colorClass: string;
   tasks: Task[];
   selectedTaskIds?: string[];
   onToggleTaskSelection?: (id: string) => void;
   onDeleteTask: (id: string) => void;
-  onUpdateStatus: (id: string, status: TaskStatus) => void;
-  onMoveTask: (taskId: string, targetStatus: TaskStatus, targetTaskId?: string) => void;
+  onUpdateStatus: (id: string, status: string) => void;
+  onMoveTask: (taskId: string, targetStatus: string, targetTaskId?: string) => void;
   onAIAssist: (task: Task) => void;
   onSelectTask: (task: Task) => void;
   onAddNewTask: () => void;

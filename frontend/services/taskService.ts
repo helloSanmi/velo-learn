@@ -6,6 +6,11 @@ import { settingsService } from './settingsService';
 import { userService } from './userService';
 
 const STORAGE_KEY = 'velo_data';
+const getTaskAssigneeIds = (task: Task): string[] => {
+  if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
+  if (task.assigneeId) return [task.assigneeId];
+  return [];
+};
 
 export const taskService = {
   getAllTasksForOrg: (orgId: string): Task[] => {
@@ -16,6 +21,8 @@ export const taskService = {
         .filter((t) => t.orgId === orgId)
         .map((t) => ({
           ...t,
+          assigneeIds: getTaskAssigneeIds(t),
+          assigneeId: getTaskAssigneeIds(t)[0],
           comments: t.comments || [],
           auditLog: t.auditLog || [],
           subtasks: t.subtasks || [],
@@ -52,10 +59,18 @@ export const taskService = {
           (t) =>
             t.orgId === orgId &&
             activeProjectIds.has(t.projectId) &&
-            (isAdmin || t.userId === userId || t.assigneeId === userId || userProjectIds.includes(t.projectId) || t.projectId === 'general')
+            (
+              isAdmin ||
+              t.userId === userId ||
+              getTaskAssigneeIds(t).includes(userId) ||
+              userProjectIds.includes(t.projectId) ||
+              t.projectId === 'general'
+            )
         )
         .map(t => ({
           ...t,
+          assigneeIds: getTaskAssigneeIds(t),
+          assigneeId: getTaskAssigneeIds(t)[0],
           comments: t.comments || [],
           auditLog: t.auditLog || [],
           subtasks: t.subtasks || [],
@@ -70,20 +85,34 @@ export const taskService = {
     }
   },
 
-  createTask: (userId: string, orgId: string, projectId: string, title: string, description: string, priority: TaskPriority, tags: string[] = [], dueDate?: number, assigneeId?: string): Task => {
+  createTask: (
+    userId: string,
+    orgId: string,
+    projectId: string,
+    title: string,
+    description: string,
+    priority: TaskPriority,
+    tags: string[] = [],
+    dueDate?: number,
+    assigneeIds: string[] = []
+  ): Task => {
     const data = localStorage.getItem(STORAGE_KEY);
     const allTasks: Task[] = data ? JSON.parse(data) : [];
     const maxOrder = allTasks.length > 0 ? Math.max(...allTasks.map(t => t.order)) : 0;
+    const normalizedAssigneeIds = Array.from(new Set(assigneeIds.filter(Boolean)));
+    const project = projectService.getProjects(orgId).find((item) => item.id === projectId);
+    const defaultStage = project?.stages?.[0]?.id || TaskStatus.TODO;
     
     const newTask: Task = {
       id: crypto.randomUUID(),
       orgId,
       userId,
-      assigneeId,
+      assigneeId: normalizedAssigneeIds[0],
+      assigneeIds: normalizedAssigneeIds,
       projectId: projectId || 'general',
       title,
       description,
-      status: TaskStatus.TODO,
+      status: defaultStage,
       priority,
       createdAt: Date.now(),
       order: maxOrder + 1,
@@ -104,14 +133,18 @@ export const taskService = {
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...allTasks, newTask]));
     const settings = settingsService.getSettings();
-    if (settings.enableNotifications && assigneeId && assigneeId !== userId) {
-      notificationService.addNotification({
-        userId: assigneeId,
-        title: 'Node Provisioned',
-        message: `Assigned: ${title}`,
-        type: 'ASSIGNMENT',
-        linkId: newTask.id
-      });
+    if (settings.enableNotifications) {
+      normalizedAssigneeIds
+        .filter((assigneeId) => assigneeId !== userId)
+        .forEach((assigneeId) =>
+          notificationService.addNotification({
+            userId: assigneeId,
+            title: 'Node Provisioned',
+            message: `Assigned: ${title}`,
+            type: 'ASSIGNMENT',
+            linkId: newTask.id
+          })
+        );
     }
     return newTask;
   },
@@ -119,19 +152,36 @@ export const taskService = {
   updateTask: (userId: string, orgId: string, id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>, displayName?: string): Task[] => {
     const allTasksStr = localStorage.getItem(STORAGE_KEY);
     const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
-    let notifyAssigneeId: string | null = null;
+    let notifyAssigneeIds: string[] = [];
     let notifyTaskTitle: string = '';
 
     const updatedTasks = allTasks.map(t => {
       if (t.id === id) {
-        if (updates.assigneeId && updates.assigneeId !== t.assigneeId && updates.assigneeId !== userId) {
-          notifyAssigneeId = updates.assigneeId;
-          notifyTaskTitle = updates.title || t.title;
+        const previousAssignees = getTaskAssigneeIds(t);
+        const normalizedUpdates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>> = { ...updates };
+
+        if (Array.isArray(normalizedUpdates.assigneeIds)) {
+          const uniqueAssignees = Array.from(new Set(normalizedUpdates.assigneeIds.filter(Boolean)));
+          normalizedUpdates.assigneeIds = uniqueAssignees;
+          normalizedUpdates.assigneeId = uniqueAssignees[0];
+        } else if (typeof normalizedUpdates.assigneeId === 'string') {
+          const nextIds = normalizedUpdates.assigneeId ? [normalizedUpdates.assigneeId] : [];
+          normalizedUpdates.assigneeIds = nextIds;
+          normalizedUpdates.assigneeId = nextIds[0];
         }
+
+        const nextAssignees = Array.isArray(normalizedUpdates.assigneeIds)
+          ? normalizedUpdates.assigneeIds
+          : previousAssignees;
+        notifyAssigneeIds = nextAssignees.filter((assigneeId) => !previousAssignees.includes(assigneeId) && assigneeId !== userId);
+        if (notifyAssigneeIds.length > 0) {
+          notifyTaskTitle = normalizedUpdates.title || t.title;
+        }
+
         const auditLog = [...(t.auditLog || [])];
         if (displayName) {
-          Object.keys(updates).forEach(key => {
-            const newVal = (updates as any)[key];
+          Object.keys(normalizedUpdates).forEach(key => {
+            const newVal = (normalizedUpdates as any)[key];
             const oldVal = (t as any)[key];
             if (newVal !== undefined && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
               auditLog.push({
@@ -144,20 +194,22 @@ export const taskService = {
             }
           });
         }
-        return { ...t, ...updates, auditLog };
+        return { ...t, ...normalizedUpdates, auditLog };
       }
       return t;
     });
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
     const settings = settingsService.getSettings();
-    if (settings.enableNotifications && notifyAssigneeId) {
-      notificationService.addNotification({
-        userId: notifyAssigneeId,
-        title: 'Node Recalibrated',
-        message: `Assigned: ${notifyTaskTitle}`,
-        type: 'ASSIGNMENT',
-        linkId: id
+    if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
+      notifyAssigneeIds.forEach((notifyAssigneeId) => {
+        notificationService.addNotification({
+          userId: notifyAssigneeId,
+          title: 'Node Recalibrated',
+          message: `Assigned: ${notifyTaskTitle}`,
+          type: 'ASSIGNMENT',
+          linkId: id
+        });
       });
     }
     return taskService.getTasks(userId, orgId);
@@ -186,7 +238,7 @@ export const taskService = {
     return taskService.getTasks(userId, orgId);
   },
 
-  updateTaskStatus: (userId: string, orgId: string, id: string, status: TaskStatus, displayName?: string): Task[] => {
+  updateTaskStatus: (userId: string, orgId: string, id: string, status: string, displayName?: string): Task[] => {
     return taskService.updateTask(userId, orgId, id, { status }, displayName);
   },
 
@@ -203,14 +255,17 @@ export const taskService = {
           timestamp: Date.now()
         };
         const settings = settingsService.getSettings();
-        if (settings.enableNotifications && t.assigneeId && t.assigneeId !== userId) {
-           notificationService.addNotification({
-             userId: t.assigneeId,
-             title: 'Velo Transmission',
-             message: `${displayName} commented on "${t.title}"`,
-             type: 'SYSTEM',
-             linkId: taskId
-           });
+        const notifyAssigneeIds = getTaskAssigneeIds(t).filter((assigneeId) => assigneeId !== userId);
+        if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
+          notifyAssigneeIds.forEach((assigneeId) => {
+            notificationService.addNotification({
+              userId: assigneeId,
+              title: 'Velo Transmission',
+              message: `${displayName} commented on "${t.title}"`,
+              type: 'SYSTEM',
+              linkId: taskId
+            });
+          });
         }
         return { ...t, comments: [...(t.comments || []), newComment] };
       }

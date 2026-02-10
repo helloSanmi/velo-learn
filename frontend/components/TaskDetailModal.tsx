@@ -4,6 +4,7 @@ import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTria
 import { Task, TaskPriority, TaskStatus, User, Subtask } from '../types';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
+import AssigneePicker from './ui/AssigneePicker';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
 
@@ -30,7 +31,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
   const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
-  const [assigneeId, setAssigneeId] = useState<string>('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [commentText, setCommentText] = useState('');
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [riskAssessment, setRiskAssessment] = useState<{ isAtRisk: boolean; reason: string } | null>(null);
@@ -54,11 +55,17 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   useEffect(() => {
     if (task) {
+      const normalizedAssignees =
+        Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0
+          ? task.assigneeIds
+          : task.assigneeId
+            ? [task.assigneeId]
+            : [];
       setTitle(task.title);
       setDescription(task.description);
       setPriority(task.priority);
       setStatus(task.status);
-      setAssigneeId(task.assigneeId || '');
+      setAssigneeIds(normalizedAssignees);
       setRiskAssessment(task.isAtRisk ? { isAtRisk: true, reason: "Health scan previously flagged this node." } : null);
       setDependencyQuery('');
     }
@@ -176,21 +183,16 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className={`grid grid-cols-1 ${aiEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
-                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignee</h4>
-                <select
-                  value={assigneeId}
-                  onChange={(e) => {
-                    const newId = e.target.value;
-                    setAssigneeId(newId);
-                    onUpdate(task.id, { assigneeId: newId || undefined });
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignees</h4>
+                <AssigneePicker
+                  users={allUsers}
+                  selectedIds={assigneeIds}
+                  onChange={(nextIds) => {
+                    setAssigneeIds(nextIds);
+                    onUpdate(task.id, { assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
                   }}
-                  className="h-9 bg-white border border-slate-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-300 appearance-none cursor-pointer"
-                >
-                  <option value="">Unassigned</option>
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.displayName}</option>
-                  ))}
-                </select>
+                  compact
+                />
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">

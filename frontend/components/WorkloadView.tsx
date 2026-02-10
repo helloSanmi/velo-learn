@@ -14,6 +14,10 @@ interface WorkloadViewProps {
 type LoadFilter = 'All' | 'High' | 'Medium' | 'Low';
 
 const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign }) => {
+  const taskAssigneeIds = (task: Task): string[] => {
+    if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
+    return task.assigneeId ? [task.assigneeId] : [];
+  };
   const [isBalancing, setIsBalancing] = useState(false);
   const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [query, setQuery] = useState('');
@@ -21,8 +25,8 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
 
   const userStats = useMemo(() => {
     return users.map((u) => {
-      const activeTasks = tasks.filter((t) => t.assigneeId === u.id && t.status !== TaskStatus.DONE);
-      const doneTasks = tasks.filter((t) => t.assigneeId === u.id && t.status === TaskStatus.DONE);
+      const activeTasks = tasks.filter((t) => taskAssigneeIds(t).includes(u.id) && t.status !== TaskStatus.DONE);
+      const doneTasks = tasks.filter((t) => taskAssigneeIds(t).includes(u.id) && t.status === TaskStatus.DONE);
       const highCount = activeTasks.filter((t) => t.priority === TaskPriority.HIGH).length;
       const load = activeTasks.length;
       const status: LoadFilter = load >= 6 ? 'High' : load >= 3 ? 'Medium' : 'Low';

@@ -1,7 +1,37 @@
 
-import { Project } from '../types';
+import { Project, ProjectStage, TaskStatus } from '../types';
 
 const PROJECTS_KEY = 'velo_projects';
+export const DEFAULT_PROJECT_STAGES: ProjectStage[] = [
+  { id: TaskStatus.TODO, name: 'To Do' },
+  { id: TaskStatus.IN_PROGRESS, name: 'In Progress' },
+  { id: TaskStatus.DONE, name: 'Done' }
+];
+
+const normalizeStages = (stages?: ProjectStage[]): ProjectStage[] => {
+  if (!Array.isArray(stages) || stages.length === 0) return DEFAULT_PROJECT_STAGES;
+  const normalized = stages
+    .filter((stage) => stage?.id && stage?.name)
+    .map((stage) => ({ id: stage.id.trim(), name: stage.name.trim() }))
+    .filter((stage) => stage.id && stage.name);
+  return normalized.length > 0 ? normalized : DEFAULT_PROJECT_STAGES;
+};
+
+const normalizeProjectMeta = (meta?: Partial<Project>) => {
+  const startDate = meta?.startDate;
+  const endDate = meta?.endDate;
+  const budgetCost = typeof meta?.budgetCost === 'number' && Number.isFinite(meta.budgetCost) ? Math.max(0, meta.budgetCost) : undefined;
+  const scopeSize = typeof meta?.scopeSize === 'number' && Number.isFinite(meta.scopeSize) ? Math.max(0, Math.round(meta.scopeSize)) : undefined;
+  const scopeSummary = meta?.scopeSummary?.trim() || undefined;
+
+  return {
+    startDate,
+    endDate: endDate && startDate && endDate < startDate ? startDate : endDate,
+    budgetCost,
+    scopeSummary,
+    scopeSize
+  };
+};
 
 export const projectService = {
   getProjects: (orgId?: string): Project[] => {
@@ -10,8 +40,9 @@ export const projectService = {
       if (!data) return [];
       const all: Project[] = JSON.parse(data) || [];
       if (!Array.isArray(all)) return [];
-      if (orgId) return all.filter(p => p.orgId === orgId);
-      return all;
+      const normalizedProjects = all.map((project) => ({ ...project, stages: normalizeStages(project.stages) }));
+      if (orgId) return normalizedProjects.filter(p => p.orgId === orgId);
+      return normalizedProjects;
     } catch (e) {
       console.error("Error parsing projects:", e);
       return [];
@@ -35,14 +66,24 @@ export const projectService = {
     );
   },
 
-  createProject: (orgId: string, name: string, description: string, color: string, members: string[]): Project => {
+  createProject: (
+    orgId: string,
+    name: string,
+    description: string,
+    color: string,
+    members: string[],
+    meta?: Partial<Project>
+  ): Project => {
     const projects = projectService.getProjects();
+    const normalizedMeta = normalizeProjectMeta(meta);
     const newProject: Project = {
       id: crypto.randomUUID(),
       orgId,
       name,
       description,
       color,
+      ...normalizedMeta,
+      stages: DEFAULT_PROJECT_STAGES,
       members,
       isArchived: false,
       isCompleted: false,
@@ -69,8 +110,9 @@ export const projectService = {
   },
 
   updateProject: (id: string, updates: Partial<Project>) => {
+    const normalizedMeta = normalizeProjectMeta(updates);
     const projects = projectService.getProjects().map(p => 
-      p.id === id ? { ...p, ...updates } : p
+      p.id === id ? { ...p, ...updates, ...normalizedMeta, stages: normalizeStages(updates.stages || p.stages) } : p
     );
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
     return projects.find((p) => p.id === id);

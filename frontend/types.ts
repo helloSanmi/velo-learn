@@ -3,6 +3,12 @@ export enum TaskStatus {
   IN_PROGRESS = 'in-progress',
   DONE = 'done'
 }
+export type TaskStageId = TaskStatus | string;
+
+export interface ProjectStage {
+  id: string;
+  name: string;
+}
 
 export enum TaskPriority {
   LOW = 'Low',
@@ -34,6 +40,12 @@ export interface Project {
   name: string;
   description: string;
   color: string;
+  startDate?: number;
+  endDate?: number;
+  budgetCost?: number;
+  scopeSummary?: string;
+  scopeSize?: number;
+  stages?: ProjectStage[];
   members: string[];
   isArchived?: boolean;
   archivedAt?: number;
@@ -79,10 +91,11 @@ export interface Task {
   orgId: string;
   userId: string;
   assigneeId?: string;
+  assigneeIds?: string[];
   projectId: string;
   title: string;
   description: string;
-  status: TaskStatus;
+  status: TaskStageId;
   priority: TaskPriority;
   createdAt: number;
   order: number;

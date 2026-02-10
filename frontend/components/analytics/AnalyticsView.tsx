@@ -13,6 +13,10 @@ interface AnalyticsViewProps {
 type LoadFilter = 'All' | 'High' | 'Medium' | 'Low';
 
 const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
+  const taskAssigneeIds = (task: Task): string[] => {
+    if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
+    return task.assigneeId ? [task.assigneeId] : [];
+  };
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [healthInsights, setHealthInsights] = useState<{ bottlenecks: string[]; suggestions: string[] } | null>(null);
   const [peopleQuery, setPeopleQuery] = useState('');
@@ -33,7 +37,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
   const people = useMemo(() => {
     return allUsers
       .map((user) => {
-        const assigned = tasks.filter((t) => t.assigneeId === user.id);
+        const assigned = tasks.filter((t) => taskAssigneeIds(t).includes(user.id));
         const active = assigned.filter((t) => t.status !== TaskStatus.DONE).length;
         const completed = assigned.filter((t) => t.status === TaskStatus.DONE).length;
         const loadStatus: LoadFilter = active >= 6 ? 'High' : active >= 3 ? 'Medium' : 'Low';

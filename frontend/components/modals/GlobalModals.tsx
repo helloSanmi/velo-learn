@@ -38,8 +38,16 @@ interface GlobalModalsProps {
   projects: Project[];
   activeProjectId: string | null;
   aiEnabled: boolean;
-  createTask: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, projectId?: string, assigneeId?: string) => void;
-  handleAddProject: (name: string, description: string, color: string, members: string[], templateId?: string, aiGeneratedTasks?: any[]) => void;
+  createTask: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, projectId?: string, assigneeIds?: string[]) => void;
+  handleAddProject: (
+    name: string,
+    description: string,
+    color: string,
+    members: string[],
+    templateId?: string,
+    aiGeneratedTasks?: any[],
+    meta?: { startDate?: number; endDate?: number; budgetCost?: number; scopeSummary?: string; scopeSize?: number }
+  ) => void;
   handleUpdateTask: (id: string, updates: any) => void;
   handleCommentOnTask: (id: string, text: string) => void;
   deleteTask: (id: string) => void;
@@ -70,7 +78,7 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
 }) => {
   return (
     <>
-      <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={(title, description, priority, tags, dueDate, assigneeId) => createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeId)} />
+      <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={(title, description, priority, tags, dueDate, assigneeIds) => createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds)} />
       <ProjectModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} onSubmit={handleAddProject} currentUserId={user.id} />
       <TaskDetailModal 
         task={selectedTask ? (tasks.find((t) => t.id === selectedTask.id) || selectedTask) : null}

@@ -1,16 +1,17 @@
 import React from 'react';
-import { CheckCircle2, Hourglass, ListChecks } from 'lucide-react';
-import { Task, TaskStatus } from '../../types';
+import { CheckCircle2, Circle, Hourglass, ListChecks } from 'lucide-react';
+import { Task } from '../../types';
 import Column from './Column';
 
 interface KanbanBoardProps {
-  categorizedTasks: Record<TaskStatus, Task[]>;
-  statusFilter: TaskStatus | 'All';
+  categorizedTasks: Record<string, Task[]>;
+  statusFilter: string | 'All';
+  statusOptions: Array<{ id: string; name: string }>;
   selectedTaskIds?: string[];
   onToggleTaskSelection?: (id: string) => void;
   onDeleteTask: (id: string) => void;
-  onUpdateStatus: (id: string, status: TaskStatus) => void;
-  onMoveTask: (taskId: string, targetStatus: TaskStatus, targetTaskId?: string) => void;
+  onUpdateStatus: (id: string, status: string) => void;
+  onMoveTask: (taskId: string, targetStatus: string, targetTaskId?: string) => void;
   onAIAssist: (task: Task) => void;
   onSelectTask: (task: Task) => void;
   onAddNewTask: () => void;
@@ -21,6 +22,7 @@ interface KanbanBoardProps {
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
   categorizedTasks,
   statusFilter,
+  statusOptions,
   selectedTaskIds = [],
   onToggleTaskSelection,
   onDeleteTask,
@@ -32,26 +34,16 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   readOnly = false,
   onToggleTimer
 }) => {
-  const columns = [
-    {
-      id: TaskStatus.TODO,
-      title: 'To Do',
-      icon: <ListChecks className="w-4 h-4" />,
-      tasks: categorizedTasks[TaskStatus.TODO]
-    },
-    {
-      id: TaskStatus.IN_PROGRESS,
-      title: 'In Progress',
-      icon: <Hourglass className="w-4 h-4" />,
-      tasks: categorizedTasks[TaskStatus.IN_PROGRESS]
-    },
-    {
-      id: TaskStatus.DONE,
-      title: 'Done',
-      icon: <CheckCircle2 className="w-4 h-4" />,
-      tasks: categorizedTasks[TaskStatus.DONE]
-    }
-  ];
+  const columns = statusOptions.map((status, index) => {
+    const Icon =
+      index === 0 ? ListChecks : index === statusOptions.length - 1 ? CheckCircle2 : index === 1 ? Hourglass : Circle;
+    return {
+      id: status.id,
+      title: status.name,
+      icon: <Icon className="w-4 h-4" />,
+      tasks: categorizedTasks[status.id] || []
+    };
+  });
 
   const visibleColumns = columns.filter((col) => statusFilter === 'All' || col.id === statusFilter);
 

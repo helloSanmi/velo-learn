@@ -3,19 +3,29 @@ import { ArrowLeft, Check, Loader2, Sparkles, Users, X } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
 import { workflowService } from '../services/workflowService';
-import { ProjectTemplate } from '../types';
+import { ProjectTemplate, TaskPriority } from '../types';
 import Button from './ui/Button';
 
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, description: string, color: string, members: string[], templateId?: string, aiGeneratedTasks?: any[]) => void;
+  onSubmit: (
+    name: string,
+    description: string,
+    color: string,
+    members: string[],
+    templateId?: string,
+    aiGeneratedTasks?: any[],
+    meta?: { startDate?: number; endDate?: number; budgetCost?: number; scopeSummary?: string; scopeSize?: number }
+  ) => void;
   currentUserId: string;
 }
 
 const COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-slate-700', 'bg-pink-500'];
 
 type Mode = 'manual' | 'template' | 'ai';
+type AiInputMode = 'brief' | 'document';
+type AiTaskDraft = { title: string; description: string; priority: TaskPriority; tags: string[] };
 
 const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, currentUserId }) => {
   const [step, setStep] = useState(1);
@@ -25,10 +35,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [memberIds, setMemberIds] = useState<string[]>([currentUserId]);
   const [isPublic, setIsPublic] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [budgetCost, setBudgetCost] = useState('');
+  const [scopeSummary, setScopeSummary] = useState('');
+  const [scopeSize, setScopeSize] = useState('');
+  const [metaError, setMetaError] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate | null>(null);
+
+  const [aiInputMode, setAiInputMode] = useState<AiInputMode>('brief');
+  const [aiBrief, setAiBrief] = useState('');
   const [aiDocText, setAiDocText] = useState('');
-  const [aiGeneratedTasks, setAiGeneratedTasks] = useState<any[]>([]);
+  const [aiTaskCount, setAiTaskCount] = useState(8);
+  const [aiGeneratedTasks, setAiGeneratedTasks] = useState<AiTaskDraft[]>([]);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   const allUsers = userService.getUsers();
 
@@ -42,10 +63,21 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
     setSelectedColor(COLORS[0]);
     setMemberIds([currentUserId]);
     setIsPublic(false);
+    setStartDate('');
+    setEndDate('');
+    setBudgetCost('');
+    setScopeSummary('');
+    setScopeSize('');
+    setMetaError('');
     setSelectedTemplate(null);
+
+    setAiInputMode('brief');
+    setAiBrief('');
     setAiDocText('');
+    setAiTaskCount(8);
     setAiGeneratedTasks([]);
     setIsAiProcessing(false);
+    setAiError('');
   };
 
   const close = () => {
@@ -53,25 +85,88 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
     onClose();
   };
 
+  const normalizePriority = (priority: string): TaskPriority => {
+    const normalized = priority?.toLowerCase();
+    if (normalized === 'high') return TaskPriority.HIGH;
+    if (normalized === 'low') return TaskPriority.LOW;
+    return TaskPriority.MEDIUM;
+  };
+
   const processAi = async () => {
-    if (!aiDocText.trim()) return;
+    if (aiInputMode === 'brief' && !aiBrief.trim()) return;
+    if (aiInputMode === 'document' && !aiDocText.trim()) return;
+
     setIsAiProcessing(true);
-    const tasks = await aiService.parseProjectFromDocument(aiDocText);
-    setAiGeneratedTasks(tasks);
+    setAiError('');
+
+    const tasks =
+      aiInputMode === 'brief'
+        ? await aiService.generateProjectTasksFromBrief(name, aiBrief, aiTaskCount)
+        : await aiService.parseProjectFromDocument(aiDocText);
+
+    const normalizedTasks = (tasks || [])
+      .filter((task) => task?.title?.trim())
+      .map((task) => ({
+        title: task.title.trim(),
+        description: (task.description || '').trim(),
+        priority: normalizePriority(task.priority as string),
+        tags: Array.isArray(task.tags) && task.tags.length > 0 ? task.tags.slice(0, 4) : ['Planning']
+      }));
+
+    setAiGeneratedTasks(normalizedTasks);
     setIsAiProcessing(false);
-    setStep(3);
+
+    if (normalizedTasks.length > 0) {
+      setStep(3);
+      return;
+    }
+
+    setAiError('No tasks were generated. Try a more specific brief.');
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit(name, description, selectedColor, memberIds, selectedTemplate?.id, aiGeneratedTasks);
+
+    const parsedStartDate = startDate ? new Date(startDate).getTime() : undefined;
+    const parsedEndDate = endDate ? new Date(endDate).getTime() : undefined;
+    const parsedBudgetCost = budgetCost.trim() ? Number(budgetCost) : undefined;
+    const parsedScopeSize = scopeSize.trim() ? Number(scopeSize) : undefined;
+
+    if (parsedStartDate && parsedEndDate && parsedEndDate < parsedStartDate) {
+      setMetaError('End date must be on or after the start date.');
+      return;
+    }
+    if (parsedBudgetCost !== undefined && (!Number.isFinite(parsedBudgetCost) || parsedBudgetCost < 0)) {
+      setMetaError('Cost must be a positive number.');
+      return;
+    }
+    if (parsedScopeSize !== undefined && (!Number.isFinite(parsedScopeSize) || parsedScopeSize < 0)) {
+      setMetaError('Scope size must be a positive number.');
+      return;
+    }
+
+    onSubmit(name, description, selectedColor, memberIds, selectedTemplate?.id, aiGeneratedTasks, {
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      budgetCost: parsedBudgetCost,
+      scopeSummary: scopeSummary.trim() || undefined,
+      scopeSize: parsedScopeSize !== undefined ? Math.round(parsedScopeSize) : undefined
+    });
     close();
   };
 
   const toggleMember = (id: string) => {
     if (id === currentUserId) return;
     setMemberIds((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
+  };
+
+  const updateGeneratedTask = (index: number, updates: Partial<AiTaskDraft>) => {
+    setAiGeneratedTasks((prev) => prev.map((task, taskIndex) => (taskIndex === index ? { ...task, ...updates } : task)));
+  };
+
+  const removeGeneratedTask = (index: number) => {
+    setAiGeneratedTasks((prev) => prev.filter((_, taskIndex) => taskIndex !== index));
   };
 
   return (
@@ -98,7 +193,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
               <div className="grid sm:grid-cols-3 gap-2">
                 <button onClick={() => { setMode('manual'); setSelectedTemplate(null); setStep(3); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Start from scratch</button>
                 <button onClick={() => { setMode('template'); setStep(2); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Use template</button>
-                <button onClick={() => { setMode('ai'); setStep(2); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Import with AI</button>
+                <button onClick={() => { setMode('ai'); setStep(2); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Generate with AI</button>
               </div>
             </div>
           )}
@@ -128,17 +223,65 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
 
           {step === 2 && mode === 'ai' && (
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">Paste notes or documentation. AI will extract tasks.</p>
-              <textarea
-                value={aiDocText}
-                onChange={(e) => setAiDocText(e.target.value)}
-                className="w-full min-h-[220px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                placeholder="Paste notes, docs, or task ideas..."
-              />
-              <Button onClick={processAi} disabled={isAiProcessing || !aiDocText.trim()} className="w-full">
+              <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setAiInputMode('brief')}
+                  className={`h-8 px-3 rounded-md text-xs font-medium transition-colors ${aiInputMode === 'brief' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
+                >
+                  Brief
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiInputMode('document')}
+                  className={`h-8 px-3 rounded-md text-xs font-medium transition-colors ${aiInputMode === 'document' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
+                >
+                  Import docs
+                </button>
+              </div>
+
+              {aiInputMode === 'brief' ? (
+                <>
+                  <p className="text-sm text-slate-600">Describe what this project should deliver. AI will generate a starter task plan.</p>
+                  <textarea
+                    value={aiBrief}
+                    onChange={(e) => setAiBrief(e.target.value)}
+                    className="w-full min-h-[190px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Example: Build customer onboarding with email verification, profile setup, analytics tracking, and QA sign-off."
+                  />
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5">Tasks to generate</label>
+                    <input
+                      type="number"
+                      min={4}
+                      max={20}
+                      value={aiTaskCount}
+                      onChange={(e) => setAiTaskCount(Math.min(20, Math.max(4, Number(e.target.value) || 8)))}
+                      className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600">Paste notes or documentation. AI will extract tasks.</p>
+                  <textarea
+                    value={aiDocText}
+                    onChange={(e) => setAiDocText(e.target.value)}
+                    className="w-full min-h-[220px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Paste notes, docs, or task ideas..."
+                  />
+                </>
+              )}
+
+              <Button
+                onClick={processAi}
+                disabled={isAiProcessing || (aiInputMode === 'brief' ? !aiBrief.trim() : !aiDocText.trim())}
+                className="w-full"
+              >
                 {isAiProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {isAiProcessing ? 'Generating tasks...' : 'Use Imported Tasks'}
+                {isAiProcessing ? 'Generating tasks...' : 'Generate Tasks with AI'}
               </Button>
+              {aiError ? <p className="text-xs text-rose-600">{aiError}</p> : null}
             </div>
           )}
 
@@ -160,11 +303,134 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
                 <label className="block text-xs text-slate-500 mb-1.5">Description</label>
                 <textarea
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (metaError) setMetaError('');
+                  }}
                   className="w-full min-h-[100px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
                   placeholder="Short description"
                 />
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">Start date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setStartDate(value);
+                      if (value && !endDate) {
+                        const base = new Date(value);
+                        base.setDate(base.getDate() + 30);
+                        setEndDate(base.toISOString().split('T')[0]);
+                      }
+                      if (metaError) setMetaError('');
+                    }}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">End date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      if (metaError) setMetaError('');
+                    }}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">Planned cost ($)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={budgetCost}
+                    onChange={(e) => {
+                      setBudgetCost(e.target.value);
+                      if (metaError) setMetaError('');
+                    }}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">Scope size (tasks)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={scopeSize}
+                    onChange={(e) => {
+                      setScopeSize(e.target.value);
+                      if (metaError) setMetaError('');
+                    }}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="e.g. 40"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Scope summary</label>
+                <textarea
+                  value={scopeSummary}
+                  onChange={(e) => {
+                    setScopeSummary(e.target.value);
+                    if (metaError) setMetaError('');
+                  }}
+                  className="w-full min-h-[72px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                  placeholder="What is in scope and what is out of scope?"
+                />
+              </div>
+              {metaError ? <p className="text-xs text-rose-600">{metaError}</p> : null}
+
+              {mode === 'ai' && aiGeneratedTasks.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs text-slate-500">AI generated tasks ({aiGeneratedTasks.length})</label>
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="text-xs text-slate-600 hover:text-slate-900"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                  <div className="max-h-[240px] overflow-y-auto custom-scrollbar space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    {aiGeneratedTasks.map((task, index) => (
+                      <div key={`${task.title}-${index}`} className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <input
+                            value={task.title}
+                            onChange={(e) => updateGeneratedTask(index, { title: e.target.value })}
+                            className="flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                            placeholder="Task title"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeGeneratedTask(index)}
+                            className="h-9 px-2 rounded-md text-xs text-slate-600 hover:bg-slate-100"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <textarea
+                          value={task.description}
+                          onChange={(e) => updateGeneratedTask(index, { description: e.target.value })}
+                          className="w-full min-h-[60px] rounded-md border border-slate-300 p-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                          placeholder="Task description"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Color</label>

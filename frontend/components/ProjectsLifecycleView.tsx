@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Archive, ArchiveRestore, Search, Trash2 } from 'lucide-react';
-import { Project, Task, TaskStatus } from '../types';
+import { Project, Task } from '../types';
+import { DEFAULT_PROJECT_STAGES } from '../services/projectService';
 
 interface ProjectsLifecycleViewProps {
   projects: Project[];
@@ -55,6 +56,21 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
     () => (focusedProject ? projectTasks.filter((task) => task.projectId === focusedProject.id) : []),
     [projectTasks, focusedProject]
   );
+  const focusedProjectStats = useMemo(() => {
+    if (!focusedProject) return null;
+    const stages = focusedProject.stages?.length ? focusedProject.stages : DEFAULT_PROJECT_STAGES;
+    const firstStageId = stages[0]?.id;
+    const lastStageId = stages[stages.length - 1]?.id;
+    const total = focusedProjectTasks.length;
+    const done = lastStageId ? focusedProjectTasks.filter((task) => task.status === lastStageId).length : 0;
+    const backlog = firstStageId ? focusedProjectTasks.filter((task) => task.status === firstStageId).length : 0;
+    const inProgress = Math.max(0, total - done - backlog);
+    const completionRate = total > 0 ? done / total : 0;
+    const estimatedSpent = focusedProject.budgetCost ? focusedProject.budgetCost * completionRate : undefined;
+    const scopeGap = typeof focusedProject.scopeSize === 'number' ? focusedProject.scopeSize - total : undefined;
+
+    return { total, done, backlog, inProgress, completionRate, estimatedSpent, scopeGap };
+  }, [focusedProject, focusedProjectTasks]);
 
   const counts = useMemo(
     () => ({
@@ -134,7 +150,7 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                       }`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${activeProjectId === project.id ? 'active-node ring-2 ring-[#76003f]/25 ring-offset-1 ring-offset-white' : ''}`} />
+                          <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${activeProjectId === project.id ? 'active-node ring-1 ring-[#76003f]/15 ring-offset-0' : ''}`} />
                           <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
                         </div>
                       <div className="mt-2 flex items-center justify-between">
@@ -163,21 +179,49 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
               <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
                   <p className="text-[11px] text-slate-500">Total</p>
-                  <p className="text-base font-semibold text-slate-900">{focusedProjectTasks.length}</p>
+                  <p className="text-base font-semibold text-slate-900">{focusedProjectStats?.total || 0}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
-                  <p className="text-[11px] text-slate-500">To do</p>
-                  <p className="text-base font-semibold text-slate-900">{focusedProjectTasks.filter((t) => t.status === TaskStatus.TODO).length}</p>
+                  <p className="text-[11px] text-slate-500">Backlog</p>
+                  <p className="text-base font-semibold text-slate-900">{focusedProjectStats?.backlog || 0}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
                   <p className="text-[11px] text-slate-500">In progress</p>
-                  <p className="text-base font-semibold text-slate-900">{focusedProjectTasks.filter((t) => t.status === TaskStatus.IN_PROGRESS).length}</p>
+                  <p className="text-base font-semibold text-slate-900">{focusedProjectStats?.inProgress || 0}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
                   <p className="text-[11px] text-slate-500">Done</p>
-                  <p className="text-base font-semibold text-slate-900">{focusedProjectTasks.filter((t) => t.status === TaskStatus.DONE).length}</p>
+                  <p className="text-base font-semibold text-slate-900">{focusedProjectStats?.done || 0}</p>
                 </div>
               </div>
+
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="rounded-lg border border-slate-200 px-3 py-2 bg-white">
+                  <p className="text-[11px] text-slate-500">Timeline</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {focusedProject.startDate ? new Date(focusedProject.startDate).toLocaleDateString() : 'No start'} - {focusedProject.endDate ? new Date(focusedProject.endDate).toLocaleDateString() : 'No end'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 px-3 py-2 bg-white">
+                  <p className="text-[11px] text-slate-500">Planned / Est. spent</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {focusedProject.budgetCost ? `$${focusedProject.budgetCost.toLocaleString()}` : 'No budget'} / {focusedProjectStats?.estimatedSpent ? `$${Math.round(focusedProjectStats.estimatedSpent).toLocaleString()}` : '-'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 px-3 py-2 bg-white">
+                  <p className="text-[11px] text-slate-500">Scope target</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {typeof focusedProject.scopeSize === 'number' ? `${focusedProject.scopeSize} tasks` : 'Not set'}
+                    {typeof focusedProjectStats?.scopeGap === 'number' ? ` (${focusedProjectStats.scopeGap >= 0 ? '+' : ''}${focusedProjectStats.scopeGap} gap)` : ''}
+                  </p>
+                </div>
+              </div>
+              {focusedProject.scopeSummary ? (
+                <div className="mt-2 rounded-lg border border-slate-200 px-3 py-2 bg-slate-50">
+                  <p className="text-[11px] text-slate-500">Scope summary</p>
+                  <p className="text-sm text-slate-700 mt-1">{focusedProject.scopeSummary}</p>
+                </div>
+              ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {editingProjectId === focusedProject.id ? (

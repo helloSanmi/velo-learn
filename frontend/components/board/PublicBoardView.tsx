@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { Project, Task, TaskStatus } from '../../types';
+import { Project, Task } from '../../types';
 import KanbanBoard from './KanbanBoard';
 import { Cloud, Lock } from 'lucide-react';
+import { DEFAULT_PROJECT_STAGES } from '../../services/projectService';
 
 interface PublicBoardViewProps {
   project: Project;
@@ -10,11 +11,12 @@ interface PublicBoardViewProps {
 }
 
 const PublicBoardView: React.FC<PublicBoardViewProps> = ({ project, tasks }) => {
-  const categorizedTasks = {
-    [TaskStatus.TODO]: tasks.filter(t => t.status === TaskStatus.TODO),
-    [TaskStatus.IN_PROGRESS]: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS),
-    [TaskStatus.DONE]: tasks.filter(t => t.status === TaskStatus.DONE),
-  };
+  const stages = project.stages?.length ? project.stages : DEFAULT_PROJECT_STAGES;
+  const categorizedTasks = tasks.reduce((acc, task) => {
+    if (!acc[task.status]) acc[task.status] = [];
+    acc[task.status].push(task);
+    return acc;
+  }, {} as Record<string, Task[]>);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-50 overflow-hidden">
@@ -42,6 +44,7 @@ const PublicBoardView: React.FC<PublicBoardViewProps> = ({ project, tasks }) => 
       <KanbanBoard 
         categorizedTasks={categorizedTasks}
         statusFilter="All"
+        statusOptions={stages}
         onDeleteTask={() => {}}
         onUpdateStatus={() => {}}
         onMoveTask={() => {}}

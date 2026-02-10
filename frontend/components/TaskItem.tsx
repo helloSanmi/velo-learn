@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Clock, Lock, Pause, Play, Sparkles, Trash2 } from 'lucide-react';
-import { Task, TaskPriority, TaskStatus } from '../types';
+import { Task, TaskPriority } from '../types';
 import Badge from './ui/Badge';
 import { projectService } from '../services/projectService';
 import { settingsService } from '../services/settingsService';
@@ -11,7 +11,7 @@ interface TaskItemProps {
   isSelected?: boolean;
   onToggleSelection?: (id: string) => void;
   onDelete: (id: string) => void;
-  onUpdateStatus: (id: string, status: TaskStatus) => void;
+  onUpdateStatus: (id: string, status: string) => void;
   onAIAssist: (task: Task) => void;
   onSelect: (task: Task) => void;
   onToggleTimer?: (id: string) => void;
@@ -82,10 +82,15 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return projects.find((p) => p.id === task.projectId);
   }, [task.projectId]);
 
-  const assignee = useMemo(() => {
+  const assigneeIds = useMemo(() => {
+    if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
+    return task.assigneeId ? [task.assigneeId] : [];
+  }, [task.assigneeIds, task.assigneeId]);
+
+  const assignees = useMemo(() => {
     const users = userService.getUsers();
-    return users.find((u) => u.id === task.assigneeId);
-  }, [task.assigneeId]);
+    return assigneeIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+  }, [assigneeIds]);
 
   return (
     <article
@@ -186,12 +191,18 @@ const TaskItem: React.FC<TaskItemProps> = ({
             </button>
           )}
 
-          {assignee && (
-            <img
-              src={assignee.avatar}
-              alt={assignee.displayName}
-              className="w-6 h-6 rounded-lg border border-slate-200"
-            />
+          {assignees.length > 0 && (
+            <div className="flex items-center -space-x-1">
+              {assignees.slice(0, 3).map((assignee: any) => (
+                <img
+                  key={assignee.id}
+                  src={assignee.avatar}
+                  alt={assignee.displayName}
+                  title={assignee.displayName}
+                  className="w-6 h-6 rounded-lg border border-white shadow-sm"
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

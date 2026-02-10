@@ -4,11 +4,12 @@ import { TaskPriority } from '../types';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
 import Button from './ui/Button';
+import AssigneePicker from './ui/AssigneePicker';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, assigneeId?: string) => void;
+  onSubmit: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, assigneeIds?: string[]) => void;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
@@ -18,7 +19,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
 
@@ -63,7 +64,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
       priority,
       tags,
       dueDate ? new Date(dueDate).getTime() : undefined,
-      assigneeId || undefined
+      assigneeIds
     );
 
     setTitle('');
@@ -72,7 +73,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
     setTags([]);
     setTagInput('');
     setDueDate('');
-    setAssigneeId('');
+    setAssigneeIds([]);
     onClose();
   };
 
@@ -105,13 +106,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-500 mb-1.5">Assignee</label>
-                <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm bg-white outline-none focus:ring-2 focus:ring-slate-300">
-                  <option value="">Unassigned</option>
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.displayName}</option>
-                  ))}
-                </select>
+                <label className="block text-xs text-slate-500 mb-1.5">Assignees</label>
+                <AssigneePicker users={allUsers} selectedIds={assigneeIds} onChange={setAssigneeIds} compact />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Priority</label>
