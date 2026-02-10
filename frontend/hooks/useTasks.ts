@@ -4,6 +4,7 @@ import { taskService } from '../services/taskService';
 import { aiService } from '../services/aiService';
 import { historyManager } from '../services/historyService';
 import { projectService } from '../services/projectService';
+import { toastService } from '../services/toastService';
 
 export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -71,9 +72,14 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
   const updateStatus = (id: string, status: string, username?: string) => {
     if (!user) return;
     historyManager.push(tasks);
-    if (getDoneStageIds().includes(status)) setConfettiActive(true);
+    const isDone = getDoneStageIds().includes(status);
+    if (isDone) setConfettiActive(true);
     const updated = taskService.updateTaskStatus(user.id, user.orgId, id, status, username);
     setTasks(updated);
+    if (isDone) {
+      const task = updated.find((item) => item.id === id);
+      toastService.success('Task completed', task ? `"${task.title}" moved to done.` : 'Task moved to done.');
+    }
   };
 
   const bulkUpdateTasks = (ids: string[], updates: Partial<Task>) => {
@@ -84,6 +90,14 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       current = taskService.updateTask(user.id, user.orgId, id, updates, user.displayName);
     });
     setTasks(current);
+    if (ids.length === 0) return;
+    if (updates.status && getDoneStageIds().includes(updates.status)) {
+      toastService.success('Tasks completed', `${ids.length} task${ids.length > 1 ? 's' : ''} moved to done.`);
+      return;
+    }
+    if (Array.isArray(updates.assigneeIds) || typeof updates.assigneeId === 'string') {
+      toastService.success('Assignees updated', `${ids.length} task${ids.length > 1 ? 's were' : ' was'} reassigned.`);
+    }
   };
 
   const bulkDeleteTasks = (ids: string[]) => {
@@ -94,13 +108,42 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       current = taskService.deleteTask(user.id, user.orgId, id);
     });
     setTasks(current);
+    if (ids.length > 0) {
+      toastService.warning('Tasks deleted', `${ids.length} task${ids.length > 1 ? 's were' : ' was'} removed.`);
+    }
   };
 
   const updateTask = (id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>, username?: string) => {
     if (!user) return;
     historyManager.push(tasks);
+    const previousTask = tasks.find((task) => task.id === id);
     const updated = taskService.updateTask(user.id, user.orgId, id, updates, username);
     setTasks(updated);
+    const nextTask = updated.find((task) => task.id === id);
+    if (!nextTask) return;
+    if (Array.isArray(updates.assigneeIds) || typeof updates.assigneeId === 'string') {
+      const previousAssignees =
+        previousTask && Array.isArray(previousTask.assigneeIds) && previousTask.assigneeIds.length > 0
+          ? previousTask.assigneeIds
+          : previousTask?.assigneeId
+            ? [previousTask.assigneeId]
+            : [];
+      const nextAssignees =
+        Array.isArray(nextTask.assigneeIds) && nextTask.assigneeIds.length > 0
+          ? nextTask.assigneeIds
+          : nextTask.assigneeId
+            ? [nextTask.assigneeId]
+            : [];
+      if (JSON.stringify(previousAssignees) !== JSON.stringify(nextAssignees)) {
+        const assigneeCount = nextAssignees.length;
+        toastService.success(
+          assigneeCount > 0 ? 'Assignees updated' : 'Assignees cleared',
+          assigneeCount > 0
+            ? `"${nextTask.title}" now has ${assigneeCount} assignee${assigneeCount > 1 ? 's' : ''}.`
+            : `"${nextTask.title}" has no assignee.`
+        );
+      }
+    }
   };
 
   const addComment = (taskId: string, text: string) => {
@@ -144,14 +187,25 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
   const deleteTask = (id: string) => {
     if (!user) return;
     historyManager.push(tasks);
+    const removedTask = tasks.find((task) => task.id === id);
     const updated = taskService.deleteTask(user.id, user.orgId, id);
     setTasks(updated);
+    toastService.warning('Task deleted', removedTask ? `"${removedTask.title}" was removed.` : 'Task removed.');
   };
 
   const toggleTimer = (id: string) => {
     if (!user) return;
+    const task = tasks.find((item) => item.id === id);
+    const wasRunning = Boolean(task?.isTimerRunning);
     const updated = taskService.toggleTimer(user.id, user.orgId, id);
     setTasks(updated);
+    const nextTask = updated.find((item) => item.id === id);
+    if (!task || !nextTask) return;
+    if (wasRunning && !nextTask.isTimerRunning) {
+      toastService.info('Timer stopped', `"${nextTask.title}" time saved.`);
+    } else if (!wasRunning && nextTask.isTimerRunning) {
+      toastService.info('Timer started', `"${nextTask.title}" is now tracking time.`);
+    }
   };
 
   const assistWithAI = async (task: Task) => {

@@ -25,6 +25,10 @@ import WorkloadView from './components/WorkloadView';
 import IntegrationHub from './components/IntegrationHub';
 import ProjectsLifecycleView from './components/ProjectsLifecycleView';
 import { SettingsTabType } from './components/SettingsModal';
+import DialogHost from './components/ui/DialogHost';
+import { dialogService } from './services/dialogService';
+import ToastHost from './components/ui/ToastHost';
+import { toastService } from './services/toastService';
 
 const getActiveProjectStorageKey = (user: User) => `velo_active_project:${user.orgId}:${user.id}`;
 
@@ -46,6 +50,7 @@ const App: React.FC = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [projectModalTemplateId, setProjectModalTemplateId] = useState<string | null>(null);
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
   const [isVoiceCommanderOpen, setIsVoiceCommanderOpen] = useState(false);
   const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
@@ -140,6 +145,25 @@ const App: React.FC = () => {
     setAuthView('landing');
   };
   const handleReset = () => mockDataService.init().then(() => refreshTasks());
+
+  const handleOpenTaskFromNotification = (taskId: string) => {
+    if (!user) return;
+    const allOrgTasks = taskService.getAllTasksForOrg(user.orgId);
+    const task = allOrgTasks.find((item) => item.id === taskId);
+    if (!task) {
+      toastService.warning('Notification unavailable', 'The related task no longer exists.');
+      return;
+    }
+    const project = projects.find((item) => item.id === task.projectId);
+    if (!project || project.isArchived || project.isCompleted || project.isDeleted) {
+      setCurrentView('projects');
+      toastService.info('Project not active', 'Open Projects to view this task in its lifecycle state.');
+      return;
+    }
+    setCurrentView('board');
+    setActiveProjectId(task.projectId);
+    setSelectedTask(task);
+  };
   
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
     projectService.updateProject(id, updates);
@@ -151,6 +175,7 @@ const App: React.FC = () => {
     if (!trimmed) return;
     projectService.renameProject(id, trimmed);
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p)));
+    toastService.success('Project renamed', `"${trimmed}" is now the project name.`);
   };
 
   const handleArchiveProject = (id: string) => {
@@ -164,6 +189,8 @@ const App: React.FC = () => {
     );
     if (activeProjectId === id) setActiveProjectId(null);
     refreshTasks();
+    const project = projects.find((item) => item.id === id);
+    toastService.info('Project archived', project ? `"${project.name}" moved to archived.` : 'Project moved to archived.');
   };
 
   const handleCompleteProject = (id: string) => {
@@ -177,12 +204,16 @@ const App: React.FC = () => {
     );
     if (activeProjectId === id) setActiveProjectId(null);
     refreshTasks();
+    const project = projects.find((item) => item.id === id);
+    toastService.success('Project completed', project ? `"${project.name}" marked complete.` : 'Project marked complete.');
   };
 
   const handleReopenProject = (id: string) => {
     projectService.reopenProject(id);
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, isCompleted: false, completedAt: undefined } : p)));
     refreshTasks();
+    const project = projects.find((item) => item.id === id);
+    toastService.info('Project reopened', project ? `"${project.name}" is active again.` : 'Project is active again.');
   };
 
   const handleRestoreProject = (id: string) => {
@@ -203,6 +234,8 @@ const App: React.FC = () => {
       )
     );
     refreshTasks();
+    const project = projects.find((item) => item.id === id);
+    toastService.success('Project restored', project ? `"${project.name}" restored to active.` : 'Project restored to active.');
   };
 
   const handleDeleteProject = (id: string) => {
@@ -217,6 +250,8 @@ const App: React.FC = () => {
     if (activeProjectId === id) setActiveProjectId(null);
     setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
     refreshTasks();
+    const project = projects.find((item) => item.id === id);
+    toastService.warning('Project deleted', project ? `"${project.name}" moved to deleted.` : 'Project moved to deleted.');
   };
 
   const handlePurgeProject = (id: string) => {
@@ -226,6 +261,7 @@ const App: React.FC = () => {
     if (activeProjectId === id) setActiveProjectId(null);
     setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
     refreshTasks();
+    toastService.warning('Project permanently deleted', 'Project and related tasks were removed.');
   };
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [activeProjectId, projects]);
@@ -344,7 +380,10 @@ const App: React.FC = () => {
                             <h3 className="text-base font-semibold text-slate-900">{t.name}</h3>
                             <p className="text-sm text-slate-600 mt-1 flex-1">{t.description}</p>
                             <button
-                              onClick={() => setIsProjectModalOpen(true)}
+                              onClick={() => {
+                                setProjectModalTemplateId(t.id);
+                                setIsProjectModalOpen(true);
+                              }}
                               className="mt-4 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
                             >
                               Use template
@@ -365,16 +404,17 @@ const App: React.FC = () => {
   };
 
   return (
-    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => setIsProjectModalOpen(true)} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
+    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
-      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={() => { if(confirm('Bulk delete?')) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
-      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
+      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); toastService.success('Priorities updated', `${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's updated' : ' updated'}.`); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={async () => { const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true }); if (confirmed) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
+      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} projectModalTemplateId={projectModalTemplateId} setProjectModalTemplateId={setProjectModalTemplateId} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
         handleAddProject={(n, d, c, m, tid, aiGeneratedTasks, meta) => {
             const proj = projectService.createProject(user.orgId, n, d, c, m, meta);
             setProjects([...projects, proj]);
             setActiveProjectId(proj.id);
             setIsProjectModalOpen(false);
+            setProjectModalTemplateId(null);
             if (tid) {
               const tmpl = workflowService.getTemplates().find(t => t.id === tid);
               tmpl?.tasks.forEach(t => createTask(t.title, t.description, t.priority, t.tags, undefined, proj.id));
@@ -399,6 +439,8 @@ const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onPurgeProject={handlePurgeProject}
       />
+      <DialogHost />
+      <ToastHost />
     </WorkspaceLayout>
   );
 };

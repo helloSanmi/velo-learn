@@ -18,6 +18,7 @@ interface WorkspaceLayoutProps {
   onNewTask: () => void;
   onReset: () => void;
   onOpenSettings: (tab: SettingsTabType) => void;
+  onOpenTaskFromNotification: (taskId: string) => void;
   onProjectSelect: (id: string | null) => void;
   onViewChange: (view: MainViewType) => void;
   onOpenCommandCenter: () => void;
@@ -34,7 +35,7 @@ interface WorkspaceLayoutProps {
 const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   user, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
   themeClass, compactMode, onLogout, onNewTask, onReset, onOpenSettings,
-  onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
+  onOpenTaskFromNotification, onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
   onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, children
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -82,7 +83,8 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         onNewTask={onNewTask} 
         onReset={onReset} 
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-        onOpenSettings={onOpenSettings} 
+        onOpenSettings={onOpenSettings}
+        onOpenTaskFromNotification={onOpenTaskFromNotification}
       />
       
       <div className="flex-1 flex min-h-0 relative overflow-hidden">

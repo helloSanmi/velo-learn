@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { AlertCircle, Upload, X } from 'lucide-react';
 import { aiService } from '../services/aiService';
+import { dialogService } from '../services/dialogService';
 import Button from './ui/Button';
 
 interface VisionModalProps {
@@ -35,7 +36,7 @@ const VisionModal: React.FC<VisionModalProps> = ({ isOpen, onClose, onTasksGener
         onTasksGenerated(tasks);
         onClose();
       } else {
-        alert('AI could not detect tasks in this image.');
+        await dialogService.notice('AI could not detect tasks in this image.', { title: 'No tasks detected' });
       }
     } finally {
       setIsProcessing(false);

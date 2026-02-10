@@ -16,6 +16,8 @@ interface GlobalModalsProps {
   setIsModalOpen: (open: boolean) => void;
   isProjectModalOpen: boolean;
   setIsProjectModalOpen: (open: boolean) => void;
+  projectModalTemplateId?: string | null;
+  setProjectModalTemplateId?: (templateId: string | null) => void;
   isCommandCenterOpen: boolean;
   setIsCommandCenterOpen: (open: boolean) => void;
   isVoiceCommanderOpen: boolean;
@@ -67,6 +69,7 @@ interface GlobalModalsProps {
 
 const GlobalModals: React.FC<GlobalModalsProps> = ({
   user, isModalOpen, setIsModalOpen, isProjectModalOpen, setIsProjectModalOpen,
+  projectModalTemplateId, setProjectModalTemplateId,
   isCommandCenterOpen, setIsCommandCenterOpen, isVoiceCommanderOpen, setIsVoiceCommanderOpen,
   isVisionModalOpen, setIsVisionModalOpen, isCommandPaletteOpen, setIsCommandPaletteOpen,
   isSettingsOpen, setIsSettingsOpen, settingsTab, selectedTask, setSelectedTask,
@@ -79,7 +82,16 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
   return (
     <>
       <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={(title, description, priority, tags, dueDate, assigneeIds) => createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds)} />
-      <ProjectModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} onSubmit={handleAddProject} currentUserId={user.id} />
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => {
+          setIsProjectModalOpen(false);
+          setProjectModalTemplateId?.(null);
+        }}
+        onSubmit={handleAddProject}
+        currentUserId={user.id}
+        initialTemplateId={projectModalTemplateId}
+      />
       <TaskDetailModal 
         task={selectedTask ? (tasks.find((t) => t.id === selectedTask.id) || selectedTask) : null}
         tasks={tasks} // Fixed: Passing the tasks array to the detail modal to prevent 'filter' errors

@@ -7,6 +7,7 @@ import Button from './ui/Button';
 import AssigneePicker from './ui/AssigneePicker';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
+import { dialogService } from '../services/dialogService';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -563,7 +564,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
         <div className="p-4 md:p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row gap-2 flex-shrink-0">
           <Button variant="outline" className="flex-1" onClick={() => setIsEditing(true)}>Edit Task</Button>
-          <Button variant="danger" className="px-6" onClick={() => { if(confirm('Delete this task?')) { onDelete(task.id); onClose(); } }}><Trash2 className="w-4 h-4" /></Button>
+          <Button variant="danger" className="px-6" onClick={async () => { const confirmed = await dialogService.confirm('Delete this task?', { title: 'Delete task', confirmText: 'Delete', danger: true }); if (confirmed) { onDelete(task.id); onClose(); } }}><Trash2 className="w-4 h-4" /></Button>
         </div>
       </div>
     </div>

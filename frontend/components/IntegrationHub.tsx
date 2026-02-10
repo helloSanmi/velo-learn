@@ -3,6 +3,7 @@ import { Github, Link2, MessageSquare, Search } from 'lucide-react';
 import { Project } from '../types';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
+import { dialogService } from '../services/dialogService';
 
 interface IntegrationHubProps {
   projects: Project[];
@@ -52,7 +53,7 @@ const IntegrationHub: React.FC<IntegrationHubProps> = ({ projects, onUpdateProje
       icon: <Github className="w-5 h-5" />,
       enabled: false,
       actionLabel: 'Coming soon',
-      onClick: () => window.alert('GitHub integration is not available yet.')
+      onClick: () => dialogService.notice('GitHub integration is not available yet.', { title: 'Integration unavailable' })
     },
     {
       id: 'jira',
@@ -61,7 +62,7 @@ const IntegrationHub: React.FC<IntegrationHubProps> = ({ projects, onUpdateProje
       icon: <Link2 className="w-5 h-5" />,
       enabled: false,
       actionLabel: 'Coming soon',
-      onClick: () => window.alert('Jira integration is not available yet.')
+      onClick: () => dialogService.notice('Jira integration is not available yet.', { title: 'Integration unavailable' })
     }
   ];
 

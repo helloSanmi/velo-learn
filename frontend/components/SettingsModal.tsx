@@ -5,6 +5,7 @@ import WorkflowBuilder from './WorkflowBuilder';
 import { settingsService, UserSettings } from '../services/settingsService';
 import { userService } from '../services/userService';
 import { User as UserType, Organization, Project, Task, TaskStatus } from '../types';
+import { dialogService } from '../services/dialogService';
 
 export type SettingsTabType = 'profile' | 'general' | 'notifications' | 'security' | 'appearance' | 'admin' | 'automation' | 'projects';
 
@@ -130,9 +131,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingUserId(null);
   };
 
-  const handlePurgeUser = (userId: string) => {
+  const handlePurgeUser = async (userId: string) => {
     if (userId === user.id) return;
-    if (confirm('Remove this user permanently? This cannot be undone.')) {
+    const confirmed = await dialogService.confirm('Remove this user permanently? This cannot be undone.', {
+      title: 'Remove user',
+      confirmText: 'Remove',
+      danger: true
+    });
+    if (confirmed) {
       const allAfterDelete = userService.deleteUser(userId);
       setAllUsers(allAfterDelete.filter(u => u.orgId === user.orgId));
     }
@@ -224,7 +230,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-            <Button className="w-full" onClick={() => alert('Profile updates saved.')}>
+            <Button className="w-full" onClick={() => dialogService.notice('Profile updates saved.', { title: 'Profile' })}>
               <Save className="w-4 h-4 mr-2" /> Save Profile
             </Button>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Loader2, Sparkles, Users, X } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
@@ -19,6 +19,7 @@ interface ProjectModalProps {
     meta?: { startDate?: number; endDate?: number; budgetCost?: number; scopeSummary?: string; scopeSize?: number }
   ) => void;
   currentUserId: string;
+  initialTemplateId?: string | null;
 }
 
 const COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-slate-700', 'bg-pink-500'];
@@ -27,7 +28,7 @@ type Mode = 'manual' | 'template' | 'ai';
 type AiInputMode = 'brief' | 'document';
 type AiTaskDraft = { title: string; description: string; priority: TaskPriority; tags: string[] };
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, currentUserId }) => {
+const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, currentUserId, initialTemplateId }) => {
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<Mode>('manual');
   const [name, setName] = useState('');
@@ -52,6 +53,18 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
   const [aiError, setAiError] = useState('');
 
   const allUsers = userService.getUsers();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialTemplateId) return;
+    const template = workflowService.getTemplates().find((item) => item.id === initialTemplateId);
+    if (!template) return;
+    setMode('template');
+    setSelectedTemplate(template);
+    setName(template.name);
+    setDescription(template.description);
+    setStep(3);
+  }, [isOpen, initialTemplateId]);
 
   if (!isOpen) return null;
 

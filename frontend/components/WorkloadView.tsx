@@ -81,7 +81,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
         {suggestions && suggestions.length > 0 && (
           <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold">AI Suggestions</h3>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
               {suggestions.map((s, idx) => {
                 const task = tasks.find((t) => t.id === s.taskId);
                 const from = users.find((u) => u.id === s.fromUserId);
@@ -103,7 +103,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
           </section>
         )}
 
-        <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+        <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 h-[520px] md:h-[620px] flex flex-col">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             <label className="h-10 bg-white border border-slate-300 rounded-lg px-3 flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-400" />
@@ -127,11 +127,12 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
           </div>
 
           {filteredUserStats.length === 0 ? (
-            <div className="border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">
+            <div className="border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500 flex-1 min-h-0 flex items-center justify-center">
               No team members match these filters.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredUserStats.map((u) => (
                 <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
@@ -170,6 +171,7 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
                   </div>
                 </article>
               ))}
+              </div>
             </div>
           )}
         </section>

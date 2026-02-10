@@ -4,6 +4,7 @@ import { Project, ProjectStage, Task, TaskPriority, TaskStatus, User } from '../
 import { aiService } from '../../services/aiService';
 import { taskService } from '../../services/taskService';
 import { DEFAULT_PROJECT_STAGES } from '../../services/projectService';
+import { dialogService } from '../../services/dialogService';
 import FilterBar from './FilterBar';
 import KanbanBoard from './KanbanBoard';
 
@@ -128,7 +129,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     const firstStageId = projectStages[0]?.id || TaskStatus.TODO;
     const todoTasks = categorizedTasks[firstStageId] || [];
     if (todoTasks.length < 2) {
-      window.alert(`At least 2 tasks are required in ${projectStages[0]?.name || 'the first stage'}.`);
+      await dialogService.notice(`At least 2 tasks are required in ${projectStages[0]?.name || 'the first stage'}.`, {
+        title: 'Not enough tasks'
+      });
       return;
     }
 

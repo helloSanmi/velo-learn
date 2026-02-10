@@ -3,6 +3,7 @@ import { Hash, Loader2, Sparkles, X } from 'lucide-react';
 import { TaskPriority } from '../types';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
+import { dialogService } from '../services/dialogService';
 import Button from './ui/Button';
 import AssigneePicker from './ui/AssigneePicker';
 
@@ -29,7 +30,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
 
   const handleSuggestDate = async () => {
     if (!title.trim()) {
-      alert('Please enter a task title first.');
+      await dialogService.notice('Please enter a task title first.', { title: 'Task title required' });
       return;
     }
     setIsScheduling(true);
