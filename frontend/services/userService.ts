@@ -1,9 +1,19 @@
 
 import { User, Organization } from '../types';
+import { realtimeService } from './realtimeService';
 
 const USERS_KEY = 'velo_users';
 const ORGS_KEY = 'velo_orgs';
 const SESSION_KEY = 'velo_session';
+
+const emitUsersUpdated = (orgId?: string, actorId?: string, userId?: string) => {
+  realtimeService.publish({
+    type: 'USERS_UPDATED',
+    orgId,
+    actorId,
+    payload: userId ? { userId } : undefined
+  });
+};
 
 export const userService = {
   getCurrentUser: (): User | null => {
@@ -27,6 +37,7 @@ export const userService = {
       return o;
     });
     localStorage.setItem(ORGS_KEY, JSON.stringify(newOrgs));
+    emitUsersUpdated(orgId);
     return updatedOrg;
   },
 
@@ -44,6 +55,7 @@ export const userService = {
     if (current && current.id === userId) {
       localStorage.setItem(SESSION_KEY, JSON.stringify({ ...current, ...updates }));
     }
+    emitUsersUpdated(updatedUsers.find((u) => u.id === userId)?.orgId, userId, userId);
     return updatedUsers;
   },
 
@@ -51,6 +63,7 @@ export const userService = {
     const users: User[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const updated = users.filter(u => u.id !== userId);
     localStorage.setItem(USERS_KEY, JSON.stringify(updated));
+    emitUsersUpdated(users.find((u) => u.id === userId)?.orgId, userId, userId);
     return updated;
   },
 
@@ -76,6 +89,7 @@ export const userService = {
       role
     };
     localStorage.setItem(USERS_KEY, JSON.stringify([...allUsers, newUser]));
+    emitUsersUpdated(orgId, newUser.id, newUser.id);
     return { success: true, user: newUser };
   },
 
@@ -110,6 +124,7 @@ export const userService = {
     };
     localStorage.setItem(USERS_KEY, JSON.stringify([...allUsers, newUser]));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+    emitUsersUpdated(newOrgId, newUser.id, newUser.id);
     return newUser;
   },
 

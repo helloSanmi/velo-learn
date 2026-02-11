@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-// Fix: Added missing 'CheckSquare' to lucide-react imports
-import { X, Edit2, History, User as UserIcon, Send, Sparkles, Loader2, AlertTriangle, CheckCircle2, ListChecks, MessageSquare, Clock, Trash2, Plus, Check, Zap, Terminal, Link2, Lock, ShieldCheck, CheckSquare, Search, Play, Pause, RotateCcw } from 'lucide-react';
+import { X, History, User as UserIcon, ListChecks, MessageSquare, Lock, Trash2 } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, User, Subtask } from '../types';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
-import AssigneePicker from './ui/AssigneePicker';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
 import { dialogService } from '../services/dialogService';
+import { realtimeService } from '../services/realtimeService';
+import TaskDetailGeneralTab from './task-detail/TaskDetailGeneralTab';
+import TaskDetailDependenciesTab from './task-detail/TaskDetailDependenciesTab';
+import TaskDetailSubtasksTab from './task-detail/TaskDetailSubtasksTab';
+import TaskDetailCommentsTab from './task-detail/TaskDetailCommentsTab';
+import TaskDetailActivityTab from './task-detail/TaskDetailActivityTab';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -36,8 +40,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [commentText, setCommentText] = useState('');
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [riskAssessment, setRiskAssessment] = useState<{ isAtRisk: boolean; reason: string } | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingUser, setTypingUser] = useState('');
+  const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; lastSeen: number }>>({});
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [dependencyQuery, setDependencyQuery] = useState('');
   const [manualHours, setManualHours] = useState('');
@@ -46,6 +49,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [elapsed, setElapsed] = useState(0);
 
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const typingStopTimeoutRef = useRef<number | null>(null);
   const allUsers = userService.getUsers(currentUser?.orgId);
 
   useEffect(() => {
@@ -69,8 +73,63 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setAssigneeIds(normalizedAssignees);
       setRiskAssessment(task.isAtRisk ? { isAtRisk: true, reason: "Health scan previously flagged this node." } : null);
       setDependencyQuery('');
+      setTypingUsers({});
     }
   }, [task]);
+
+  useEffect(() => {
+    if (!task || !currentUser) return undefined;
+
+    const stopTyping = () => {
+      realtimeService.publish({
+        type: 'COMMENT_TYPING',
+        orgId: currentUser.orgId,
+        actorId: currentUser.id,
+        payload: {
+          taskId: task.id,
+          displayName: currentUser.displayName,
+          isTyping: false
+        }
+      });
+    };
+
+    const unsubscribe = realtimeService.subscribe((event) => {
+      if (event.type !== 'COMMENT_TYPING') return;
+      if (event.orgId !== currentUser.orgId) return;
+      const taskId = typeof event.payload?.taskId === 'string' ? event.payload.taskId : '';
+      if (taskId !== task.id) return;
+      const actorId = event.actorId;
+      if (!actorId || actorId === currentUser.id) return;
+      const displayName = typeof event.payload?.displayName === 'string' ? event.payload.displayName : 'Someone';
+      const isActorTyping = Boolean(event.payload?.isTyping);
+      setTypingUsers((prev) => {
+        if (isActorTyping) return { ...prev, [actorId]: { name: displayName, lastSeen: Date.now() } };
+        const next = { ...prev };
+        delete next[actorId];
+        return next;
+      });
+    });
+
+    const cleanupTimer = window.setInterval(() => {
+      setTypingUsers((prev) => {
+        const now = Date.now();
+        const next = Object.fromEntries(
+          Object.entries(prev).filter(([, value]) => now - value.lastSeen < 4000)
+        );
+        return next;
+      });
+    }, 4000);
+
+    return () => {
+      unsubscribe();
+      stopTyping();
+      if (typingStopTimeoutRef.current) {
+        window.clearTimeout(typingStopTimeoutRef.current);
+        typingStopTimeoutRef.current = null;
+      }
+      window.clearInterval(cleanupTimer);
+    };
+  }, [task?.id, currentUser?.id, currentUser?.orgId, currentUser?.displayName]);
 
   useEffect(() => {
     let interval: any;
@@ -106,18 +165,45 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     if (!commentText.trim() || !currentUser) return;
     onAddComment(task.id, commentText);
     setCommentText('');
-    setIsTyping(false);
+    setTypingUsers({});
+    realtimeService.publish({
+      type: 'COMMENT_TYPING',
+      orgId: currentUser.orgId,
+      actorId: currentUser.id,
+      payload: {
+        taskId: task.id,
+        displayName: currentUser.displayName,
+        isTyping: false
+      }
+    });
   };
 
-  // Fix: Added missing 'handleTypingStart' handler
   const handleTypingStart = () => {
-    if (!isTyping) {
-      const others = allUsers.filter(u => u.id !== currentUser?.id);
-      const randomUser = others[Math.floor(Math.random() * others.length)];
-      setTypingUser(randomUser?.displayName || 'Someone');
-      setIsTyping(true);
-      setTimeout(() => setIsTyping(false), 5000);
-    }
+    if (!currentUser) return;
+    realtimeService.publish({
+      type: 'COMMENT_TYPING',
+      orgId: currentUser.orgId,
+      actorId: currentUser.id,
+      payload: {
+        taskId: task.id,
+        displayName: currentUser.displayName,
+        isTyping: true
+      }
+    });
+    if (typingStopTimeoutRef.current) window.clearTimeout(typingStopTimeoutRef.current);
+    typingStopTimeoutRef.current = window.setTimeout(() => {
+      realtimeService.publish({
+        type: 'COMMENT_TYPING',
+        orgId: currentUser.orgId,
+        actorId: currentUser.id,
+        payload: {
+          taskId: task.id,
+          displayName: currentUser.displayName,
+          isTyping: false
+        }
+      });
+      typingStopTimeoutRef.current = null;
+    }, 1200);
   };
 
   const handleAddSubtask = (e: React.FormEvent) => {
@@ -179,380 +265,80 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'general':
-        return (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            {task.movedBackAt && task.movedBackReason ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Moved Backward</p>
-                    <p className="text-sm text-amber-900 mt-0.5">{task.movedBackReason}</p>
-                    <p className="text-[11px] text-amber-700 mt-1">
-                      {task.movedBackBy || 'Unknown'} • {new Date(task.movedBackAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            {task.priority === TaskPriority.HIGH ? (
-              <div className={`rounded-2xl border px-4 py-3 ${task.approvedAt ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className={`text-xs font-semibold uppercase tracking-wide ${task.approvedAt ? 'text-emerald-700' : 'text-slate-600'}`}>Approval</p>
-                    <p className={`text-sm mt-0.5 ${task.approvedAt ? 'text-emerald-900' : 'text-slate-700'}`}>
-                      {task.approvedAt ? `Approved by ${task.approvedBy || 'Admin'} on ${new Date(task.approvedAt).toLocaleString()}` : 'Approval required before moving this high-priority task to done.'}
-                    </p>
-                  </div>
-                  {canApprove && !task.approvedAt ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        onUpdate(task.id, { approvedAt: Date.now(), approvedBy: currentUser?.displayName || 'Admin' });
-                        onAddComment(task.id, `Approved for completion by ${currentUser?.displayName || 'Admin'}.`);
-                      }}
-                      className="h-8 px-3 text-xs"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 mr-1" />
-                      Approve
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            <div className={`grid grid-cols-1 ${aiEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
-                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignees</h4>
-                <AssigneePicker
-                  users={allUsers}
-                  selectedIds={assigneeIds}
-                  onChange={(nextIds) => {
-                    setAssigneeIds(nextIds);
-                    onUpdate(task.id, { assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
-                  }}
-                  compact
-                />
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
-                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Time Tracked</h4>
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <Clock className="w-3.5 h-3.5" />
-                    <p className="text-sm font-semibold">Total tracked</p>
-                  </div>
-                  <p className="mt-1 text-xl font-bold text-emerald-800">{formatTrackedTime(totalTrackedMs)}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onToggleTimer?.(task.id)}
-                  className={`h-8 rounded-lg border px-2.5 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors ${
-                    task.isTimerRunning
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {task.isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  {task.isTimerRunning ? 'Stop timer' : 'Start timer'}
-                </button>
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <label className="h-9 px-2 rounded-lg border border-slate-300 bg-white flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={manualHours}
-                      onChange={(e) => {
-                        setManualHours(e.target.value);
-                        if (manualTimeError) setManualTimeError('');
-                      }}
-                      placeholder="0"
-                      className="w-full bg-transparent text-xs outline-none"
-                    />
-                    <span className="text-[11px] text-slate-500">h</span>
-                  </label>
-                  <label className="h-9 px-2 rounded-lg border border-slate-300 bg-white flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={manualMinutes}
-                      onChange={(e) => {
-                        setManualMinutes(e.target.value);
-                        if (manualTimeError) setManualTimeError('');
-                      }}
-                      placeholder="0"
-                      className="w-full bg-transparent text-xs outline-none"
-                    />
-                    <span className="text-[11px] text-slate-500">m</span>
-                  </label>
-                  <Button type="button" variant="secondary" className="h-9 px-2.5 text-xs" onClick={() => addManualTime()}>
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
-                </div>
-                <div className="flex gap-1.5">
-                  <button type="button" onClick={() => addManualTime(15)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+15m</button>
-                  <button type="button" onClick={() => addManualTime(30)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+30m</button>
-                  <button type="button" onClick={() => addManualTime(60)} className="h-7 px-2 rounded-md border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100">+1h</button>
-                </div>
-                {manualTimeError ? <p className="text-xs text-rose-600">{manualTimeError}</p> : null}
-              </div>
-
-              {aiEnabled ? (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-2">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">AI Audit</h4>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-xs font-semibold ${riskAssessment ? (riskAssessment.isAtRisk ? 'text-rose-700' : 'text-emerald-700') : 'text-slate-500'}`}>
-                      {riskAssessment ? (riskAssessment.isAtRisk ? 'At risk' : 'Healthy') : 'Not checked'}
-                    </p>
-                    <Button size="sm" onClick={runAIAudit} disabled={isAIThinking} className="h-8 px-2 rounded-lg text-xs">
-                      {isAIThinking ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-                      Check
-                    </Button>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                    {riskAssessment?.reason || 'Run a quick health check for risk signals.'}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-100 relative group">
-              <div className="flex items-center justify-between mb-4">
-                 <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Documentation</h4>
-                 <button onClick={() => setIsEditing(!isEditing)} className="p-2 text-indigo-600 hover:bg-white rounded-xl transition-all">
-                   <Edit2 className="w-4 h-4" />
-                 </button>
-              </div>
-              {isEditing ? (
-                <textarea 
-                  value={description} 
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm h-40 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none font-medium"
-                />
-              ) : (
-                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">{task.description || "No documentation provided."}</p>
-              )}
-            </div>
-
-          </div>
-        );
-      case 'dependencies':
-        const selectedDeps = potentialDependencies.filter((dep) => task.blockedByIds?.includes(dep.id));
-        const availableDeps = potentialDependencies.filter((dep) => {
-          if (task.blockedByIds?.includes(dep.id)) return false;
-          if (!dependencyQuery.trim()) return true;
-          return dep.title.toLowerCase().includes(dependencyQuery.trim().toLowerCase());
-        });
-
-        const renderDependencyRow = (dep: Task, isSelected: boolean) => (
-          <button
-            key={dep.id}
-            onClick={() => handleToggleDependency(dep.id)}
-            className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all group ${
-              isSelected
-                ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
-                : 'bg-white border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <div className="flex items-start gap-3 text-left min-w-0">
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {isSelected ? <Lock className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
-              </div>
-              <div className="min-w-0">
-                <p className={`text-sm font-semibold truncate ${isSelected ? 'text-rose-900' : 'text-slate-900'}`}>{dep.title}</p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide bg-slate-100 text-slate-600 border border-slate-200">
-                    {dep.status.replace('-', ' ')}
-                  </span>
-                  <span className="text-[10px] text-slate-400">#{dep.id.slice(-4)}</span>
-                </div>
-              </div>
-            </div>
-            {isSelected ? (
-              <CheckCircle2 className="w-4 h-4 text-rose-600 shrink-0" />
-            ) : (
-              <Plus className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0" />
-            )}
-          </button>
-        );
-
-        return (
-          <div className="space-y-4 animate-in fade-in duration-300 h-full flex flex-col">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-rose-600" /> Dependencies
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">Choose tasks that must be completed first.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xl font-semibold text-slate-900">{selectedDeps.length}</p>
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">selected</p>
-              </div>
-            </div>
-
-            <label className="h-10 border border-slate-300 rounded-lg px-3 flex items-center gap-2 bg-white">
-              <Search className="w-4 h-4 text-slate-400" />
-              <input
-                value={dependencyQuery}
-                onChange={(e) => setDependencyQuery(e.target.value)}
-                placeholder="Search available tasks"
-                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
-              />
-            </label>
-
-            <div className="grid md:grid-cols-2 gap-3 flex-1 min-h-0">
-              <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Selected</p>
-                  <span className="text-xs text-slate-500">{selectedDeps.length}</span>
-                </div>
-                <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
-                  {selectedDeps.length === 0 ? (
-                    <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
-                      No dependencies yet.
-                    </div>
-                  ) : (
-                    selectedDeps.map((dep) => renderDependencyRow(dep, true))
-                  )}
-                </div>
-              </section>
-
-              <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Available</p>
-                  <span className="text-xs text-slate-500">{availableDeps.length}</span>
-                </div>
-                <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
-                  {availableDeps.length === 0 ? (
-                    <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
-                      {dependencyQuery.trim() ? 'No tasks match this search.' : 'No other tasks available.'}
-                    </div>
-                  ) : (
-                    availableDeps.map((dep) => renderDependencyRow(dep, false))
-                  )}
-                </div>
-              </section>
-            </div>
-          </div>
-        );
-      case 'subtasks':
-        const completedSubtasks = (task.subtasks || []).filter((subtask) => subtask.isCompleted).length;
-        return (
-          <div className="space-y-4 animate-in fade-in duration-300 h-full flex flex-col">
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <ListChecks className="w-4 h-4 text-indigo-600" /> Subtasks
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">Break work into small, trackable steps.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xl font-semibold text-slate-900">{completedSubtasks}/{task.subtasks.length}</p>
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">done</p>
-              </div>
-            </div>
-
-            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white p-3">
-              <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1 h-full">
-                {task.subtasks.length === 0 ? (
-                  <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
-                    No subtasks yet.
-                  </div>
-                ) : (
-                  task.subtasks.map((subtask) => (
-                    <div key={subtask.id} className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-white">
-                      <button
-                        onClick={() => handleToggleSubtask(subtask.id)}
-                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
-                          subtask.isCompleted
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400'
-                        }`}
-                      >
-                        {subtask.isCompleted ? <Check className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
-                      </button>
-                      <p className={`text-sm flex-1 min-w-0 truncate ${subtask.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                        {subtask.title}
-                      </p>
-                      <button
-                        onClick={() => handleRemoveSubtask(subtask.id)}
-                        className="w-7 h-7 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <form onSubmit={handleAddSubtask} className="flex gap-2">
-              <input
-                value={newSubtaskTitle}
-                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                placeholder="Add subtask..."
-                className="flex-1 h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-              />
-              <Button type="submit" variant="secondary" className="px-3 h-10">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </form>
-          </div>
-        );
-      case 'comments':
-        return (
-          <div className="flex flex-col h-full animate-in fade-in duration-300">
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar pb-4">
-              {task.comments?.length === 0 && (
-                <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
-                  No comments yet.
-                </div>
-              )}
-              {task.comments?.map(c => (
-                <div key={c.id} className={`flex gap-3 ${c.userId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className="w-8 h-8 rounded-lg bg-slate-200 overflow-hidden shrink-0">
-                    <img src={allUsers.find(u => u.id === c.userId)?.avatar} alt={c.displayName} className="w-full h-full object-cover" />
-                  </div>
-                  <div className={`max-w-[78%] px-3 py-2 rounded-xl text-sm ${c.userId === currentUser?.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                    {c.text}
-                  </div>
-                </div>
-              ))}
-              {isTyping && (
-                <p className="text-xs text-slate-400 px-1">{typingUser} is typing…</p>
-              )}
-              <div ref={commentsEndRef} />
-            </div>
-            <form onSubmit={handleAddComment} className="mt-3 relative group">
-              <input value={commentText} onChange={(e) => { setCommentText(e.target.value); handleTypingStart(); }} placeholder="Write a comment..." className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-12 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-300 transition-all" />
-              <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center">
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        );
-      case 'activity':
-        return <div className="space-y-4 animate-in fade-in duration-300">
-          {task.auditLog.map(log => (
-            <div key={log.id} className="p-4 bg-slate-50 border-l-4 border-indigo-600 rounded-r-xl">
-              <p className="text-xs font-black text-slate-900">{log.displayName} node recorded {log.action}</p>
-              <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">{new Date(log.timestamp).toLocaleString()}</p>
-            </div>
-          ))}
-        </div>;
-      default:
-        return null;
+    if (activeTab === 'general') {
+      return (
+        <TaskDetailGeneralTab
+          task={task}
+          aiEnabled={aiEnabled}
+          allUsers={allUsers}
+          assigneeIds={assigneeIds}
+          setAssigneeIds={setAssigneeIds}
+          onUpdate={onUpdate}
+          onAddComment={onAddComment}
+          currentUser={currentUser}
+          canApprove={canApprove}
+          totalTrackedMs={totalTrackedMs}
+          formatTrackedTime={formatTrackedTime}
+          manualHours={manualHours}
+          setManualHours={setManualHours}
+          manualMinutes={manualMinutes}
+          setManualMinutes={setManualMinutes}
+          manualTimeError={manualTimeError}
+          setManualTimeError={setManualTimeError}
+          addManualTime={addManualTime}
+          onToggleTimer={onToggleTimer}
+          riskAssessment={riskAssessment}
+          isAIThinking={isAIThinking}
+          runAIAudit={runAIAudit}
+          isEditing={isEditing}
+          setIsEditing={setIsEditing}
+          description={description}
+          setDescription={setDescription}
+        />
+      );
     }
+    if (activeTab === 'dependencies') {
+      return (
+        <TaskDetailDependenciesTab
+          task={task}
+          potentialDependencies={potentialDependencies}
+          dependencyQuery={dependencyQuery}
+          setDependencyQuery={setDependencyQuery}
+          onToggleDependency={handleToggleDependency}
+        />
+      );
+    }
+    if (activeTab === 'subtasks') {
+      return (
+        <TaskDetailSubtasksTab
+          task={task}
+          newSubtaskTitle={newSubtaskTitle}
+          setNewSubtaskTitle={setNewSubtaskTitle}
+          onAddSubtask={handleAddSubtask}
+          onToggleSubtask={handleToggleSubtask}
+          onRemoveSubtask={handleRemoveSubtask}
+        />
+      );
+    }
+    if (activeTab === 'comments') {
+      return (
+        <TaskDetailCommentsTab
+          task={task}
+          currentUser={currentUser}
+          allUsers={allUsers}
+          typingUsers={typingUsers}
+          commentText={commentText}
+          setCommentText={setCommentText}
+          onTypingStart={handleTypingStart}
+          onAddComment={handleAddComment}
+          commentsEndRef={commentsEndRef}
+        />
+      );
+    }
+    if (activeTab === 'activity') {
+      return <TaskDetailActivityTab task={task} />;
+    }
+    return null;
   };
 
   return (

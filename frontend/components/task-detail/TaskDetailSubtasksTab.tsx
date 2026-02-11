@@ -1,0 +1,89 @@
+import React from 'react';
+import { Check, CheckSquare, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { Subtask, Task } from '../../types';
+import Button from '../ui/Button';
+
+interface TaskDetailSubtasksTabProps {
+  task: Task;
+  newSubtaskTitle: string;
+  setNewSubtaskTitle: (value: string) => void;
+  onAddSubtask: (e: React.FormEvent) => void;
+  onToggleSubtask: (subtaskId: string) => void;
+  onRemoveSubtask: (subtaskId: string) => void;
+}
+
+const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
+  task,
+  newSubtaskTitle,
+  setNewSubtaskTitle,
+  onAddSubtask,
+  onToggleSubtask,
+  onRemoveSubtask
+}) => {
+  const completedSubtasks = (task.subtasks || []).filter((subtask: Subtask) => subtask.isCompleted).length;
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-300 h-full flex flex-col">
+      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <ListChecks className="w-4 h-4 text-indigo-600" /> Subtasks
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5">Break work into small, trackable steps.</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-semibold text-slate-900">{completedSubtasks}/{task.subtasks.length}</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">done</p>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white p-3">
+        <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1 h-full">
+          {task.subtasks.length === 0 ? (
+            <div className="h-full min-h-24 rounded-lg border border-dashed border-slate-200 text-xs text-slate-500 flex items-center justify-center px-4 text-center">
+              No subtasks yet.
+            </div>
+          ) : (
+            task.subtasks.map((subtask) => (
+              <div key={subtask.id} className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-white">
+                <button
+                  onClick={() => onToggleSubtask(subtask.id)}
+                  className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
+                    subtask.isCompleted
+                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400'
+                  }`}
+                >
+                  {subtask.isCompleted ? <Check className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
+                </button>
+                <p className={`text-sm flex-1 min-w-0 truncate ${subtask.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                  {subtask.title}
+                </p>
+                <button
+                  onClick={() => onRemoveSubtask(subtask.id)}
+                  className="w-7 h-7 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <form onSubmit={onAddSubtask} className="flex gap-2">
+        <input
+          value={newSubtaskTitle}
+          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+          placeholder="Add subtask..."
+          className="flex-1 h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+        />
+        <Button type="submit" variant="secondary" className="px-3 h-10">
+          <Plus className="w-4 h-4" />
+        </Button>
+      </form>
+    </div>
+  );
+};
+
+export default TaskDetailSubtasksTab;

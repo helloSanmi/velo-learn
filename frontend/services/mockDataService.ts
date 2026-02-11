@@ -359,5 +359,6 @@ export const mockDataService = {
     localStorage.removeItem('velo_workflows');
     localStorage.removeItem('velo_sidebar_width');
     localStorage.removeItem('velo_column_widths');
+    localStorage.removeItem('velo_schema_version');
   }
 };

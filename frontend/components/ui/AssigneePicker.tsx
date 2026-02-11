@@ -68,21 +68,33 @@ const AssigneePicker: React.FC<AssigneePickerProps> = ({
         </div>
       </div>
 
-      {selectedUsers.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedUsers.map((user) => (
-            <button
-              key={user.id}
-              type="button"
-              onClick={() => toggle(user.id)}
-              className="h-6 px-2 rounded-md border border-slate-200 bg-slate-100 text-[11px] text-slate-700 inline-flex items-center gap-1"
-            >
-              <span className="truncate max-w-[120px]">{user.displayName}</span>
-              <X className="w-3 h-3 text-slate-500" />
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div
+        className={
+          compact
+            ? 'h-8 rounded-md border border-slate-200 bg-white px-1.5 overflow-x-auto overflow-y-hidden custom-scrollbar'
+            : 'min-h-8 flex flex-wrap gap-1.5'
+        }
+      >
+        {selectedUsers.length === 0 ? (
+          compact ? (
+            <div className="h-full inline-flex items-center text-[11px] text-slate-400 px-1">No assignees selected</div>
+          ) : null
+        ) : (
+          <div className={compact ? 'h-full inline-flex items-center gap-1.5 min-w-full w-max' : 'contents'}>
+            {selectedUsers.map((user) => (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => toggle(user.id)}
+                className="h-6 px-2 rounded-md border border-slate-200 bg-slate-100 text-[11px] text-slate-700 inline-flex items-center gap-1 shrink-0"
+              >
+                <span className="truncate max-w-[120px]">{user.displayName}</span>
+                <X className="w-3 h-3 text-slate-500" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className={`rounded-lg border border-slate-200 bg-white p-1.5 overflow-y-auto custom-scrollbar ${compact ? 'max-h-[120px]' : 'max-h-[164px]'}`}>
         {filteredUsers.length === 0 ? (

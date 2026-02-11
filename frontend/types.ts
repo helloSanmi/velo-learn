@@ -37,6 +37,7 @@ export interface User {
 export interface Project {
   id: string;
   orgId: string;
+  createdBy?: string;
   version?: number;
   updatedAt?: number;
   name: string;

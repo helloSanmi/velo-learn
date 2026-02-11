@@ -1,6 +1,7 @@
 
 import { Project, ProjectStage, TaskStatus } from '../types';
 import { syncGuardService } from './syncGuardService';
+import { realtimeService } from './realtimeService';
 
 const PROJECTS_KEY = 'velo_projects';
 export const DEFAULT_PROJECT_STAGES: ProjectStage[] = [
@@ -34,6 +35,15 @@ const normalizeProjectMeta = (meta?: Partial<Project>) => {
   };
 };
 
+const emitProjectsUpdated = (orgId?: string, actorId?: string, projectId?: string) => {
+  realtimeService.publish({
+    type: 'PROJECTS_UPDATED',
+    orgId,
+    actorId,
+    payload: projectId ? { projectId } : undefined
+  });
+};
+
 export const projectService = {
   getProjects: (orgId?: string): Project[] => {
     try {
@@ -43,6 +53,7 @@ export const projectService = {
       if (!Array.isArray(all)) return [];
       const normalizedProjects = all.map((project) => ({
         ...project,
+        createdBy: project.createdBy || project.members?.[0],
         stages: normalizeStages(project.stages),
         version: Number.isFinite(project.version as number) ? Math.max(1, Number(project.version)) : 1,
         updatedAt: project.updatedAt || Date.now()
@@ -78,19 +89,22 @@ export const projectService = {
     description: string,
     color: string,
     members: string[],
-    meta?: Partial<Project>
+    meta?: Partial<Project>,
+    createdBy?: string
   ): Project => {
     const projects = projectService.getProjects();
     const normalizedMeta = normalizeProjectMeta(meta);
+    const normalizedMembers = Array.from(new Set([...members, ...(createdBy ? [createdBy] : [])]));
     const newProject: Project = {
       id: crypto.randomUUID(),
       orgId,
+      createdBy: createdBy || normalizedMembers[0],
       name,
       description,
       color,
       ...normalizedMeta,
       stages: DEFAULT_PROJECT_STAGES,
-      members,
+      members: normalizedMembers,
       version: 1,
       updatedAt: Date.now(),
       isArchived: false,
@@ -101,6 +115,7 @@ export const projectService = {
     };
     localStorage.setItem(PROJECTS_KEY, JSON.stringify([...projects, newProject]));
     syncGuardService.markLocalMutation();
+    emitProjectsUpdated(orgId, createdBy || normalizedMembers[0], newProject.id);
     return newProject;
   },
 
@@ -116,25 +131,28 @@ export const projectService = {
     });
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newList));
     syncGuardService.markLocalMutation();
+    emitProjectsUpdated(updated?.orgId, undefined, id);
     return updated;
   },
 
   updateProject: (id: string, updates: Partial<Project>) => {
     const normalizedMeta = normalizeProjectMeta(updates);
-    const projects = projectService.getProjects().map(p => 
-      p.id === id
-        ? {
-            ...p,
-            ...updates,
-            ...normalizedMeta,
-            stages: normalizeStages(updates.stages || p.stages),
-            version: (p.version || 1) + 1,
-            updatedAt: Date.now()
-          }
-        : p
-    );
+    let updatedOrgId: string | undefined;
+    const projects = projectService.getProjects().map(p => {
+      if (p.id !== id) return p;
+      updatedOrgId = p.orgId;
+      return {
+        ...p,
+        ...updates,
+        ...normalizedMeta,
+        stages: normalizeStages(updates.stages || p.stages),
+        version: (p.version || 1) + 1,
+        updatedAt: Date.now()
+      };
+    });
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
     syncGuardService.markLocalMutation();
+    emitProjectsUpdated(updatedOrgId, undefined, id);
     return projects.find((p) => p.id === id);
   },
 
@@ -195,8 +213,11 @@ export const projectService = {
   },
 
   purgeProject: (id: string) => {
-    const projects = projectService.getProjects().filter(p => p.id !== id);
+    const allProjects = projectService.getProjects();
+    const target = allProjects.find((project) => project.id === id);
+    const projects = allProjects.filter(p => p.id !== id);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
     syncGuardService.markLocalMutation();
+    emitProjectsUpdated(target?.orgId, undefined, id);
   }
 };

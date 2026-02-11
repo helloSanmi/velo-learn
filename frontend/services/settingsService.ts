@@ -1,4 +1,6 @@
 
+import { realtimeService } from './realtimeService';
+
 export interface UserSettings {
   aiSuggestions: boolean;
   realTimeUpdates: boolean;
@@ -8,6 +10,7 @@ export interface UserSettings {
 }
 
 const SETTINGS_KEY = 'velo_settings';
+const SESSION_KEY = 'velo_session';
 
 const DEFAULT_SETTINGS: UserSettings = {
   aiSuggestions: true,
@@ -34,6 +37,13 @@ export const settingsService = {
     
     // Trigger a custom event so other components can react
     window.dispatchEvent(new CustomEvent('settingsUpdated', { detail: updated }));
+    const sessionRaw = localStorage.getItem(SESSION_KEY);
+    const session = sessionRaw ? JSON.parse(sessionRaw) : null;
+    realtimeService.publish({
+      type: 'SETTINGS_UPDATED',
+      orgId: session?.orgId,
+      actorId: session?.id
+    });
     
     return updated;
   }

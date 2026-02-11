@@ -12,12 +12,15 @@ interface HeaderProps {
   onLogout: () => void;
   onNewTask: () => void;
   onReset: () => void;
+  onRefreshData: () => void;
   onToggleSidebar: () => void;
   onOpenSettings: (tab: SettingsTabType) => void;
   onOpenTaskFromNotification: (taskId: string) => void;
+  onlineCount: number;
+  isOnline: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onToggleSidebar, onOpenSettings, onOpenTaskFromNotification }) => {
+const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onRefreshData, onToggleSidebar, onOpenSettings, onOpenTaskFromNotification, onlineCount, isOnline }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -70,17 +73,23 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onT
             <Menu className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => window.location.reload()}>
+          <button type="button" className="flex items-center gap-2 cursor-pointer select-none" onClick={onRefreshData} title="Refresh board data">
             <div className="bg-[#76003f] p-1.5 rounded-lg">
               <Cloud className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-lg font-heading font-bold text-slate-900 tracking-tight">
               Velo<span className="text-[#76003f]">.</span>
             </h1>
-          </div>
+          </button>
         </div>
         
         <div className="flex items-center gap-2.5">
+          <div className="hidden md:flex items-center gap-2 pr-2">
+            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-400'}`} />
+            <span className="text-xs font-medium text-slate-500">
+              {isOnline ? `Live · ${onlineCount} online` : 'Offline'}
+            </span>
+          </div>
           <div className="hidden sm:flex items-center border-r border-slate-200 pr-3 gap-1.5">
             <button 
               onClick={async () => { const confirmed = await dialogService.confirm('Reset all demo data?', { title: 'Reset workspace', confirmText: 'Reset', danger: true }); if (confirmed) { taskService.clearData(); onReset(); } }}

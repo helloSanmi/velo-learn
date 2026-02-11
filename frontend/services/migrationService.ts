@@ -2,7 +2,7 @@ import { Project, Task, User } from '../types';
 import { DEFAULT_PROJECT_STAGES } from './projectService';
 
 const SCHEMA_VERSION_KEY = 'velo_schema_version';
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 const TASKS_KEY = 'velo_data';
 const PROJECTS_KEY = 'velo_projects';
 const USERS_KEY = 'velo_users';
@@ -29,8 +29,12 @@ const normalizeTask = (task: Task): Task => ({
   version: Number.isFinite(task.version as number) ? Math.max(1, Number(task.version)) : 1
 });
 
-const normalizeProject = (project: Project): Project => ({
+const normalizeProject = (project: Project, users: User[]): Project => ({
   ...project,
+  createdBy:
+    project.createdBy ||
+    project.members?.[0] ||
+    users.find((user) => user.orgId === project.orgId && user.role === 'admin')?.id,
   members: project.members || [],
   stages: Array.isArray(project.stages) && project.stages.length > 0 ? project.stages : DEFAULT_PROJECT_STAGES,
   updatedAt: project.updatedAt || Date.now(),
@@ -47,9 +51,11 @@ export const migrationService = {
     const currentVersion = Number(localStorage.getItem(SCHEMA_VERSION_KEY) || '0');
     if (currentVersion >= CURRENT_SCHEMA_VERSION) return;
 
-    const tasks = safeParse<Task[]>(localStorage.getItem(TASKS_KEY), []).map(normalizeTask);
-    const projects = safeParse<Project[]>(localStorage.getItem(PROJECTS_KEY), []).map(normalizeProject);
     const users = safeParse<User[]>(localStorage.getItem(USERS_KEY), []).map(normalizeUser);
+    const tasks = safeParse<Task[]>(localStorage.getItem(TASKS_KEY), []).map(normalizeTask);
+    const projects = safeParse<Project[]>(localStorage.getItem(PROJECTS_KEY), []).map((project) =>
+      normalizeProject(project, users)
+    );
 
     localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));

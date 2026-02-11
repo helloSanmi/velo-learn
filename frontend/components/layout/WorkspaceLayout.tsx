@@ -17,6 +17,7 @@ interface WorkspaceLayoutProps {
   onLogout: () => void;
   onNewTask: () => void;
   onReset: () => void;
+  onRefreshData: () => void;
   onOpenSettings: (tab: SettingsTabType) => void;
   onOpenTaskFromNotification: (taskId: string) => void;
   onCloseSidebar: () => void;
@@ -30,14 +31,16 @@ interface WorkspaceLayoutProps {
   onCompleteProject: (id: string) => void;
   onArchiveProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
+  onlineCount: number;
+  isOnline: boolean;
   children: React.ReactNode;
 }
 
 const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   user, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
-  themeClass, compactMode, onLogout, onNewTask, onReset, onOpenSettings,
+  themeClass, compactMode, onLogout, onNewTask, onReset, onRefreshData, onOpenSettings,
   onOpenTaskFromNotification, onCloseSidebar, onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
-  onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, children
+  onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, onlineCount, isOnline, children
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('velo_sidebar_width');
@@ -83,9 +86,12 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         onLogout={onLogout} 
         onNewTask={onNewTask} 
         onReset={onReset} 
+        onRefreshData={onRefreshData}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
         onOpenSettings={onOpenSettings}
         onOpenTaskFromNotification={onOpenTaskFromNotification}
+        onlineCount={onlineCount}
+        isOnline={isOnline}
       />
       
       <div className="flex-1 flex min-h-0 relative overflow-hidden">

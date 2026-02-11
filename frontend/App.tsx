@@ -5,6 +5,9 @@ import { projectService } from './services/projectService';
 import { taskService } from './services/taskService';
 import { workflowService } from './services/workflowService';
 import { useTasks } from './hooks/useTasks';
+import { useAccessControl } from './hooks/useAccessControl';
+import { useProjectLifecycleActions } from './hooks/useProjectLifecycleActions';
+import { useTaskPolicyActions } from './hooks/useTaskPolicyActions';
 import { mockDataService } from './services/mockDataService';
 import { settingsService, UserSettings } from './services/settingsService';
 
@@ -32,6 +35,8 @@ import { toastService } from './services/toastService';
 import { migrationService } from './services/migrationService';
 import { notificationService } from './services/notificationService';
 import { syncGuardService } from './services/syncGuardService';
+import { realtimeService } from './services/realtimeService';
+import { presenceService } from './services/presenceService';
 
 const getActiveProjectStorageKey = (user: User) => `velo_active_project:${user.orgId}:${user.id}`;
 
@@ -64,11 +69,9 @@ const App: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [templateQuery, setTemplateQuery] = useState('');
-  const [moveBackRequest, setMoveBackRequest] = useState<{ taskId: string; targetStatus: string; targetTaskId?: string } | null>(null);
-  const [moveBackReason, setMoveBackReason] = useState('');
-  const [moveBackReasonError, setMoveBackReasonError] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [hasPendingSync, setHasPendingSync] = useState(syncGuardService.hasPending());
+  const [onlineCount, setOnlineCount] = useState(1);
   
   const toggleTaskSelection = useCallback((id: string) => {
     setSelectedTaskIds(prev => prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]);
@@ -95,6 +98,18 @@ const App: React.FC = () => {
       refreshTasks();
     }
   }, []);
+
+  const refreshWorkspaceData = useCallback(() => {
+    if (!user) return;
+    setAllUsers(userService.getUsers(user.orgId));
+    setProjects(projectService.getProjects(user.orgId));
+    refreshTasks();
+    setSelectedTask((prev) => {
+      if (!prev) return null;
+      const latest = taskService.getTaskById(prev.id);
+      return latest || null;
+    });
+  }, [user, refreshTasks]);
 
   useEffect(() => {
     const onOffline = () => {
@@ -201,11 +216,53 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      refreshTasks();
-      setAllUsers(userService.getUsers(user.orgId));
-      setProjects(projectService.getProjects(user.orgId));
+      refreshWorkspaceData();
     }
-  }, [user, refreshTasks]);
+  }, [user, refreshWorkspaceData]);
+
+  useEffect(() => {
+    if (!user || !settings.realTimeUpdates) {
+      setOnlineCount(user ? 1 : 0);
+      return;
+    }
+
+    const unsubscribeRealtime = realtimeService.subscribe((event) => {
+      if (event.clientId === realtimeService.getClientId()) return;
+      if (event.orgId && event.orgId !== user.orgId) return;
+      if (event.type === 'TASKS_UPDATED') {
+        refreshTasks();
+        setSelectedTask((prev) => {
+          if (!prev) return null;
+          const latest = taskService.getTaskById(prev.id);
+          return latest || null;
+        });
+        return;
+      }
+      if (event.type === 'PROJECTS_UPDATED') {
+        setProjects(projectService.getProjects(user.orgId));
+        refreshTasks();
+        return;
+      }
+      if (event.type === 'USERS_UPDATED') {
+        setAllUsers(userService.getUsers(user.orgId));
+        return;
+      }
+      if (event.type === 'SETTINGS_UPDATED') {
+        setSettings(settingsService.getSettings());
+      }
+    });
+
+    const stopPresence = presenceService.start(user, (entries) => {
+      const ids = new Set(entries.map((entry) => entry.userId));
+      ids.add(user.id);
+      setOnlineCount(ids.size);
+    });
+
+    return () => {
+      unsubscribeRealtime();
+      stopPresence();
+    };
+  }, [user, settings.realTimeUpdates, refreshTasks]);
 
   useEffect(() => {
     hasHydratedActiveProjectRef.current = false;
@@ -275,270 +332,65 @@ const App: React.FC = () => {
     setActiveProjectId(task.projectId);
     setSelectedTask(task);
   };
+
+  const { canManageProject, ensureTaskPermission } = useAccessControl({ user, projects, tasks });
   
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
     const target = projects.find((project) => project.id === id);
     if (!target) return;
-    const canEdit = user.role === 'admin' || target.members?.includes(user.id);
-    if (!canEdit) {
-      toastService.warning('Permission denied', 'You cannot edit this project.');
+    if (!canManageProject(target)) {
+      toastService.warning('Permission denied', 'Only admins or project creators can edit project settings.');
       return;
     }
     projectService.updateProject(id, updates);
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
-  const getProjectDoneStageId = (projectId: string) => {
-    const project = projects.find((item) => item.id === projectId);
-    return project?.stages?.length ? project.stages[project.stages.length - 1].id : TaskStatus.DONE;
-  };
+  const {
+    handleRenameProject,
+    handleArchiveProject,
+    handleCompleteProject,
+    handleReopenProject,
+    handleRestoreProject,
+    handleDeleteProject,
+    handlePurgeProject,
+    handleBulkLifecycleAction
+  } = useProjectLifecycleActions({
+    user,
+    projects,
+    activeProjectId,
+    setActiveProjectId,
+    setProjects,
+    setSelectedTask,
+    refreshTasks,
+    canManageProject
+  });
 
-  const requiresApproval = (task: Task, targetStatus: string) => {
-    const doneStageId = getProjectDoneStageId(task.projectId);
-    return targetStatus === doneStageId && task.priority === TaskPriority.HIGH && !task.approvedAt;
-  };
-
-  const isBackwardFromDone = (task: Task, targetStatus: string) => {
-    const doneStageId = getProjectDoneStageId(task.projectId);
-    return task.status === doneStageId && targetStatus !== doneStageId;
-  };
-
-  const openMoveBackPrompt = (taskId: string, targetStatus: string, targetTaskId?: string) => {
-    setMoveBackRequest({ taskId, targetStatus, targetTaskId });
-    setMoveBackReason('');
-    setMoveBackReasonError('');
-  };
-
-  const handleMoveTaskWithPolicy = (taskId: string, targetStatus: string, targetTaskId?: string) => {
-    const task = tasks.find((item) => item.id === taskId);
-    if (!task) return;
-    if (requiresApproval(task, targetStatus)) {
-      dialogService.notice('This high-priority task requires admin approval before moving to Done.', { title: 'Approval required' });
-      return;
-    }
-    if (isBackwardFromDone(task, targetStatus)) {
-      openMoveBackPrompt(taskId, targetStatus, targetTaskId);
-      return;
-    }
-    moveTask(taskId, targetStatus, targetTaskId);
-    const doneStageId = getProjectDoneStageId(task.projectId);
-    if (targetStatus === doneStageId && (task.movedBackAt || task.movedBackReason || task.movedBackFromStatus)) {
-      updateTask(
-        task.id,
-        {
-          movedBackAt: undefined,
-          movedBackBy: undefined,
-          movedBackReason: undefined,
-          movedBackFromStatus: undefined
-        },
-        user.displayName
-      );
-    }
-  };
-
-  const handleStatusUpdateWithPolicy = (taskId: string, targetStatus: string) => {
-    const task = tasks.find((item) => item.id === taskId);
-    if (!task) return;
-    if (requiresApproval(task, targetStatus)) {
-      dialogService.notice('This high-priority task requires admin approval before moving to Done.', { title: 'Approval required' });
-      return;
-    }
-    if (isBackwardFromDone(task, targetStatus)) {
-      openMoveBackPrompt(taskId, targetStatus);
-      return;
-    }
-    updateStatus(taskId, targetStatus, user.displayName);
-    const doneStageId = getProjectDoneStageId(task.projectId);
-    if (targetStatus === doneStageId && (task.movedBackAt || task.movedBackReason || task.movedBackFromStatus)) {
-      updateTask(
-        task.id,
-        {
-          movedBackAt: undefined,
-          movedBackBy: undefined,
-          movedBackReason: undefined,
-          movedBackFromStatus: undefined
-        },
-        user.displayName
-      );
-    }
-  };
-
-  const submitMoveBackReason = () => {
-    if (!moveBackRequest) return;
-    const reason = moveBackReason.trim();
-    if (!reason) {
-      setMoveBackReasonError('A comment is required before moving a completed task backward.');
-      return;
-    }
-    const task = tasks.find((item) => item.id === moveBackRequest.taskId);
-    if (!task) {
-      setMoveBackRequest(null);
-      setMoveBackReason('');
-      setMoveBackReasonError('');
-      return;
-    }
-    const fromStatus = task.status;
-    updateTask(
-      task.id,
-      {
-        status: moveBackRequest.targetStatus,
-        movedBackAt: Date.now(),
-        movedBackBy: user.displayName,
-        movedBackReason: reason,
-        movedBackFromStatus: fromStatus
-      },
-      user.displayName
-    );
-    addComment(task.id, `Moved backward from ${fromStatus} to ${moveBackRequest.targetStatus}: ${reason}`);
-    toastService.info('Task moved backward', 'Reason saved on task history.');
-    setMoveBackRequest(null);
-    setMoveBackReason('');
-    setMoveBackReasonError('');
-  };
-
-  const handleRenameProject = (id: string, name: string) => {
-    const target = projects.find((project) => project.id === id);
-    if (!target) return;
-    if (target.isCompleted || target.isArchived || target.isDeleted) {
-      toastService.warning('Rename blocked', 'Only active projects can be renamed.');
-      return;
-    }
-    const canEdit = user.role === 'admin' || target.members?.includes(user.id);
-    if (!canEdit) {
-      toastService.warning('Permission denied', 'Only project members can rename.');
-      return;
-    }
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    projectService.renameProject(id, trimmed);
-    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p)));
-    toastService.success('Project renamed', `"${trimmed}" is now the project name.`);
-  };
-
-  const handleArchiveProject = (id: string) => {
-    if (user.role !== 'admin') {
-      toastService.warning('Permission denied', 'Only admins can archive projects.');
-      return;
-    }
-    projectService.archiveProject(id);
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, isArchived: true, archivedAt: Date.now(), isCompleted: false, completedAt: undefined, isDeleted: false, deletedAt: undefined }
-          : p
-      )
-    );
-    if (activeProjectId === id) setActiveProjectId(null);
-    refreshTasks();
-    const project = projects.find((item) => item.id === id);
-    toastService.info('Project archived', project ? `"${project.name}" moved to archived.` : 'Project moved to archived.');
-  };
-
-  const handleCompleteProject = (id: string) => {
-    const target = projects.find((project) => project.id === id);
-    if (!target) return;
-    const canEdit = user.role === 'admin' || target.members?.includes(user.id);
-    if (!canEdit) {
-      toastService.warning('Permission denied', 'Only project members can complete this project.');
-      return;
-    }
-    projectService.completeProject(id);
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, isCompleted: true, completedAt: Date.now(), isArchived: false, archivedAt: undefined, isDeleted: false, deletedAt: undefined }
-          : p
-      )
-    );
-    if (activeProjectId === id) setActiveProjectId(null);
-    refreshTasks();
-    const project = projects.find((item) => item.id === id);
-    toastService.success('Project completed', project ? `"${project.name}" marked complete.` : 'Project marked complete.');
-  };
-
-  const handleReopenProject = (id: string) => {
-    const target = projects.find((project) => project.id === id);
-    if (!target) return;
-    const canEdit = user.role === 'admin' || target.members?.includes(user.id);
-    if (!canEdit) {
-      toastService.warning('Permission denied', 'Only project members can reopen this project.');
-      return;
-    }
-    projectService.reopenProject(id);
-    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, isCompleted: false, completedAt: undefined } : p)));
-    refreshTasks();
-    const project = projects.find((item) => item.id === id);
-    toastService.info('Project reopened', project ? `"${project.name}" is active again.` : 'Project is active again.');
-  };
-
-  const handleRestoreProject = (id: string) => {
-    if (user.role !== 'admin') {
-      toastService.warning('Permission denied', 'Only admins can restore archived/deleted projects.');
-      return;
-    }
-    projectService.restoreProject(id);
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              isArchived: false,
-              archivedAt: undefined,
-              isCompleted: false,
-              completedAt: undefined,
-              isDeleted: false,
-              deletedAt: undefined
-            }
-          : p
-      )
-    );
-    refreshTasks();
-    const project = projects.find((item) => item.id === id);
-    toastService.success('Project restored', project ? `"${project.name}" restored to active.` : 'Project restored to active.');
-  };
-
-  const handleDeleteProject = (id: string) => {
-    if (user.role !== 'admin') {
-      toastService.warning('Permission denied', 'Only admins can delete projects.');
-      return;
-    }
-    projectService.deleteProject(id);
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, isDeleted: true, deletedAt: Date.now(), isArchived: false, archivedAt: undefined, isCompleted: false, completedAt: undefined }
-          : p
-      )
-    );
-    if (activeProjectId === id) setActiveProjectId(null);
-    setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
-    refreshTasks();
-    const project = projects.find((item) => item.id === id);
-    toastService.warning('Project deleted', project ? `"${project.name}" moved to deleted.` : 'Project moved to deleted.');
-  };
-
-  const handlePurgeProject = (id: string) => {
-    if (user.role !== 'admin') {
-      toastService.warning('Permission denied', 'Only admins can purge projects.');
-      return;
-    }
-    projectService.purgeProject(id);
-    taskService.deleteTasksByProject(user.id, user.orgId, id);
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-    if (activeProjectId === id) setActiveProjectId(null);
-    setSelectedTask((prev) => (prev?.projectId === id ? null : prev));
-    refreshTasks();
-    toastService.warning('Project permanently deleted', 'Project and related tasks were removed.');
-  };
-
-  const handleBulkLifecycleAction = (action: 'archive' | 'complete' | 'delete' | 'restore', ids: string[]) => {
-    ids.forEach((id) => {
-      if (action === 'archive') handleArchiveProject(id);
-      if (action === 'complete') handleCompleteProject(id);
-      if (action === 'delete') handleDeleteProject(id);
-      if (action === 'restore') handleRestoreProject(id);
-    });
-  };
+  const {
+    moveBackRequest,
+    moveBackReason,
+    moveBackReasonError,
+    setMoveBackReason,
+    closeMoveBackPrompt,
+    submitMoveBackReason,
+    handleMoveTaskWithPolicy,
+    handleStatusUpdateWithPolicy,
+    handleUpdateTaskWithPolicy,
+    handleDeleteTaskWithPolicy,
+    handleCreateTaskWithPolicy
+  } = useTaskPolicyActions({
+    user,
+    tasks,
+    projects,
+    ensureTaskPermission,
+    canManageProject,
+    moveTask,
+    updateStatus,
+    updateTask,
+    addComment,
+    deleteTask,
+    createTask
+  });
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [activeProjectId, projects]);
   const allProjectTasks = useMemo(() => (user ? taskService.getAllTasksForOrg(user.orgId) : []), [user, tasks, projects]);
@@ -600,6 +452,9 @@ const App: React.FC = () => {
   }
 
   const themeClass = settings.theme === 'Dark' ? 'dark-theme' : settings.theme === 'Aurora' ? 'aurora-theme' : '';
+  const visibleProjects = user.role === 'admin'
+    ? projects
+    : projects.filter((project) => project.members.includes(user.id));
 
   const renderMainView = () => {
     switch (currentView) {
@@ -622,7 +477,7 @@ const App: React.FC = () => {
         );
       case 'analytics': return <AnalyticsView tasks={tasks} projects={projects} allUsers={allUsers} />;
       case 'roadmap': return <RoadmapView tasks={tasks} projects={projects} />;
-      case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => updateTask(tid, { assigneeId: uid, assigneeIds: [uid] }, user.displayName)} />;
+      case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => handleUpdateTaskWithPolicy(tid, { assigneeId: uid, assigneeIds: [uid] })} />;
       case 'integrations': return <IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />;
       case 'workflows': return (
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
@@ -676,13 +531,13 @@ const App: React.FC = () => {
           </div>
         );
       default: return (
-        <KanbanView searchQuery={searchQuery} projectFilter={projectFilter} projects={projects.filter((p) => p.members.includes(user.id))} dueFrom={dueFrom} dueTo={dueTo} statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setProjectFilter={setProjectFilter} setSearchQuery={setSearchQuery} setDueFrom={setDueFrom} setDueTo={setDueTo} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
+        <KanbanView searchQuery={searchQuery} projectFilter={projectFilter} projects={visibleProjects} dueFrom={dueFrom} dueTo={dueTo} statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setProjectFilter={setProjectFilter} setSearchQuery={setSearchQuery} setDueFrom={setDueFrom} setDueTo={setDueTo} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={handleDeleteTaskWithPolicy} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
       );
     }
   };
 
   return (
-    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={projects.filter(p => p.members.includes(user.id))} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject}>
+    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       {renderMainView()}
       {(isOffline || hasPendingSync) && (
@@ -690,28 +545,28 @@ const App: React.FC = () => {
           {isOffline ? 'Offline: local changes queued' : 'Local changes pending sync'}
         </div>
       )}
-      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); toastService.success('Priorities updated', `${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's updated' : ' updated'}.`); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds, { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds, { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={async () => { const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true }); if (confirmed) { bulkDeleteTasks(selectedTaskIds); setSelectedTaskIds([]); } }} />
-      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} projectModalTemplateId={projectModalTemplateId} setProjectModalTemplateId={setProjectModalTemplateId} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={createTask} 
+      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { bulkUpdateTasks(selectedTaskIds, { priority: p }); toastService.success('Priorities updated', `${selectedTaskIds.length} task${selectedTaskIds.length > 1 ? 's updated' : ' updated'}.`); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'complete')), { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'assign')), { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={async () => { const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true }); if (confirmed) { bulkDeleteTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'delete'))); setSelectedTaskIds([]); } }} />
+      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} projectModalTemplateId={projectModalTemplateId} setProjectModalTemplateId={setProjectModalTemplateId} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} createTask={handleCreateTaskWithPolicy} 
         handleAddProject={(n, d, c, m, tid, aiGeneratedTasks, meta) => {
-            const proj = projectService.createProject(user.orgId, n, d, c, m, meta);
+            const proj = projectService.createProject(user.orgId, n, d, c, m, meta, user.id);
             setProjects([...projects, proj]);
             setActiveProjectId(proj.id);
             setIsProjectModalOpen(false);
             setProjectModalTemplateId(null);
             if (tid) {
               const tmpl = workflowService.getTemplates().find(t => t.id === tid);
-              tmpl?.tasks.forEach(t => createTask(t.title, t.description, t.priority, t.tags, undefined, proj.id));
+              tmpl?.tasks.forEach(t => handleCreateTaskWithPolicy(t.title, t.description, t.priority, t.tags, undefined, proj.id));
             }
             if (aiGeneratedTasks && aiGeneratedTasks.length > 0) {
-              aiGeneratedTasks.forEach(t => createTask(t.title, t.description, t.priority, t.tags || ['AI-Ingested'], undefined, proj.id));
+              aiGeneratedTasks.forEach(t => handleCreateTaskWithPolicy(t.title, t.description, t.priority, t.tags || ['AI-Ingested'], undefined, proj.id));
             }
         }}
-        handleUpdateTask={(id, u) => { updateTask(id, u, user.displayName); if(selectedTask?.id === id) setSelectedTask({...selectedTask, ...u}); }}
+        handleUpdateTask={(id, u) => { handleUpdateTaskWithPolicy(id, u); if(selectedTask?.id === id) setSelectedTask({...selectedTask, ...u}); }}
         handleCommentOnTask={(id, t) => { const updated = addComment(id, t); if(updated) setSelectedTask(updated); }}
-        deleteTask={deleteTask}
+        deleteTask={handleDeleteTaskWithPolicy}
         onToggleTimer={toggleTimer}
         applyAISuggestions={applyAISuggestions}
-        handleGeneratedTasks={(g) => g.forEach(x => createTask(x.title, x.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1'))}
+        handleGeneratedTasks={(g) => g.forEach(x => handleCreateTaskWithPolicy(x.title, x.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1'))}
         setActiveProjectId={setActiveProjectId}
         refreshTasks={refreshTasks}
         onRenameProject={handleRenameProject}
@@ -734,7 +589,6 @@ const App: React.FC = () => {
               value={moveBackReason}
               onChange={(event) => {
                 setMoveBackReason(event.target.value);
-                if (moveBackReasonError) setMoveBackReasonError('');
               }}
               placeholder="Explain why this task is moving back..."
               className="mt-3 w-full min-h-[120px] rounded-xl border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
@@ -742,11 +596,7 @@ const App: React.FC = () => {
             {moveBackReasonError ? <p className="text-xs text-rose-600 mt-1.5">{moveBackReasonError}</p> : null}
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
-                onClick={() => {
-                  setMoveBackRequest(null);
-                  setMoveBackReason('');
-                  setMoveBackReasonError('');
-                }}
+                onClick={closeMoveBackPrompt}
                 className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Cancel
