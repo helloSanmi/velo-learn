@@ -7,6 +7,7 @@ import { SettingsTabType } from '../SettingsModal';
 
 interface WorkspaceLayoutProps {
   user: User;
+  allUsers: User[];
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
   projects: Project[];
@@ -27,7 +28,7 @@ interface WorkspaceLayoutProps {
   onOpenVoiceCommander: () => void;
   onOpenVisionModal: () => void;
   onAddProject: () => void;
-  onRenameProject: (id: string, name: string) => void;
+  onUpdateProject: (id: string, updates: Partial<Project>) => void;
   onCompleteProject: (id: string) => void;
   onArchiveProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
@@ -37,10 +38,10 @@ interface WorkspaceLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
-  user, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
+  user, allUsers, isSidebarOpen, setIsSidebarOpen, projects, activeProjectId, currentView,
   themeClass, compactMode, onLogout, onNewTask, onReset, onRefreshData, onOpenSettings,
   onOpenTaskFromNotification, onCloseSidebar, onProjectSelect, onViewChange, onOpenCommandCenter, onOpenVoiceCommander,
-  onOpenVisionModal, onAddProject, onRenameProject, onCompleteProject, onArchiveProject, onDeleteProject, onlineCount, isOnline, children
+  onOpenVisionModal, onAddProject, onUpdateProject, onCompleteProject, onArchiveProject, onDeleteProject, onlineCount, isOnline, children
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('velo_sidebar_width');
@@ -103,6 +104,8 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         >
           <Sidebar 
             isOpen={isSidebarOpen} 
+            currentUser={user}
+            allUsers={allUsers}
             projects={projects} 
             activeProjectId={activeProjectId} 
             currentView={currentView} 
@@ -112,7 +115,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onOpenVoiceCommander={onOpenVoiceCommander} 
             onOpenVisionModal={onOpenVisionModal} 
             onAddProject={onAddProject} 
-            onRenameProject={onRenameProject}
+            onUpdateProject={onUpdateProject}
             onCompleteProject={onCompleteProject}
             onArchiveProject={onArchiveProject}
             onDeleteProject={onDeleteProject}
@@ -130,6 +133,8 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         <div className="lg:hidden">
           <Sidebar 
             isOpen={isSidebarOpen} 
+            currentUser={user}
+            allUsers={allUsers}
             projects={projects} 
             activeProjectId={activeProjectId} 
             currentView={currentView} 
@@ -139,7 +144,7 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
             onOpenVoiceCommander={onOpenVoiceCommander} 
             onOpenVisionModal={onOpenVisionModal} 
             onAddProject={onAddProject} 
-            onRenameProject={onRenameProject}
+            onUpdateProject={onUpdateProject}
             onCompleteProject={onCompleteProject}
             onArchiveProject={onArchiveProject}
             onDeleteProject={onDeleteProject}

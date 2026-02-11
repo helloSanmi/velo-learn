@@ -7,19 +7,14 @@ import { userService } from './userService';
 import { syncGuardService } from './syncGuardService';
 import { realtimeService } from './realtimeService';
 import { createId } from '../utils/id';
-
-const STORAGE_KEY = 'velo_data';
-const getTaskAssigneeIds = (task: Task): string[] => {
-  if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
-  if (task.assigneeId) return [task.assigneeId];
-  return [];
-};
-
-const withVersion = (task: Task): Task => ({
-  ...task,
-  version: Number.isFinite(task.version as number) ? Math.max(1, Number(task.version)) : 1,
-  updatedAt: task.updatedAt || task.createdAt || Date.now()
-});
+import {
+  getTaskAssigneeIds,
+  normalizeTaskForRead,
+  readStoredTasks,
+  TASKS_STORAGE_KEY,
+  withVersion,
+  writeStoredTasks
+} from './task-service/storage';
 
 const emitTasksUpdated = (orgId: string, actorId?: string, taskId?: string) => {
   realtimeService.publish({
@@ -33,21 +28,10 @@ const emitTasksUpdated = (orgId: string, actorId?: string, taskId?: string) => {
 export const taskService = {
   getAllTasksForOrg: (orgId: string): Task[] => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      const allTasks: Task[] = data ? JSON.parse(data) : [];
+      const allTasks = readStoredTasks();
       return allTasks
         .filter((t) => t.orgId === orgId)
-        .map((t) => withVersion({
-          ...t,
-          assigneeIds: getTaskAssigneeIds(t),
-          assigneeId: getTaskAssigneeIds(t)[0],
-          comments: t.comments || [],
-          auditLog: t.auditLog || [],
-          subtasks: t.subtasks || [],
-          tags: t.tags || [],
-          timeLogged: t.timeLogged || 0,
-          blockedByIds: t.blockedByIds || []
-        }))
+        .map(normalizeTaskForRead)
         .sort((a, b) => a.order - b.order);
     } catch (e) {
       console.error('Error fetching all org tasks:', e);
@@ -57,8 +41,7 @@ export const taskService = {
 
   getTasks: (userId: string, orgId: string): Task[] => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      const allTasks: Task[] = data ? JSON.parse(data) : [];
+      const allTasks = readStoredTasks();
       const activeProjectIds = new Set(
         projectService
           .getProjects(orgId)
@@ -85,17 +68,7 @@ export const taskService = {
               t.projectId === 'general'
             )
         )
-        .map(t => withVersion({
-          ...t,
-          assigneeIds: getTaskAssigneeIds(t),
-          assigneeId: getTaskAssigneeIds(t)[0],
-          comments: t.comments || [],
-          auditLog: t.auditLog || [],
-          subtasks: t.subtasks || [],
-          tags: t.tags || [],
-          timeLogged: t.timeLogged || 0,
-          blockedByIds: t.blockedByIds || []
-        }))
+        .map(normalizeTaskForRead)
         .sort((a, b) => a.order - b.order);
     } catch (e) {
       console.error("Critical failure fetching Velo telemetry:", e);
@@ -114,8 +87,7 @@ export const taskService = {
     dueDate?: number,
     assigneeIds: string[] = []
   ): Task => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = data ? JSON.parse(data) : [];
+    const allTasks = readStoredTasks();
     const maxOrder = allTasks.length > 0 ? Math.max(...allTasks.map(t => t.order)) : 0;
     const normalizedAssigneeIds = Array.from(new Set(assigneeIds.filter(Boolean)));
     const project = projectService.getProjects(orgId).find((item) => item.id === projectId);
@@ -151,7 +123,7 @@ export const taskService = {
       blockedByIds: []
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...allTasks, newTask]));
+    writeStoredTasks([...allTasks, newTask]);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId, newTask.id);
     const settings = settingsService.getSettings();
@@ -172,14 +144,13 @@ export const taskService = {
   },
 
   getTaskById: (id: string): Task | undefined => {
-    const allTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const allTasks = readStoredTasks();
     const task = allTasks.find((item) => item.id === id);
     return task ? withVersion(task) : undefined;
   },
 
   updateTask: (userId: string, orgId: string, id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>, displayName?: string): Task[] => {
-    const allTasksStr = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const allTasks = readStoredTasks();
     let notifyAssigneeIds: string[] = [];
     let notifyTaskTitle: string = '';
 
@@ -227,7 +198,7 @@ export const taskService = {
       return t;
     });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId, id);
     const settings = settingsService.getSettings();
@@ -246,8 +217,7 @@ export const taskService = {
   },
 
   toggleTimer: (userId: string, orgId: string, id: string): Task[] => {
-    const allTasksStr = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const allTasks = readStoredTasks();
     const updatedTasks = allTasks.map(t => {
       if (t.id === id) {
         if (t.isTimerRunning) {
@@ -264,7 +234,7 @@ export const taskService = {
       }
       return t;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId, id);
     return taskService.getTasks(userId, orgId);
@@ -275,8 +245,7 @@ export const taskService = {
   },
 
   addComment: (userId: string, orgId: string, taskId: string, text: string, displayName: string): Task[] => {
-    const allTasksStr = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const allTasks = readStoredTasks();
     const updatedTasks = allTasks.map(t => {
       if (t.id === taskId) {
         const newComment: Comment = {
@@ -303,49 +272,43 @@ export const taskService = {
       }
       return t;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId, taskId);
     return taskService.getTasks(userId, orgId);
   },
 
   deleteTask: (userId: string, orgId: string, id: string): Task[] => {
-    const allTasksStr = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const allTasks = readStoredTasks();
     const updated = allTasks.filter(t => t.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    writeStoredTasks(updated);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId, id);
     return taskService.getTasks(userId, orgId);
   },
 
   deleteTasksByProject: (userId: string, orgId: string, projectId: string): Task[] => {
-    const allTasksStr = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
+    const allTasks = readStoredTasks();
     const updated = allTasks.filter((t) => t.projectId !== projectId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    writeStoredTasks(updated);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId, userId);
     return taskService.getTasks(userId, orgId);
   },
 
   reorderTasks: (orgId: string, reorderedTasks: Task[]): void => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    const allTasks: Task[] = data ? JSON.parse(data) : [];
+    const allTasks = readStoredTasks();
     const visibleTaskIds = reorderedTasks.map(t => t.id);
     const hiddenTasks = allTasks.filter(t => !visibleTaskIds.includes(t.id));
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        ...hiddenTasks,
-        ...reorderedTasks.map((task) => ({ ...task, updatedAt: Date.now(), version: (task.version || 1) + 1 }))
-      ])
-    );
+    writeStoredTasks([
+      ...hiddenTasks,
+      ...reorderedTasks.map((task) => ({ ...task, updatedAt: Date.now(), version: (task.version || 1) + 1 }))
+    ]);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId);
   },
 
   clearData: () => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(TASKS_STORAGE_KEY);
   }
 };

@@ -28,6 +28,7 @@ const INITIAL_PROJECTS = [
   {
     "id": "p1",
     "orgId": DEFAULT_ORG_ID,
+    "createdBy": "u-1",
     "name": "Product Roadmap 2025",
     "description": "Core product strategy and high-level feature development.",
     "color": "bg-indigo-600",
@@ -38,6 +39,7 @@ const INITIAL_PROJECTS = [
   {
     "id": "p2",
     "orgId": DEFAULT_ORG_ID,
+    "createdBy": "u-3",
     "name": "Infrastructure Scaling",
     "description": "Kubernetes cluster expansion and global load balancing strategy.",
     "color": "bg-emerald-600",
@@ -48,6 +50,7 @@ const INITIAL_PROJECTS = [
   {
     "id": "p3",
     "orgId": DEFAULT_ORG_ID,
+    "createdBy": "u-2",
     "name": "Z-Core Security",
     "description": "Zero-trust protocol implementation and hardware security key integration.",
     "color": "bg-rose-500",
@@ -58,6 +61,7 @@ const INITIAL_PROJECTS = [
   {
     "id": "p4",
     "orgId": DEFAULT_ORG_ID,
+    "createdBy": "u-2",
     "name": "UX Pulse UI",
     "description": "Next-generation design system and accessibility compliance audit.",
     "color": "bg-amber-500",

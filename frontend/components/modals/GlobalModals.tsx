@@ -65,6 +65,7 @@ interface GlobalModalsProps {
   onRestoreProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
   onPurgeProject: (id: string) => void;
+  onChangeProjectOwner: (id: string, ownerId: string) => void;
 }
 
 const GlobalModals: React.FC<GlobalModalsProps> = ({
@@ -77,7 +78,7 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
   projectTasks,
   activeProjectId, aiEnabled, createTask, handleAddProject, handleUpdateTask,
   handleCommentOnTask, deleteTask, onToggleTimer, applyAISuggestions, handleGeneratedTasks,
-  setActiveProjectId, refreshTasks, onRenameProject, onCompleteProject, onReopenProject, onArchiveProject, onRestoreProject, onDeleteProject, onPurgeProject
+  setActiveProjectId, refreshTasks, onRenameProject, onCompleteProject, onReopenProject, onArchiveProject, onRestoreProject, onDeleteProject, onPurgeProject, onChangeProjectOwner
 }) => {
   return (
     <>
@@ -122,6 +123,7 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
         onRestoreProject={onRestoreProject}
         onDeleteProject={onDeleteProject}
         onPurgeProject={onPurgeProject}
+        onChangeProjectOwner={onChangeProjectOwner}
       />
     </>
   );

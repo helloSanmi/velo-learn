@@ -2,6 +2,7 @@
 [
   {
     "id": "p1",
+    "createdBy": "u-1",
     "name": "Product Roadmap 2025",
     "description": "Core product strategy and feature development.",
     "color": "bg-indigo-600",
@@ -11,6 +12,7 @@
   },
   {
     "id": "p2",
+    "createdBy": "u-4",
     "name": "Marketing Rebrand",
     "description": "New website design and brand guidelines.",
     "color": "bg-rose-500",
@@ -20,6 +22,7 @@
   },
   {
     "id": "p3",
+    "createdBy": "u-5",
     "name": "Security Audit",
     "description": "Bi-annual compliance and penetration testing.",
     "color": "bg-slate-700",

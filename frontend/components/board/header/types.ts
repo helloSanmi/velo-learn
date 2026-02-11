@@ -1,0 +1,41 @@
+import { Project, ProjectStage, TaskPriority, User } from '../../../types';
+import { SavedBoardView } from '../../../services/savedViewService';
+
+export interface KanbanHeaderProps {
+  compactMode: boolean;
+  activeProject?: Project;
+  currentUserId: string;
+  totals: { total: number; todo: number; inProgress: number; done: number };
+  savedViews: SavedBoardView[];
+  projectStages: ProjectStage[];
+  isTriaging: boolean;
+  canManageStages: boolean;
+  selectedTaskIds: string[];
+  searchQuery: string;
+  projectFilter: string | 'All';
+  dueFrom?: number;
+  dueTo?: number;
+  statusFilter: string | 'All';
+  priorityFilter: TaskPriority | 'All';
+  tagFilter: string | 'All';
+  assigneeFilter: string | 'All';
+  uniqueTags: string[];
+  allUsers: User[];
+  projects: Project[];
+  onSaveView: () => void;
+  onApplyView: (id: string) => void;
+  appliedViewId: string | null;
+  onDeleteAppliedView: () => void;
+  onOpenManageViews: () => void;
+  onOptimizeOrder: () => void;
+  onOpenStages: () => void;
+  onClearSelected: () => void;
+  setStatusFilter: (s: string | 'All') => void;
+  setPriorityFilter: (p: TaskPriority | 'All') => void;
+  setTagFilter: (t: string) => void;
+  setAssigneeFilter: (a: string) => void;
+  setSearchQuery: (value: string) => void;
+  setProjectFilter: (value: string | 'All') => void;
+  setDueFrom: (value?: number) => void;
+  setDueTo: (value?: number) => void;
+}

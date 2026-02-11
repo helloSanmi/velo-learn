@@ -1,8 +1,10 @@
 import React from 'react';
 import { Archive, ArchiveRestore, Search } from 'lucide-react';
-import { Project, Task, TaskStatus } from '../../types';
+import { Project, Task, TaskStatus, User } from '../../types';
 
 interface SettingsProjectsTabProps {
+  currentUserRole?: User['role'];
+  allUsers: User[];
   projectQuery: string;
   setProjectQuery: (value: string) => void;
   activeProjects: Project[];
@@ -24,9 +26,12 @@ interface SettingsProjectsTabProps {
   onRestoreProject?: (id: string) => void;
   onDeleteProject?: (id: string) => void;
   onPurgeProject?: (id: string) => void;
+  onChangeProjectOwner?: (id: string, ownerId: string) => void;
 }
 
 const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
+  currentUserRole,
+  allUsers,
   projectQuery,
   setProjectQuery,
   activeProjects,
@@ -47,8 +52,12 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
   onArchiveProject,
   onRestoreProject,
   onDeleteProject,
-  onPurgeProject
+  onPurgeProject,
+  onChangeProjectOwner
 }) => {
+  const ownerById = new Map(allUsers.map((user) => [user.id, user]));
+  const canChangeOwner = currentUserRole === 'admin';
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 h-full min-h-0 flex flex-col">
       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
@@ -160,6 +169,34 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+            <div className="mt-3">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Project owner</p>
+              {(() => {
+                const ownerId = focusedProject.createdBy || focusedProject.members?.[0] || '';
+                const owner = ownerById.get(ownerId);
+                const ownerName = owner?.displayName || 'Unknown owner';
+                if (!canChangeOwner) {
+                  return (
+                    <div className="h-8 px-2 rounded-md border border-slate-200 bg-slate-50 text-xs text-slate-700 inline-flex items-center">
+                      {ownerName}
+                    </div>
+                  );
+                }
+                return (
+                  <select
+                    value={ownerId}
+                    onChange={(event) => onChangeProjectOwner?.(focusedProject.id, event.target.value)}
+                    className="h-8 min-w-[180px] rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 outline-none"
+                  >
+                    {allUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {editingProjectId === focusedProject.id ? (

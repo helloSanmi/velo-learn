@@ -26,6 +26,7 @@ interface SettingsModalProps {
   onRestoreProject?: (id: string) => void;
   onDeleteProject?: (id: string) => void;
   onPurgeProject?: (id: string) => void;
+  onChangeProjectOwner?: (id: string, ownerId: string) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,7 +42,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onArchiveProject,
   onRestoreProject,
   onDeleteProject,
-  onPurgeProject
+  onPurgeProject,
+  onChangeProjectOwner
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
   const [settings, setSettings] = useState<UserSettings>(settingsService.getSettings());
@@ -225,6 +227,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       case 'projects':
         return (
           <SettingsProjectsTab
+            currentUserRole={user.role}
+            allUsers={allUsers}
             projectQuery={projectQuery}
             setProjectQuery={setProjectQuery}
             activeProjects={activeProjects}
@@ -246,6 +250,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onRestoreProject={onRestoreProject}
             onDeleteProject={onDeleteProject}
             onPurgeProject={onPurgeProject}
+            onChangeProjectOwner={onChangeProjectOwner}
           />
         );
       case 'general':

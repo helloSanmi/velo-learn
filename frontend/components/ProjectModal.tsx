@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Loader2, Sparkles, Users, X } from 'lucide-react';
+import { ArrowLeft, Check, Users, X } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
 import { workflowService } from '../services/workflowService';
 import { ProjectTemplate, TaskPriority } from '../types';
 import Button from './ui/Button';
+import ModeSelectionStep from './project-modal/ModeSelectionStep';
+import TemplateSelectionStep from './project-modal/TemplateSelectionStep';
+import AiConfigurationStep from './project-modal/AiConfigurationStep';
+import AiGeneratedTasksEditor from './project-modal/AiGeneratedTasksEditor';
+import { AiInputMode, AiTaskDraft, Mode, PROJECT_MODAL_COLORS } from './project-modal/types';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -22,18 +27,12 @@ interface ProjectModalProps {
   initialTemplateId?: string | null;
 }
 
-const COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-slate-700', 'bg-pink-500'];
-
-type Mode = 'manual' | 'template' | 'ai';
-type AiInputMode = 'brief' | 'document';
-type AiTaskDraft = { title: string; description: string; priority: TaskPriority; tags: string[] };
-
 const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, currentUserId, initialTemplateId }) => {
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<Mode>('manual');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState(PROJECT_MODAL_COLORS[0]);
   const [memberIds, setMemberIds] = useState<string[]>([currentUserId]);
   const [isPublic, setIsPublic] = useState(false);
   const [startDate, setStartDate] = useState('');
@@ -73,7 +72,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
     setMode('manual');
     setName('');
     setDescription('');
-    setSelectedColor(COLORS[0]);
+    setSelectedColor(PROJECT_MODAL_COLORS[0]);
     setMemberIds([currentUserId]);
     setIsPublic(false);
     setStartDate('');
@@ -201,101 +200,46 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
 
         <div className="p-3.5 md:p-4 max-h-[74vh] overflow-y-auto custom-scrollbar">
           {step === 1 && (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-600">Choose how to start:</p>
-              <div className="grid sm:grid-cols-3 gap-2">
-                <button onClick={() => { setMode('manual'); setSelectedTemplate(null); setStep(3); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Start from scratch</button>
-                <button onClick={() => { setMode('template'); setStep(2); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Use template</button>
-                <button onClick={() => { setMode('ai'); setStep(2); }} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm text-slate-700">Generate with AI</button>
-              </div>
-            </div>
+            <ModeSelectionStep
+              onSelectMode={(selectedMode) => {
+                if (selectedMode === 'manual') {
+                  setMode('manual');
+                  setSelectedTemplate(null);
+                  setStep(3);
+                  return;
+                }
+                setMode(selectedMode);
+                setStep(2);
+              }}
+            />
           )}
 
           {step === 2 && mode === 'template' && (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-600">Select a template:</p>
-              <div className="space-y-2">
-                {workflowService.getTemplates().map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => {
-                      setSelectedTemplate(template);
-                      setName(template.name);
-                      setDescription(template.description);
-                      setStep(3);
-                    }}
-                    className="w-full text-left border border-slate-200 rounded-lg p-3 hover:bg-slate-50"
-                  >
-                    <p className="text-sm font-medium text-slate-900">{template.name}</p>
-                    <p className="text-xs text-slate-600 mt-1">{template.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <TemplateSelectionStep
+              templates={workflowService.getTemplates()}
+              onSelectTemplate={(template) => {
+                setSelectedTemplate(template);
+                setName(template.name);
+                setDescription(template.description);
+                setStep(3);
+              }}
+            />
           )}
 
           {step === 2 && mode === 'ai' && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setAiInputMode('brief')}
-                  className={`h-8 px-3 rounded-md text-xs font-medium transition-colors ${aiInputMode === 'brief' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
-                >
-                  Brief
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAiInputMode('document')}
-                  className={`h-8 px-3 rounded-md text-xs font-medium transition-colors ${aiInputMode === 'document' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
-                >
-                  Import docs
-                </button>
-              </div>
-
-              {aiInputMode === 'brief' ? (
-                <>
-                  <p className="text-sm text-slate-600">Describe what this project should deliver. AI will generate a starter task plan.</p>
-                  <textarea
-                    value={aiBrief}
-                    onChange={(e) => setAiBrief(e.target.value)}
-                    className="w-full min-h-[190px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                    placeholder="Example: Build customer onboarding with email verification, profile setup, analytics tracking, and QA sign-off."
-                  />
-                  <div>
-                    <label className="block text-xs text-slate-500 mb-1.5">Tasks to generate</label>
-                    <input
-                      type="number"
-                      min={4}
-                      max={20}
-                      value={aiTaskCount}
-                      onChange={(e) => setAiTaskCount(Math.min(20, Math.max(4, Number(e.target.value) || 8)))}
-                      className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-slate-600">Paste notes or documentation. AI will extract tasks.</p>
-                  <textarea
-                    value={aiDocText}
-                    onChange={(e) => setAiDocText(e.target.value)}
-                    className="w-full min-h-[220px] rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                    placeholder="Paste notes, docs, or task ideas..."
-                  />
-                </>
-              )}
-
-              <Button
-                onClick={processAi}
-                disabled={isAiProcessing || (aiInputMode === 'brief' ? !aiBrief.trim() : !aiDocText.trim())}
-                className="w-full"
-              >
-                {isAiProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {isAiProcessing ? 'Generating tasks...' : 'Generate Tasks with AI'}
-              </Button>
-              {aiError ? <p className="text-xs text-rose-600">{aiError}</p> : null}
-            </div>
+            <AiConfigurationStep
+              aiInputMode={aiInputMode}
+              setAiInputMode={setAiInputMode}
+              aiBrief={aiBrief}
+              setAiBrief={setAiBrief}
+              aiDocText={aiDocText}
+              setAiDocText={setAiDocText}
+              aiTaskCount={aiTaskCount}
+              setAiTaskCount={setAiTaskCount}
+              isAiProcessing={isAiProcessing}
+              aiError={aiError}
+              onProcess={processAi}
+            />
           )}
 
           {step === 3 && (
@@ -403,52 +347,19 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, 
               </div>
               {metaError ? <p className="text-xs text-rose-600">{metaError}</p> : null}
 
-              {mode === 'ai' && aiGeneratedTasks.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs text-slate-500">AI generated tasks ({aiGeneratedTasks.length})</label>
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className="text-xs text-slate-600 hover:text-slate-900"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
-                  <div className="max-h-[240px] overflow-y-auto custom-scrollbar space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                    {aiGeneratedTasks.map((task, index) => (
-                      <div key={`${task.title}-${index}`} className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-2">
-                        <div className="flex items-start gap-2">
-                          <input
-                            value={task.title}
-                            onChange={(e) => updateGeneratedTask(index, { title: e.target.value })}
-                            className="flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                            placeholder="Task title"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeGeneratedTask(index)}
-                            className="h-9 px-2 rounded-md text-xs text-slate-600 hover:bg-slate-100"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        <textarea
-                          value={task.description}
-                          onChange={(e) => updateGeneratedTask(index, { description: e.target.value })}
-                          className="w-full min-h-[60px] rounded-md border border-slate-300 p-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                          placeholder="Task description"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {mode === 'ai' ? (
+                <AiGeneratedTasksEditor
+                  tasks={aiGeneratedTasks}
+                  onRegenerate={() => setStep(2)}
+                  onUpdateTask={updateGeneratedTask}
+                  onRemoveTask={removeGeneratedTask}
+                />
               ) : null}
 
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Color</label>
                 <div className="flex flex-wrap gap-2">
-                  {COLORS.map((color) => (
+                  {PROJECT_MODAL_COLORS.map((color) => (
                     <button
                       key={color}
                       type="button"

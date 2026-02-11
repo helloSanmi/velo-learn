@@ -329,13 +329,49 @@ const App: React.FC = () => {
   
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
     const target = projects.find((project) => project.id === id);
-    if (!target) return;
+    if (!target || !user) return;
     if (!canManageProject(target)) {
       toastService.warning('Permission denied', 'Only admins or project creators can edit project settings.');
       return;
     }
-    projectService.updateProject(id, updates);
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    const sanitizedUpdates: Partial<Project> = { ...updates };
+    if ('createdBy' in sanitizedUpdates && user.role !== 'admin') {
+      delete sanitizedUpdates.createdBy;
+    }
+    if (user.role === 'admin' && sanitizedUpdates.createdBy) {
+      const nextOwnerId = sanitizedUpdates.createdBy;
+      if (!allUsers.some((member) => member.id === nextOwnerId && member.orgId === user.orgId)) {
+        toastService.error('Invalid owner', 'Selected owner is not a workspace user.');
+        return;
+      }
+      const currentMembers = Array.isArray(sanitizedUpdates.members) ? sanitizedUpdates.members : target.members;
+      if (!currentMembers.includes(nextOwnerId)) {
+        sanitizedUpdates.members = [...currentMembers, nextOwnerId];
+      }
+    }
+    projectService.updateProject(id, sanitizedUpdates);
+    setProjects((prev) => prev.map((project) => (project.id === id ? { ...project, ...sanitizedUpdates } : project)));
+  };
+
+  const handleChangeProjectOwner = (id: string, ownerId: string) => {
+    const target = projects.find((project) => project.id === id);
+    if (!target || !user) return;
+    if (user.role !== 'admin') {
+      toastService.warning('Permission denied', 'Only admins can change project owner.');
+      return;
+    }
+    const ownerExists = allUsers.some((member) => member.id === ownerId && member.orgId === user.orgId);
+    if (!ownerExists) {
+      toastService.error('Invalid owner', 'Selected owner is not a workspace user.');
+      return;
+    }
+    const nextMembers = target.members.includes(ownerId) ? target.members : [...target.members, ownerId];
+    projectService.updateProject(id, { createdBy: ownerId, members: nextMembers });
+    setProjects((prev) =>
+      prev.map((project) => (project.id === id ? { ...project, createdBy: ownerId, members: nextMembers } : project))
+    );
+    const ownerName = allUsers.find((member) => member.id === ownerId)?.displayName || 'New owner';
+    toastService.success('Owner updated', `${ownerName} is now project owner.`);
   };
 
   const {
@@ -411,7 +447,7 @@ const App: React.FC = () => {
     : projects.filter((project) => project.members.includes(user.id));
 
   return (
-    <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
+    <WorkspaceLayout user={user} allUsers={allUsers} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onUpdateProject={handleUpdateProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       <WorkspaceMainView
         currentView={currentView}
@@ -504,6 +540,7 @@ const App: React.FC = () => {
         onRestoreProject={handleRestoreProject}
         onDeleteProject={handleDeleteProject}
         onPurgeProject={handlePurgeProject}
+        onChangeProjectOwner={handleChangeProjectOwner}
       />
       <MoveBackReasonModal
         isOpen={Boolean(moveBackRequest)}
