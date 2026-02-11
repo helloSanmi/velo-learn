@@ -37,6 +37,8 @@ export interface User {
 export interface Project {
   id: string;
   orgId: string;
+  version?: number;
+  updatedAt?: number;
   name: string;
   description: string;
   color: string;
@@ -89,6 +91,8 @@ export interface AuditEntry {
 export interface Task {
   id: string;
   orgId: string;
+  version?: number;
+  updatedAt?: number;
   userId: string;
   assigneeId?: string;
   assigneeIds?: string[];
@@ -112,6 +116,8 @@ export interface Task {
   movedBackBy?: string;
   movedBackReason?: string;
   movedBackFromStatus?: string;
+  approvedAt?: number;
+  approvedBy?: string;
   // New: Dependency Tracking
   blockedByIds?: string[];
   blocksIds?: string[];

@@ -90,6 +90,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   if (!task) return null;
   const totalTrackedMs = (task.timeLogged || 0) + elapsed;
+  const canApprove = currentUser?.role === 'admin';
 
   const handleToggleDependency = (depId: string) => {
     const currentDeps = task.blockedByIds || [];
@@ -195,6 +196,31 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       {task.movedBackBy || 'Unknown'} • {new Date(task.movedBackAt).toLocaleString()}
                     </p>
                   </div>
+                </div>
+              </div>
+            ) : null}
+            {task.priority === TaskPriority.HIGH ? (
+              <div className={`rounded-2xl border px-4 py-3 ${task.approvedAt ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${task.approvedAt ? 'text-emerald-700' : 'text-slate-600'}`}>Approval</p>
+                    <p className={`text-sm mt-0.5 ${task.approvedAt ? 'text-emerald-900' : 'text-slate-700'}`}>
+                      {task.approvedAt ? `Approved by ${task.approvedBy || 'Admin'} on ${new Date(task.approvedAt).toLocaleString()}` : 'Approval required before moving this high-priority task to done.'}
+                    </p>
+                  </div>
+                  {canApprove && !task.approvedAt ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onUpdate(task.id, { approvedAt: Date.now(), approvedBy: currentUser?.displayName || 'Admin' });
+                        onAddComment(task.id, `Approved for completion by ${currentUser?.displayName || 'Admin'}.`);
+                      }}
+                      className="h-8 px-3 text-xs"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                      Approve
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : null}

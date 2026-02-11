@@ -5,10 +5,15 @@ import { aiService } from '../../services/aiService';
 import { taskService } from '../../services/taskService';
 import { DEFAULT_PROJECT_STAGES } from '../../services/projectService';
 import { dialogService } from '../../services/dialogService';
+import { savedViewService, SavedBoardView } from '../../services/savedViewService';
+import { toastService } from '../../services/toastService';
 import FilterBar from './FilterBar';
 import KanbanBoard from './KanbanBoard';
 
 interface KanbanViewProps {
+  searchQuery: string;
+  dueFrom?: number;
+  dueTo?: number;
   statusFilter: string | 'All';
   priorityFilter: TaskPriority | 'All';
   tagFilter: string | 'All';
@@ -24,6 +29,9 @@ interface KanbanViewProps {
   setPriorityFilter: (p: TaskPriority | 'All') => void;
   setTagFilter: (t: string) => void;
   setAssigneeFilter: (a: string) => void;
+  setSearchQuery: (value: string) => void;
+  setDueFrom: (value?: number) => void;
+  setDueTo: (value?: number) => void;
   setSelectedTaskIds: (ids: string[]) => void;
   toggleTaskSelection: (id: string) => void;
   deleteTask: (id: string) => void;
@@ -38,6 +46,9 @@ interface KanbanViewProps {
 }
 
 const KanbanView: React.FC<KanbanViewProps> = ({
+  searchQuery,
+  dueFrom,
+  dueTo,
   statusFilter,
   priorityFilter,
   tagFilter,
@@ -53,6 +64,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   setPriorityFilter,
   setTagFilter,
   setAssigneeFilter,
+  setSearchQuery,
+  setDueFrom,
+  setDueTo,
   setSelectedTaskIds,
   toggleTaskSelection,
   deleteTask,
@@ -69,6 +83,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   const [showStageEditor, setShowStageEditor] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [draftStages, setDraftStages] = useState<ProjectStage[]>([]);
+  const [savedViews, setSavedViews] = useState<SavedBoardView[]>(() => savedViewService.list(currentUser.id, currentUser.orgId));
 
   const projectStages = useMemo(() => {
     const baseStages = activeProject?.stages?.length ? activeProject.stages : DEFAULT_PROJECT_STAGES;
@@ -143,6 +158,37 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     setIsTriaging(false);
   };
 
+  const saveCurrentView = () => {
+    const name = window.prompt('Name this view');
+    if (!name?.trim()) return;
+    const view = savedViewService.create({
+      userId: currentUser.id,
+      orgId: currentUser.orgId,
+      name: name.trim(),
+      searchQuery,
+      statusFilter,
+      priorityFilter,
+      tagFilter,
+      assigneeFilter,
+      dueFrom,
+      dueTo
+    });
+    setSavedViews((prev) => [view, ...prev]);
+    toastService.success('View saved', `"${view.name}" created.`);
+  };
+
+  const applySavedView = (id: string) => {
+    const view = savedViews.find((item) => item.id === id);
+    if (!view) return;
+    setSearchQuery(view.searchQuery);
+    setStatusFilter(view.statusFilter);
+    setPriorityFilter(view.priorityFilter);
+    setTagFilter(view.tagFilter);
+    setAssigneeFilter(view.assigneeFilter);
+    setDueFrom(view.dueFrom);
+    setDueTo(view.dueTo);
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
       <div className={`flex-none px-4 md:px-8 ${compactMode ? 'pt-2 pb-2' : 'pt-2 pb-2.5'}`}>
@@ -161,6 +207,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
               <FilterBar
                 embedded
                 compact
+                searchQuery={searchQuery}
+                dueFrom={dueFrom}
+                dueTo={dueTo}
                 statusFilter={statusFilter}
                 priorityFilter={priorityFilter}
                 tagFilter={tagFilter}
@@ -172,9 +221,34 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                 onPriorityChange={setPriorityFilter}
                 onTagChange={setTagFilter}
                 onAssigneeChange={setAssigneeFilter}
+                onSearchChange={setSearchQuery}
+                onDueFromChange={setDueFrom}
+                onDueToChange={setDueTo}
               />
 
               <div className="flex items-center gap-1.5">
+                <button
+                  onClick={saveCurrentView}
+                  className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition-colors"
+                >
+                  Save view
+                </button>
+                {savedViews.length > 0 && (
+                  <select
+                    className="h-6 px-1.5 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700 outline-none"
+                    onChange={(event) => applySavedView(event.target.value)}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Apply view
+                    </option>
+                    {savedViews.map((view) => (
+                      <option key={view.id} value={view.id}>
+                        {view.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {activeProject && (
                   <button
                     onClick={handleOptimizeOrder}

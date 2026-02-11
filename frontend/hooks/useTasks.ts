@@ -18,6 +18,9 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
   const [tagFilter, setTagFilter] = useState<string | 'All'>('All');
   const [assigneeFilter, setAssigneeFilter] = useState<string | 'All'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dueFrom, setDueFrom] = useState<number | undefined>(undefined);
+  const [dueTo, setDueTo] = useState<number | undefined>(undefined);
   const getTaskAssigneeIds = (task: Task): string[] => {
     if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
     if (task.assigneeId) return [task.assigneeId];
@@ -29,6 +32,19 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       setTasks(taskService.getTasks(user.id, user.orgId));
     }
   }, [user]);
+
+  const hasTaskConflict = (id: string): boolean => {
+    const localTask = tasks.find((task) => task.id === id);
+    if (!localTask) return false;
+    const latest = taskService.getTaskById(id);
+    if (!latest) return false;
+    const conflicted = (latest.version || 1) > (localTask.version || 1);
+    if (conflicted) {
+      toastService.warning('Task changed elsewhere', 'Refreshed latest task state to avoid overwrite.');
+      refreshTasks();
+    }
+    return conflicted;
+  };
 
   useEffect(() => {
     const handleUndoRedo = (e: KeyboardEvent) => {
@@ -71,6 +87,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
 
   const updateStatus = (id: string, status: string, username?: string) => {
     if (!user) return;
+    if (hasTaskConflict(id)) return;
     historyManager.push(tasks);
     const isDone = getDoneStageIds().includes(status);
     if (isDone) setConfettiActive(true);
@@ -87,6 +104,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     historyManager.push(tasks);
     let current = [...tasks];
     ids.forEach(id => {
+      if (hasTaskConflict(id)) return;
       current = taskService.updateTask(user.id, user.orgId, id, updates, user.displayName);
     });
     setTasks(current);
@@ -105,6 +123,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     historyManager.push(tasks);
     let current = [...tasks];
     ids.forEach(id => {
+      if (hasTaskConflict(id)) return;
       current = taskService.deleteTask(user.id, user.orgId, id);
     });
     setTasks(current);
@@ -115,6 +134,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
 
   const updateTask = (id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>, username?: string) => {
     if (!user) return;
+    if (hasTaskConflict(id)) return;
     historyManager.push(tasks);
     const previousTask = tasks.find((task) => task.id === id);
     const updated = taskService.updateTask(user.id, user.orgId, id, updates, username);
@@ -155,6 +175,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
 
   const moveTask = (taskId: string, targetStatus: string, targetTaskId?: string) => {
     if (!user) return;
+    if (hasTaskConflict(taskId)) return;
     historyManager.push(tasks);
     if (getDoneStageIds().includes(targetStatus)) setConfettiActive(true);
     setTasks(prevTasks => {
@@ -186,6 +207,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
 
   const deleteTask = (id: string) => {
     if (!user) return;
+    if (hasTaskConflict(id)) return;
     historyManager.push(tasks);
     const removedTask = tasks.find((task) => task.id === id);
     const updated = taskService.deleteTask(user.id, user.orgId, id);
@@ -195,6 +217,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
 
   const toggleTimer = (id: string) => {
     if (!user) return;
+    if (hasTaskConflict(id)) return;
     const task = tasks.find((item) => item.id === id);
     const wasRunning = Boolean(task?.isTimerRunning);
     const updated = taskService.toggleTimer(user.id, user.orgId, id);
@@ -247,14 +270,18 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       const matchesPriority = priorityFilter === 'All' || task.priority === priorityFilter;
       const matchesTag = tagFilter === 'All' || task.tags?.includes(tagFilter);
       const matchesProject = !activeProjectId || task.projectId === activeProjectId;
+      const matchesSearch = !searchQuery.trim() || `${task.title} ${task.description} ${(task.tags || []).join(' ')}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
       const assigneeIds = getTaskAssigneeIds(task);
       const matchesAssignee =
         assigneeFilter === 'All' ||
         (assigneeFilter === 'Me' && assigneeIds.includes(user?.id || '')) ||
         assigneeIds.includes(assigneeFilter);
-      return matchesPriority && matchesTag && matchesProject && matchesAssignee;
+      const due = task.dueDate;
+      const matchesFrom = dueFrom ? Boolean(due && due >= dueFrom) : true;
+      const matchesTo = dueTo ? Boolean(due && due <= dueTo) : true;
+      return matchesPriority && matchesTag && matchesProject && matchesAssignee && matchesSearch && matchesFrom && matchesTo;
     });
-  }, [tasks, priorityFilter, tagFilter, activeProjectId, assigneeFilter, user]);
+  }, [tasks, priorityFilter, tagFilter, activeProjectId, assigneeFilter, user, searchQuery, dueFrom, dueTo]);
 
   const categorizedTasks = useMemo(() => {
     const sortFn = (a: Task, b: Task) => a.order - b.order;
@@ -279,6 +306,9 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     statusFilter,
     tagFilter,
     assigneeFilter,
+    searchQuery,
+    dueFrom,
+    dueTo,
     uniqueTags,
     confettiActive,
     setConfettiActive,
@@ -286,6 +316,9 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     setStatusFilter,
     setTagFilter,
     setAssigneeFilter,
+    setSearchQuery,
+    setDueFrom,
+    setDueTo,
     setAiSuggestions,
     refreshTasks,
     createTask,

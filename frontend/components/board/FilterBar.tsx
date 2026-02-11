@@ -2,6 +2,9 @@ import React from 'react';
 import { TaskPriority, User } from '../../types';
 
 interface FilterBarProps {
+  searchQuery: string;
+  dueFrom?: number;
+  dueTo?: number;
   statusFilter: string | 'All';
   priorityFilter: TaskPriority | 'All';
   tagFilter: string | 'All';
@@ -15,6 +18,9 @@ interface FilterBarProps {
   onPriorityChange: (priority: TaskPriority | 'All') => void;
   onTagChange: (tag: string) => void;
   onAssigneeChange: (assigneeId: string) => void;
+  onSearchChange: (value: string) => void;
+  onDueFromChange: (value?: number) => void;
+  onDueToChange: (value?: number) => void;
 }
 
 const FilterBar: React.FC<FilterBarProps> = ({
@@ -22,6 +28,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
   priorityFilter,
   tagFilter,
   assigneeFilter,
+  searchQuery,
+  dueFrom,
+  dueTo,
   statusOptions,
   uniqueTags,
   allUsers,
@@ -30,7 +39,10 @@ const FilterBar: React.FC<FilterBarProps> = ({
   onStatusChange,
   onPriorityChange,
   onTagChange,
-  onAssigneeChange
+  onAssigneeChange,
+  onSearchChange,
+  onDueFromChange,
+  onDueToChange
 }) => {
   const controlClass = compact
     ? 'h-6 min-w-[112px] px-1.5 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700 outline-none focus:ring-2 focus:ring-slate-300'
@@ -49,6 +61,13 @@ const FilterBar: React.FC<FilterBarProps> = ({
     <div className={containerClass}>
       <div className={frameClass}>
         <div className={listClass}>
+          <input
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search tasks"
+            className={controlClass}
+          />
+
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
@@ -93,6 +112,22 @@ const FilterBar: React.FC<FilterBarProps> = ({
               <option key={tag} value={tag}>{tag}</option>
             ))}
           </select>
+
+          <input
+            type="date"
+            value={dueFrom ? new Date(dueFrom).toISOString().slice(0, 10) : ''}
+            onChange={(e) => onDueFromChange(e.target.value ? new Date(`${e.target.value}T00:00:00`).getTime() : undefined)}
+            className={controlClass}
+            title="Due from"
+          />
+
+          <input
+            type="date"
+            value={dueTo ? new Date(dueTo).toISOString().slice(0, 10) : ''}
+            onChange={(e) => onDueToChange(e.target.value ? new Date(`${e.target.value}T23:59:59`).getTime() : undefined)}
+            className={controlClass}
+            title="Due to"
+          />
         </div>
       </div>
     </div>

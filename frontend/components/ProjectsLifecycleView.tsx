@@ -4,6 +4,7 @@ import { Project, Task } from '../types';
 import { DEFAULT_PROJECT_STAGES } from '../services/projectService';
 
 interface ProjectsLifecycleViewProps {
+  currentUserRole?: 'admin' | 'member' | 'guest';
   projects: Project[];
   projectTasks: Task[];
   activeProjectId: string | null;
@@ -14,11 +15,13 @@ interface ProjectsLifecycleViewProps {
   onRestoreProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
   onPurgeProject: (id: string) => void;
+  onBulkLifecycleAction: (action: 'archive' | 'complete' | 'delete' | 'restore', ids: string[]) => void;
 }
 
 type StatusFilter = 'All' | 'Active' | 'Archived' | 'Completed' | 'Deleted';
 
 const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
+  currentUserRole,
   projects,
   projectTasks,
   activeProjectId,
@@ -28,13 +31,15 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
   onArchiveProject,
   onRestoreProject,
   onDeleteProject,
-  onPurgeProject
+  onPurgeProject,
+  onBulkLifecycleAction
 }) => {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
   const [focusedProjectId, setFocusedProjectId] = useState<string | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState('');
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
 
   const getProjectStatus = (project: Project): Exclude<StatusFilter, 'All'> => {
     if (project.isDeleted) return 'Deleted';
@@ -92,6 +97,10 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
     setEditingProjectName('');
   };
 
+  const toggleProjectSelection = (id: string) => {
+    setSelectedProjectIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto space-y-5">
@@ -123,6 +132,16 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
 
         <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-4 min-h-[68vh]">
           <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
+            {selectedProjectIds.length > 0 && (
+              <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-2 flex flex-wrap gap-2">
+                <span className="text-xs text-slate-600 px-1">{selectedProjectIds.length} selected</span>
+                <button onClick={() => onBulkLifecycleAction('archive', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Archive</button>
+                <button onClick={() => onBulkLifecycleAction('complete', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Complete</button>
+                <button onClick={() => onBulkLifecycleAction('delete', selectedProjectIds)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">Delete</button>
+                <button onClick={() => onBulkLifecycleAction('restore', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Restore</button>
+                <button onClick={() => setSelectedProjectIds([])} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Clear</button>
+              </div>
+            )}
             <label className="h-10 rounded-lg border border-slate-300 px-3 bg-white flex items-center gap-2 mb-3">
               <Search className="w-4 h-4 text-slate-400" />
               <input
@@ -150,6 +169,16 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                       }`}
                       >
                         <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.includes(project.id)}
+                            onChange={(event) => {
+                              event.stopPropagation();
+                              toggleProjectSelection(project.id);
+                            }}
+                            onClick={(event) => event.stopPropagation()}
+                            className="w-3.5 h-3.5 rounded border-slate-300"
+                          />
                           <div className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${activeProjectId === project.id ? 'active-node ring-1 ring-[#76003f]/15 ring-offset-0' : ''}`} />
                           <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
                         </div>
@@ -250,17 +279,17 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                 {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
                   <>
                     <button onClick={() => onCompleteProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">Complete</button>
-                    <button onClick={() => onArchiveProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5"><Archive className="w-3.5 h-3.5" /> Archive</button>
+                    <button disabled={currentUserRole !== 'admin'} onClick={() => onArchiveProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-40"><Archive className="w-3.5 h-3.5" /> Archive</button>
                   </>
                 )}
-                {focusedProject.isArchived && <button onClick={() => onRestoreProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5"><ArchiveRestore className="w-3.5 h-3.5" /> Restore</button>}
+                {focusedProject.isArchived && <button disabled={currentUserRole !== 'admin'} onClick={() => onRestoreProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-40"><ArchiveRestore className="w-3.5 h-3.5" /> Restore</button>}
                 {focusedProject.isCompleted && <button onClick={() => onReopenProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">Reopen</button>}
                 {!focusedProject.isDeleted ? (
-                  <button onClick={() => onDeleteProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 inline-flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                  <button disabled={currentUserRole !== 'admin'} onClick={() => onDeleteProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 inline-flex items-center gap-1.5 disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                 ) : (
                   <>
-                    <button onClick={() => onRestoreProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">Restore</button>
-                    <button onClick={() => onPurgeProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700">Purge</button>
+                    <button disabled={currentUserRole !== 'admin'} onClick={() => onRestoreProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 disabled:opacity-40">Restore</button>
+                    <button disabled={currentUserRole !== 'admin'} onClick={() => onPurgeProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 disabled:opacity-40">Purge</button>
                   </>
                 )}
               </div>

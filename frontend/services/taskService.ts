@@ -4,6 +4,7 @@ import { projectService } from './projectService';
 import { notificationService } from './notificationService';
 import { settingsService } from './settingsService';
 import { userService } from './userService';
+import { syncGuardService } from './syncGuardService';
 
 const STORAGE_KEY = 'velo_data';
 const getTaskAssigneeIds = (task: Task): string[] => {
@@ -12,6 +13,12 @@ const getTaskAssigneeIds = (task: Task): string[] => {
   return [];
 };
 
+const withVersion = (task: Task): Task => ({
+  ...task,
+  version: Number.isFinite(task.version as number) ? Math.max(1, Number(task.version)) : 1,
+  updatedAt: task.updatedAt || task.createdAt || Date.now()
+});
+
 export const taskService = {
   getAllTasksForOrg: (orgId: string): Task[] => {
     try {
@@ -19,7 +26,7 @@ export const taskService = {
       const allTasks: Task[] = data ? JSON.parse(data) : [];
       return allTasks
         .filter((t) => t.orgId === orgId)
-        .map((t) => ({
+        .map((t) => withVersion({
           ...t,
           assigneeIds: getTaskAssigneeIds(t),
           assigneeId: getTaskAssigneeIds(t)[0],
@@ -67,7 +74,7 @@ export const taskService = {
               t.projectId === 'general'
             )
         )
-        .map(t => ({
+        .map(t => withVersion({
           ...t,
           assigneeIds: getTaskAssigneeIds(t),
           assigneeId: getTaskAssigneeIds(t)[0],
@@ -115,6 +122,8 @@ export const taskService = {
       status: defaultStage,
       priority,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
+      version: 1,
       order: maxOrder + 1,
       subtasks: [],
       tags,
@@ -132,6 +141,7 @@ export const taskService = {
     };
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...allTasks, newTask]));
+    syncGuardService.markLocalMutation();
     const settings = settingsService.getSettings();
     if (settings.enableNotifications) {
       normalizedAssigneeIds
@@ -147,6 +157,12 @@ export const taskService = {
         );
     }
     return newTask;
+  },
+
+  getTaskById: (id: string): Task | undefined => {
+    const allTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const task = allTasks.find((item) => item.id === id);
+    return task ? withVersion(task) : undefined;
   },
 
   updateTask: (userId: string, orgId: string, id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>, displayName?: string): Task[] => {
@@ -194,12 +210,13 @@ export const taskService = {
             }
           });
         }
-        return { ...t, ...normalizedUpdates, auditLog };
+        return { ...t, ...normalizedUpdates, auditLog, updatedAt: Date.now(), version: (t.version || 1) + 1 };
       }
       return t;
     });
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    syncGuardService.markLocalMutation();
     const settings = settingsService.getSettings();
     if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
       notifyAssigneeIds.forEach((notifyAssigneeId) => {
@@ -235,6 +252,7 @@ export const taskService = {
       return t;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    syncGuardService.markLocalMutation();
     return taskService.getTasks(userId, orgId);
   },
 
@@ -267,11 +285,12 @@ export const taskService = {
             });
           });
         }
-        return { ...t, comments: [...(t.comments || []), newComment] };
+        return { ...t, comments: [...(t.comments || []), newComment], updatedAt: Date.now(), version: (t.version || 1) + 1 };
       }
       return t;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTasks));
+    syncGuardService.markLocalMutation();
     return taskService.getTasks(userId, orgId);
   },
 
@@ -280,6 +299,7 @@ export const taskService = {
     const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
     const updated = allTasks.filter(t => t.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    syncGuardService.markLocalMutation();
     return taskService.getTasks(userId, orgId);
   },
 
@@ -288,6 +308,7 @@ export const taskService = {
     const allTasks: Task[] = allTasksStr ? JSON.parse(allTasksStr) : [];
     const updated = allTasks.filter((t) => t.projectId !== projectId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    syncGuardService.markLocalMutation();
     return taskService.getTasks(userId, orgId);
   },
 
@@ -296,7 +317,14 @@ export const taskService = {
     const allTasks: Task[] = data ? JSON.parse(data) : [];
     const visibleTaskIds = reorderedTasks.map(t => t.id);
     const hiddenTasks = allTasks.filter(t => !visibleTaskIds.includes(t.id));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...hiddenTasks, ...reorderedTasks]));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        ...hiddenTasks,
+        ...reorderedTasks.map((task) => ({ ...task, updatedAt: Date.now(), version: (task.version || 1) + 1 }))
+      ])
+    );
+    syncGuardService.markLocalMutation();
   },
 
   clearData: () => {

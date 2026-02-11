@@ -1,5 +1,6 @@
 
 import { Project, ProjectStage, TaskStatus } from '../types';
+import { syncGuardService } from './syncGuardService';
 
 const PROJECTS_KEY = 'velo_projects';
 export const DEFAULT_PROJECT_STAGES: ProjectStage[] = [
@@ -40,7 +41,12 @@ export const projectService = {
       if (!data) return [];
       const all: Project[] = JSON.parse(data) || [];
       if (!Array.isArray(all)) return [];
-      const normalizedProjects = all.map((project) => ({ ...project, stages: normalizeStages(project.stages) }));
+      const normalizedProjects = all.map((project) => ({
+        ...project,
+        stages: normalizeStages(project.stages),
+        version: Number.isFinite(project.version as number) ? Math.max(1, Number(project.version)) : 1,
+        updatedAt: project.updatedAt || Date.now()
+      }));
       if (orgId) return normalizedProjects.filter(p => p.orgId === orgId);
       return normalizedProjects;
     } catch (e) {
@@ -85,6 +91,8 @@ export const projectService = {
       ...normalizedMeta,
       stages: DEFAULT_PROJECT_STAGES,
       members,
+      version: 1,
+      updatedAt: Date.now(),
       isArchived: false,
       isCompleted: false,
       isDeleted: false,
@@ -92,6 +100,7 @@ export const projectService = {
       publicToken: crypto.randomUUID().slice(0, 8)
     };
     localStorage.setItem(PROJECTS_KEY, JSON.stringify([...projects, newProject]));
+    syncGuardService.markLocalMutation();
     return newProject;
   },
 
@@ -106,15 +115,26 @@ export const projectService = {
       return p;
     });
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newList));
+    syncGuardService.markLocalMutation();
     return updated;
   },
 
   updateProject: (id: string, updates: Partial<Project>) => {
     const normalizedMeta = normalizeProjectMeta(updates);
     const projects = projectService.getProjects().map(p => 
-      p.id === id ? { ...p, ...updates, ...normalizedMeta, stages: normalizeStages(updates.stages || p.stages) } : p
+      p.id === id
+        ? {
+            ...p,
+            ...updates,
+            ...normalizedMeta,
+            stages: normalizeStages(updates.stages || p.stages),
+            version: (p.version || 1) + 1,
+            updatedAt: Date.now()
+          }
+        : p
     );
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    syncGuardService.markLocalMutation();
     return projects.find((p) => p.id === id);
   },
 
@@ -177,5 +197,6 @@ export const projectService = {
   purgeProject: (id: string) => {
     const projects = projectService.getProjects().filter(p => p.id !== id);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    syncGuardService.markLocalMutation();
   }
 };
