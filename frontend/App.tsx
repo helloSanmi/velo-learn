@@ -12,21 +12,10 @@ import { mockDataService } from './services/mockDataService';
 import { settingsService, UserSettings } from './services/settingsService';
 
 import WorkspaceLayout from './components/layout/WorkspaceLayout';
-import KanbanView from './components/board/KanbanView';
 import GlobalModals from './components/modals/GlobalModals';
-import AnalyticsView from './components/analytics/AnalyticsView';
-import RoadmapView from './components/RoadmapView';
-import AuthView from './components/AuthView';
-import LandingPage from './components/LandingPage';
-import PricingPage from './components/PricingPage';
-import SupportPage from './components/SupportPage';
 import PublicBoardView from './components/board/PublicBoardView';
 import SelectionActionBar from './components/board/SelectionActionBar';
 import Confetti from './components/ui/Confetti';
-import WorkflowBuilder from './components/WorkflowBuilder';
-import WorkloadView from './components/WorkloadView';
-import IntegrationHub from './components/IntegrationHub';
-import ProjectsLifecycleView from './components/ProjectsLifecycleView';
 import { SettingsTabType } from './components/SettingsModal';
 import DialogHost from './components/ui/DialogHost';
 import { dialogService } from './services/dialogService';
@@ -37,6 +26,9 @@ import { notificationService } from './services/notificationService';
 import { syncGuardService } from './services/syncGuardService';
 import { realtimeService } from './services/realtimeService';
 import { presenceService } from './services/presenceService';
+import AuthRouter from './components/views/AuthRouter';
+import WorkspaceMainView from './components/views/WorkspaceMainView';
+import MoveBackReasonModal from './components/modals/MoveBackReasonModal';
 
 const getActiveProjectStorageKey = (user: User) => `velo_active_project:${user.orgId}:${user.id}`;
 
@@ -410,45 +402,7 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    if (authView === 'landing') {
-      return (
-        <LandingPage
-          onGetStarted={() => setAuthView('register')}
-          onLogin={() => setAuthView('login')}
-          onOpenPricing={() => setAuthView('pricing')}
-          onOpenSupport={() => setAuthView('support')}
-        />
-      );
-    }
-    if (authView === 'pricing') {
-      return (
-        <PricingPage
-          onBackToHome={() => setAuthView('landing')}
-          onOpenSupport={() => setAuthView('support')}
-          onSignIn={() => setAuthView('login')}
-          onGetStarted={() => setAuthView('register')}
-        />
-      );
-    }
-    if (authView === 'support') {
-      return (
-        <SupportPage
-          onBackToHome={() => setAuthView('landing')}
-          onOpenPricing={() => setAuthView('pricing')}
-          onSignIn={() => setAuthView('login')}
-          onGetStarted={() => setAuthView('register')}
-        />
-      );
-    }
-    return (
-      <AuthView
-        onAuthSuccess={setUser}
-        initialMode={authView as any}
-        onBackToHome={() => setAuthView('landing')}
-        onOpenPricing={() => setAuthView('pricing')}
-        onOpenSupport={() => setAuthView('support')}
-      />
-    );
+    return <AuthRouter authView={authView} setAuthView={setAuthView} onAuthSuccess={setUser} />;
   }
 
   const themeClass = settings.theme === 'Dark' ? 'dark-theme' : settings.theme === 'Aurora' ? 'aurora-theme' : '';
@@ -456,90 +410,64 @@ const App: React.FC = () => {
     ? projects
     : projects.filter((project) => project.members.includes(user.id));
 
-  const renderMainView = () => {
-    switch (currentView) {
-      case 'projects':
-        return (
-          <ProjectsLifecycleView
-            currentUserRole={user.role}
-            projects={projects}
-            projectTasks={allProjectTasks}
-            activeProjectId={activeProjectId}
-            onRenameProject={handleRenameProject}
-            onCompleteProject={handleCompleteProject}
-            onReopenProject={handleReopenProject}
-            onArchiveProject={handleArchiveProject}
-            onRestoreProject={handleRestoreProject}
-            onDeleteProject={handleDeleteProject}
-            onPurgeProject={handlePurgeProject}
-            onBulkLifecycleAction={handleBulkLifecycleAction}
-          />
-        );
-      case 'analytics': return <AnalyticsView tasks={tasks} projects={projects} allUsers={allUsers} />;
-      case 'roadmap': return <RoadmapView tasks={tasks} projects={projects} />;
-      case 'resources': return <WorkloadView users={allUsers} tasks={tasks} onReassign={(tid, uid) => handleUpdateTaskWithPolicy(tid, { assigneeId: uid, assigneeIds: [uid] })} />;
-      case 'integrations': return <IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />;
-      case 'workflows': return (
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 md:p-6 border border-slate-200">
-            <WorkflowBuilder orgId={user.orgId} allUsers={allUsers} />
-          </div>
-        </div>
-      );
-      case 'templates':
-        return (
-          <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
-            <div className="max-w-6xl mx-auto space-y-5">
-               <div>
-                 <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900">Templates</h2>
-                 <p className="text-sm text-slate-600 mt-1">Start faster with predefined project structures.</p>
-               </div>
-               <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-                 <input
-                   value={templateQuery}
-                   onChange={(event) => setTemplateQuery(event.target.value)}
-                   placeholder="Filter templates"
-                   className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-300"
-                 />
-                 {templates.length === 0 ? (
-                   <div className="border border-slate-200 rounded-lg p-8 text-center text-sm text-slate-500">
-                     No templates match your filter.
-                   </div>
-                 ) : (
-                   <div className="max-h-[62vh] overflow-y-auto custom-scrollbar pr-1">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                       {templates.map(t => (
-                         <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col">
-                            <h3 className="text-base font-semibold text-slate-900">{t.name}</h3>
-                            <p className="text-sm text-slate-600 mt-1 flex-1">{t.description}</p>
-                            <button
-                              onClick={() => {
-                                setProjectModalTemplateId(t.id);
-                                setIsProjectModalOpen(true);
-                              }}
-                              className="mt-4 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
-                            >
-                              Use template
-                            </button>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
-               </div>
-            </div>
-          </div>
-        );
-      default: return (
-        <KanbanView searchQuery={searchQuery} projectFilter={projectFilter} projects={visibleProjects} dueFrom={dueFrom} dueTo={dueTo} statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setProjectFilter={setProjectFilter} setSearchQuery={setSearchQuery} setDueFrom={setDueFrom} setDueTo={setDueTo} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={handleDeleteTaskWithPolicy} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
-      );
-    }
-  };
-
   return (
     <WorkspaceLayout user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onRenameProject={handleRenameProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
-      {renderMainView()}
+      <WorkspaceMainView
+        currentView={currentView}
+        user={user}
+        tasks={tasks}
+        projects={projects}
+        allUsers={allUsers}
+        allProjectTasks={allProjectTasks}
+        activeProject={activeProject}
+        visibleProjects={visibleProjects}
+        categorizedTasks={categorizedTasks}
+        selectedTaskIds={selectedTaskIds}
+        settingsCompactMode={settings.compactMode}
+        templateQuery={templateQuery}
+        templates={templates}
+        searchQuery={searchQuery}
+        projectFilter={projectFilter}
+        dueFrom={dueFrom}
+        dueTo={dueTo}
+        statusFilter={statusFilter}
+        priorityFilter={priorityFilter}
+        tagFilter={tagFilter}
+        assigneeFilter={assigneeFilter}
+        uniqueTags={uniqueTags}
+        setTemplateQuery={setTemplateQuery}
+        setProjectModalTemplateId={setProjectModalTemplateId}
+        setIsProjectModalOpen={setIsProjectModalOpen}
+        setStatusFilter={setStatusFilter}
+        setPriorityFilter={setPriorityFilter}
+        setTagFilter={setTagFilter}
+        setAssigneeFilter={setAssigneeFilter}
+        setSearchQuery={setSearchQuery}
+        setProjectFilter={setProjectFilter}
+        setDueFrom={setDueFrom}
+        setDueTo={setDueTo}
+        setSelectedTaskIds={setSelectedTaskIds}
+        toggleTaskSelection={toggleTaskSelection}
+        handleDeleteTaskWithPolicy={handleDeleteTaskWithPolicy}
+        handleStatusUpdateWithPolicy={handleStatusUpdateWithPolicy}
+        handleMoveTaskWithPolicy={handleMoveTaskWithPolicy}
+        assistWithAI={assistWithAI}
+        setSelectedTask={setSelectedTask}
+        setIsModalOpen={setIsModalOpen}
+        refreshTasks={refreshTasks}
+        handleUpdateProject={handleUpdateProject}
+        handleRenameProject={handleRenameProject}
+        handleCompleteProject={handleCompleteProject}
+        handleReopenProject={handleReopenProject}
+        handleArchiveProject={handleArchiveProject}
+        handleRestoreProject={handleRestoreProject}
+        handleDeleteProject={handleDeleteProject}
+        handlePurgeProject={handlePurgeProject}
+        handleBulkLifecycleAction={handleBulkLifecycleAction}
+        handleUpdateTaskWithPolicy={handleUpdateTaskWithPolicy}
+        onToggleTimer={toggleTimer}
+      />
       {(isOffline || hasPendingSync) && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[200] rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-sm">
           {isOffline ? 'Offline: local changes queued' : 'Local changes pending sync'}
@@ -577,40 +505,14 @@ const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onPurgeProject={handlePurgeProject}
       />
-      {moveBackRequest && (
-        <div className="fixed inset-0 z-[280] bg-slate-900/45 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl p-5">
-            <h3 className="text-lg font-semibold text-slate-900">Reason Required</h3>
-            <p className="text-sm text-slate-600 mt-1">
-              Completed tasks need a comment before moving backward.
-            </p>
-            <textarea
-              autoFocus
-              value={moveBackReason}
-              onChange={(event) => {
-                setMoveBackReason(event.target.value);
-              }}
-              placeholder="Explain why this task is moving back..."
-              className="mt-3 w-full min-h-[120px] rounded-xl border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-            />
-            {moveBackReasonError ? <p className="text-xs text-rose-600 mt-1.5">{moveBackReasonError}</p> : null}
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                onClick={closeMoveBackPrompt}
-                className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitMoveBackReason}
-                className="h-10 px-4 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
-              >
-                Save reason and move
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <MoveBackReasonModal
+        isOpen={Boolean(moveBackRequest)}
+        reason={moveBackReason}
+        reasonError={moveBackReasonError}
+        onReasonChange={setMoveBackReason}
+        onCancel={closeMoveBackPrompt}
+        onSubmit={submitMoveBackReason}
+      />
       <DialogHost />
       <ToastHost />
     </WorkspaceLayout>
