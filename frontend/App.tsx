@@ -399,6 +399,10 @@ const App: React.FC = () => {
   const handleRenameProject = (id: string, name: string) => {
     const target = projects.find((project) => project.id === id);
     if (!target) return;
+    if (target.isCompleted || target.isArchived || target.isDeleted) {
+      toastService.warning('Rename blocked', 'Only active projects can be renamed.');
+      return;
+    }
     const canEdit = user.role === 'admin' || target.members?.includes(user.id);
     if (!canEdit) {
       toastService.warning('Permission denied', 'Only project members can rename.');

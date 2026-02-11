@@ -280,7 +280,7 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
               ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {editingProjectId === focusedProject.id ? (
+                {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && editingProjectId === focusedProject.id ? (
                   <>
                     <input
                       autoFocus
@@ -297,11 +297,11 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                     />
                     <button onClick={submitProjectRename} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">Save</button>
                   </>
-                ) : (
+                ) : !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted ? (
                   <button onClick={() => { setEditingProjectId(focusedProject.id); setEditingProjectName(focusedProject.name); }} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
                     Rename
                   </button>
-                )}
+                ) : null}
 
                 {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
                   <>
