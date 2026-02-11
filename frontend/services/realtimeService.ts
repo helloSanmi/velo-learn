@@ -1,3 +1,5 @@
+import { createId } from '../utils/id';
+
 export type RealtimeEventType =
   | 'TASKS_UPDATED'
   | 'PROJECTS_UPDATED'
@@ -25,7 +27,7 @@ type RealtimeListener = (event: RealtimeEvent) => void;
 const ensureClientId = (): string => {
   const fromSession = sessionStorage.getItem(CLIENT_KEY);
   if (fromSession) return fromSession;
-  const next = crypto.randomUUID();
+  const next = createId();
   sessionStorage.setItem(CLIENT_KEY, next);
   return next;
 };
@@ -40,7 +42,7 @@ let hasBoundGlobalListeners = false;
 
 const publish = (message: Omit<RealtimeEvent, 'id' | 'clientId' | 'sentAt'>) => {
   const event: RealtimeEvent = {
-    id: crypto.randomUUID(),
+    id: createId(),
     clientId,
     sentAt: Date.now(),
     ...message

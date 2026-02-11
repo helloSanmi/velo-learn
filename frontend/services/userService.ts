@@ -1,6 +1,7 @@
 
 import { User, Organization } from '../types';
 import { realtimeService } from './realtimeService';
+import { createId } from '../utils/id';
 
 const USERS_KEY = 'velo_users';
 const ORGS_KEY = 'velo_orgs';
@@ -80,7 +81,7 @@ export const userService = {
       return { success: false, error: 'Identity already exists in cluster.' };
     }
     const newUser: User = {
-      id: crypto.randomUUID(),
+      id: createId(),
       orgId,
       username: cleanUsername,
       displayName: username.charAt(0).toUpperCase() + username.slice(1),
@@ -102,8 +103,8 @@ export const userService = {
       return existing;
     }
     const orgs: Organization[] = JSON.parse(localStorage.getItem(ORGS_KEY) || '[]');
-    const newOrgId = crypto.randomUUID();
-    const newUserId = crypto.randomUUID();
+    const newOrgId = createId();
+    const newUserId = createId();
     const newOrg: Organization = {
       id: newOrgId,
       name: orgName || `${cleanId}'s Cluster`,

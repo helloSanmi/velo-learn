@@ -1,3 +1,5 @@
+import { createId } from '../utils/id';
+
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
 
 export interface ToastItem {
@@ -11,7 +13,7 @@ export interface ToastItem {
 const TOAST_EVENT = 'velo:toast:push';
 
 const push = (payload: Omit<ToastItem, 'id'>) => {
-  const detail: ToastItem = { id: crypto.randomUUID(), durationMs: 2600, ...payload };
+  const detail: ToastItem = { id: createId(), durationMs: 2600, ...payload };
   window.dispatchEvent(new CustomEvent(TOAST_EVENT, { detail }));
 };
 
@@ -23,4 +25,3 @@ export const toastService = {
   warning: (title: string, message?: string) => push({ type: 'warning', title, message }),
   error: (title: string, message?: string) => push({ type: 'error', title, message })
 };
-

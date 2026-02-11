@@ -1,4 +1,5 @@
 import { TaskPriority } from '../types';
+import { createId } from '../utils/id';
 
 export interface SavedBoardView {
   id: string;
@@ -36,7 +37,7 @@ export const savedViewService = {
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || b.createdAt - a.createdAt),
   create: (view: Omit<SavedBoardView, 'id' | 'createdAt'>): SavedBoardView => {
     const current = read();
-    const next: SavedBoardView = { ...view, id: crypto.randomUUID(), createdAt: Date.now(), sortOrder: 0 };
+    const next: SavedBoardView = { ...view, id: createId(), createdAt: Date.now(), sortOrder: 0 };
     const shifted = current.map((item) => ({ ...item, sortOrder: (item.sortOrder ?? 0) + 1 }));
     write([next, ...shifted]);
     return next;

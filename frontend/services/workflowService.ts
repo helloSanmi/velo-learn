@@ -1,5 +1,6 @@
 
 import { WorkflowRule, WorkflowTrigger, WorkflowAction, Task, ProjectTemplate, TaskPriority, TaskStatus } from '../types';
+import { createId } from '../utils/id';
 
 const WORKFLOWS_KEY = 'velo_workflows';
 
@@ -12,7 +13,7 @@ export const workflowService = {
 
   saveRule: (rule: Omit<WorkflowRule, 'id'>): WorkflowRule => {
     const all: WorkflowRule[] = JSON.parse(localStorage.getItem(WORKFLOWS_KEY) || '[]');
-    const newRule = { ...rule, id: crypto.randomUUID() };
+    const newRule = { ...rule, id: createId() };
     localStorage.setItem(WORKFLOWS_KEY, JSON.stringify([...all, newRule]));
     return newRule;
   },

@@ -1,4 +1,6 @@
 
+import { createId } from '../utils/id';
+
 export interface Notification {
   id: string;
   userId: string;
@@ -32,7 +34,7 @@ export const notificationService = {
       
       const newNotification: Notification = {
         ...notification,
-        id: crypto.randomUUID(),
+        id: createId(),
         read: false,
         timestamp: Date.now()
       };

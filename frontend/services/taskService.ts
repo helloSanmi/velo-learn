@@ -6,6 +6,7 @@ import { settingsService } from './settingsService';
 import { userService } from './userService';
 import { syncGuardService } from './syncGuardService';
 import { realtimeService } from './realtimeService';
+import { createId } from '../utils/id';
 
 const STORAGE_KEY = 'velo_data';
 const getTaskAssigneeIds = (task: Task): string[] => {
@@ -121,7 +122,7 @@ export const taskService = {
     const defaultStage = project?.stages?.[0]?.id || TaskStatus.TODO;
     
     const newTask: Task = {
-      id: crypto.randomUUID(),
+      id: createId(),
       orgId,
       userId,
       assigneeId: normalizedAssigneeIds[0],
@@ -140,7 +141,7 @@ export const taskService = {
       dueDate,
       comments: [],
       auditLog: [{
-        id: crypto.randomUUID(),
+        id: createId(),
         userId,
         displayName: 'System',
         action: 'Node initialized',
@@ -212,7 +213,7 @@ export const taskService = {
             const oldVal = (t as any)[key];
             if (newVal !== undefined && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
               auditLog.push({
-                id: crypto.randomUUID(),
+                id: createId(),
                 userId,
                 displayName,
                 action: `Reconfigured ${key}`,
@@ -279,7 +280,7 @@ export const taskService = {
     const updatedTasks = allTasks.map(t => {
       if (t.id === taskId) {
         const newComment: Comment = {
-          id: crypto.randomUUID(),
+          id: createId(),
           userId,
           displayName,
           text,

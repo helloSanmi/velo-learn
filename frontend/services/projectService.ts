@@ -2,6 +2,7 @@
 import { Project, ProjectStage, TaskStatus } from '../types';
 import { syncGuardService } from './syncGuardService';
 import { realtimeService } from './realtimeService';
+import { createId, createShortId } from '../utils/id';
 
 const PROJECTS_KEY = 'velo_projects';
 export const DEFAULT_PROJECT_STAGES: ProjectStage[] = [
@@ -96,7 +97,7 @@ export const projectService = {
     const normalizedMeta = normalizeProjectMeta(meta);
     const normalizedMembers = Array.from(new Set([...members, ...(createdBy ? [createdBy] : [])]));
     const newProject: Project = {
-      id: crypto.randomUUID(),
+      id: createId(),
       orgId,
       createdBy: createdBy || normalizedMembers[0],
       name,
@@ -111,7 +112,7 @@ export const projectService = {
       isCompleted: false,
       isDeleted: false,
       isPublic: false,
-      publicToken: crypto.randomUUID().slice(0, 8)
+      publicToken: createShortId(8)
     };
     localStorage.setItem(PROJECTS_KEY, JSON.stringify([...projects, newProject]));
     syncGuardService.markLocalMutation();
@@ -124,7 +125,7 @@ export const projectService = {
     let updated: Project | undefined;
     const newList = projects.map(p => {
       if (p.id === id) {
-        updated = { ...p, isPublic: !p.isPublic, publicToken: p.publicToken || crypto.randomUUID().slice(0, 8) };
+        updated = { ...p, isPublic: !p.isPublic, publicToken: p.publicToken || createShortId(8) };
         return updated;
       }
       return p;

@@ -5,6 +5,7 @@ import { aiService } from '../services/aiService';
 import { historyManager } from '../services/historyService';
 import { projectService } from '../services/projectService';
 import { toastService } from '../services/toastService';
+import { createId } from '../utils/id';
 
 export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -249,7 +250,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     if (!task) return;
 
     const newSubtasks: Subtask[] = finalSteps.map(title => ({
-      id: crypto.randomUUID(),
+      id: createId(),
       title,
       isCompleted: false
     }));

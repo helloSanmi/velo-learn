@@ -1,3 +1,5 @@
+import { createId } from '../utils/id';
+
 type DialogKind = 'confirm' | 'notice';
 
 export interface DialogRequest {
@@ -16,7 +18,7 @@ const DIALOG_EVENT = 'velo:dialog:open';
 const resolverMap = new Map<string, (result: boolean) => void>();
 
 const emitDialog = (request: Omit<DialogRequest, 'id'>): Promise<boolean> => {
-  const id = crypto.randomUUID();
+  const id = createId();
   const payload: DialogRequest = { id, ...request };
 
   return new Promise<boolean>((resolve) => {
@@ -54,4 +56,3 @@ export const dialogService = {
   },
   asDialogEvent: (event: Event) => event as DialogOpenEvent
 };
-
