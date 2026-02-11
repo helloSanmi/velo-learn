@@ -19,6 +19,12 @@ interface ProjectsLifecycleViewProps {
 }
 
 type StatusFilter = 'All' | 'Active' | 'Archived' | 'Completed' | 'Deleted';
+const statusOrder: Record<Exclude<StatusFilter, 'All'>, number> = {
+  Active: 0,
+  Completed: 1,
+  Archived: 2,
+  Deleted: 3
+};
 
 const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
   currentUserRole,
@@ -48,12 +54,25 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
     return 'Active';
   };
 
+  const getStatusStyles = (status: Exclude<StatusFilter, 'All'>) => {
+    if (status === 'Active') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    if (status === 'Completed') return 'border-sky-200 bg-sky-50 text-sky-700';
+    if (status === 'Archived') return 'border-amber-200 bg-amber-50 text-amber-700';
+    return 'border-rose-200 bg-rose-50 text-rose-700';
+  };
+
   const filteredProjects = useMemo(() => {
     const q = query.trim().toLowerCase();
     return projects
       .filter((project) => (statusFilter === 'All' ? true : getProjectStatus(project) === statusFilter))
       .filter((project) => (q ? `${project.name} ${project.description}`.toLowerCase().includes(q) : true))
-      .sort((a, b) => b.id.localeCompare(a.id));
+      .sort((a, b) => {
+        const aStatus = getProjectStatus(a);
+        const bStatus = getProjectStatus(b);
+        const byStatus = statusOrder[aStatus] - statusOrder[bStatus];
+        if (byStatus !== 0) return byStatus;
+        return a.name.localeCompare(b.name);
+      });
   }, [projects, query, statusFilter]);
 
   const focusedProject = projects.find((project) => project.id === focusedProjectId) || null;
@@ -121,7 +140,15 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                 className={`h-8 px-3 rounded-lg border text-xs font-medium transition-colors ${
                   statusFilter === item.key
                     ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    : item.key === 'Active'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : item.key === 'Completed'
+                        ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                        : item.key === 'Archived'
+                          ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          : item.key === 'Deleted'
+                            ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
               >
                 {item.label}
@@ -183,7 +210,7 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
                           <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
                         </div>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[11px] px-2 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600">{status}</span>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-md border ${getStatusStyles(status)}`}>{status}</span>
                         <span className="text-[11px] text-slate-500">
                           {projectTasks.filter((t) => t.projectId === project.id).length} tasks
                         </span>

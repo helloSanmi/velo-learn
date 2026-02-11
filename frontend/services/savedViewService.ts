@@ -6,6 +6,7 @@ export interface SavedBoardView {
   orgId: string;
   name: string;
   searchQuery: string;
+  projectFilter: string | 'All';
   statusFilter: string | 'All';
   priorityFilter: TaskPriority | 'All';
   tagFilter: string | 'All';
@@ -13,6 +14,7 @@ export interface SavedBoardView {
   dueFrom?: number;
   dueTo?: number;
   createdAt: number;
+  sortOrder?: number;
 }
 
 const KEY = 'velo_saved_views';
@@ -28,11 +30,27 @@ const read = (): SavedBoardView[] => {
 const write = (views: SavedBoardView[]) => localStorage.setItem(KEY, JSON.stringify(views));
 
 export const savedViewService = {
-  list: (userId: string, orgId: string) => read().filter((v) => v.userId === userId && v.orgId === orgId),
+  list: (userId: string, orgId: string) =>
+    read()
+      .filter((v) => v.userId === userId && v.orgId === orgId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || b.createdAt - a.createdAt),
   create: (view: Omit<SavedBoardView, 'id' | 'createdAt'>): SavedBoardView => {
-    const next: SavedBoardView = { ...view, id: crypto.randomUUID(), createdAt: Date.now() };
-    write([next, ...read()]);
+    const current = read();
+    const next: SavedBoardView = { ...view, id: crypto.randomUUID(), createdAt: Date.now(), sortOrder: 0 };
+    const shifted = current.map((item) => ({ ...item, sortOrder: (item.sortOrder ?? 0) + 1 }));
+    write([next, ...shifted]);
     return next;
+  },
+  update: (id: string, updates: Partial<Pick<SavedBoardView, 'name'>>) => {
+    const current = read();
+    const updated = current.map((item) => (item.id === id ? { ...item, ...updates } : item));
+    write(updated);
+  },
+  replaceForUser: (userId: string, orgId: string, ordered: SavedBoardView[]) => {
+    const current = read();
+    const retained = current.filter((item) => !(item.userId === userId && item.orgId === orgId));
+    const normalized = ordered.map((item, index) => ({ ...item, sortOrder: index }));
+    write([...retained, ...normalized]);
   },
   remove: (id: string) => {
     write(read().filter((v) => v.id !== id));

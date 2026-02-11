@@ -18,6 +18,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
   const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
   const [tagFilter, setTagFilter] = useState<string | 'All'>('All');
   const [assigneeFilter, setAssigneeFilter] = useState<string | 'All'>('All');
+  const [projectFilter, setProjectFilter] = useState<string | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [dueFrom, setDueFrom] = useState<number | undefined>(undefined);
   const [dueTo, setDueTo] = useState<number | undefined>(undefined);
@@ -269,7 +270,9 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     return tasks.filter(task => {
       const matchesPriority = priorityFilter === 'All' || task.priority === priorityFilter;
       const matchesTag = tagFilter === 'All' || task.tags?.includes(tagFilter);
-      const matchesProject = !activeProjectId || task.projectId === activeProjectId;
+      const matchesProject = activeProjectId
+        ? task.projectId === activeProjectId
+        : projectFilter === 'All' || task.projectId === projectFilter;
       const matchesSearch = !searchQuery.trim() || `${task.title} ${task.description} ${(task.tags || []).join(' ')}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
       const assigneeIds = getTaskAssigneeIds(task);
       const matchesAssignee =
@@ -281,7 +284,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       const matchesTo = dueTo ? Boolean(due && due <= dueTo) : true;
       return matchesPriority && matchesTag && matchesProject && matchesAssignee && matchesSearch && matchesFrom && matchesTo;
     });
-  }, [tasks, priorityFilter, tagFilter, activeProjectId, assigneeFilter, user, searchQuery, dueFrom, dueTo]);
+  }, [tasks, priorityFilter, tagFilter, activeProjectId, assigneeFilter, projectFilter, user, searchQuery, dueFrom, dueTo]);
 
   const categorizedTasks = useMemo(() => {
     const sortFn = (a: Task, b: Task) => a.order - b.order;
@@ -306,6 +309,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     statusFilter,
     tagFilter,
     assigneeFilter,
+    projectFilter,
     searchQuery,
     dueFrom,
     dueTo,
@@ -316,6 +320,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     setStatusFilter,
     setTagFilter,
     setAssigneeFilter,
+    setProjectFilter,
     setSearchQuery,
     setDueFrom,
     setDueTo,

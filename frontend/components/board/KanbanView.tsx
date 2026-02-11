@@ -9,9 +9,12 @@ import { savedViewService, SavedBoardView } from '../../services/savedViewServic
 import { toastService } from '../../services/toastService';
 import FilterBar from './FilterBar';
 import KanbanBoard from './KanbanBoard';
+import SavedViewsManagerModal from './SavedViewsManagerModal';
 
 interface KanbanViewProps {
   searchQuery: string;
+  projectFilter: string | 'All';
+  projects: Project[];
   dueFrom?: number;
   dueTo?: number;
   statusFilter: string | 'All';
@@ -30,6 +33,7 @@ interface KanbanViewProps {
   setTagFilter: (t: string) => void;
   setAssigneeFilter: (a: string) => void;
   setSearchQuery: (value: string) => void;
+  setProjectFilter: (value: string | 'All') => void;
   setDueFrom: (value?: number) => void;
   setDueTo: (value?: number) => void;
   setSelectedTaskIds: (ids: string[]) => void;
@@ -47,6 +51,8 @@ interface KanbanViewProps {
 
 const KanbanView: React.FC<KanbanViewProps> = ({
   searchQuery,
+  projectFilter,
+  projects,
   dueFrom,
   dueTo,
   statusFilter,
@@ -65,6 +71,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   setTagFilter,
   setAssigneeFilter,
   setSearchQuery,
+  setProjectFilter,
   setDueFrom,
   setDueTo,
   setSelectedTaskIds,
@@ -84,6 +91,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   const [newStageName, setNewStageName] = useState('');
   const [draftStages, setDraftStages] = useState<ProjectStage[]>([]);
   const [savedViews, setSavedViews] = useState<SavedBoardView[]>(() => savedViewService.list(currentUser.id, currentUser.orgId));
+  const [isSavedViewsOpen, setIsSavedViewsOpen] = useState(false);
 
   const projectStages = useMemo(() => {
     const baseStages = activeProject?.stages?.length ? activeProject.stages : DEFAULT_PROJECT_STAGES;
@@ -166,6 +174,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       orgId: currentUser.orgId,
       name: name.trim(),
       searchQuery,
+      projectFilter,
       statusFilter,
       priorityFilter,
       tagFilter,
@@ -181,6 +190,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     const view = savedViews.find((item) => item.id === id);
     if (!view) return;
     setSearchQuery(view.searchQuery);
+    setProjectFilter(view.projectFilter || 'All');
     setStatusFilter(view.statusFilter);
     setPriorityFilter(view.priorityFilter);
     setTagFilter(view.tagFilter);
@@ -189,25 +199,96 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     setDueTo(view.dueTo);
   };
 
+  const saveManagedViews = (views: SavedBoardView[]) => {
+    savedViewService.replaceForUser(currentUser.id, currentUser.orgId, views);
+    setSavedViews(savedViewService.list(currentUser.id, currentUser.orgId));
+    toastService.success('Views updated', 'Saved views manager changes applied.');
+    setIsSavedViewsOpen(false);
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
-      <div className={`flex-none px-4 md:px-8 ${compactMode ? 'pt-2 pb-2' : 'pt-2 pb-2.5'}`}>
+      <div className={`flex-none px-4 md:px-8 ${compactMode ? 'pt-1.5 pb-1.5' : 'pt-2 pb-2'}`}>
         <div className="max-w-[1800px] mx-auto bg-white border border-slate-200 rounded-xl p-2.5">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-2.5">
-            <div>
-              <h2 className="text-base md:text-lg font-semibold tracking-tight text-slate-900">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-1.5">
+              <div className="lg:min-w-[280px]">
+                <h2 className="text-2xl md:text-[28px] leading-none font-semibold tracking-tight text-slate-900">
                 {activeProject ? activeProject.name : 'All Projects'}
-              </h2>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
                 {totals.total} tasks • {totals.todo} to do • {totals.inProgress} in progress • {totals.done} done
-              </p>
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-start lg:justify-end gap-1.5">
+                <button
+                  onClick={saveCurrentView}
+                  className="h-7 px-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-medium text-slate-700 transition-colors"
+                >
+                  Save view
+                </button>
+                {savedViews.length > 0 && (
+                  <select
+                    className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700 outline-none"
+                    onChange={(event) => applySavedView(event.target.value)}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Apply view
+                    </option>
+                    {savedViews.map((view) => (
+                      <option key={view.id} value={view.id}>
+                        {view.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {savedViews.length > 0 && (
+                  <button
+                    onClick={() => setIsSavedViewsOpen(true)}
+                    className="h-7 px-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-medium text-slate-600 transition-colors"
+                  >
+                    Manage views
+                  </button>
+                )}
+                {activeProject && (
+                  <button
+                    onClick={handleOptimizeOrder}
+                    disabled={isTriaging}
+                    className="h-7 px-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-medium text-slate-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+                  >
+                    {isTriaging ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListOrdered className="w-3 h-3" />}
+                    Optimize {projectStages[0]?.name || 'Backlog'}
+                  </button>
+                )}
+                {activeProject && canManageStages && (
+                  <button
+                    onClick={openStageEditor}
+                    className="h-7 px-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-medium text-slate-700 transition-colors inline-flex items-center gap-1"
+                  >
+                    <Settings2 className="w-3 h-3" />
+                    Stages
+                  </button>
+                )}
+
+                {selectedTaskIds.length > 0 && (
+                  <div className="h-7 px-2 rounded-md border border-slate-200 bg-slate-50 inline-flex items-center gap-1">
+                    <span className="text-[12px] text-slate-700">{selectedTaskIds.length} selected</span>
+                    <button onClick={() => setSelectedTaskIds([])} className="p-0.5 rounded hover:bg-slate-200">
+                      <X className="w-3 h-3 text-slate-500" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:items-end">
+            <div className="w-full">
               <FilterBar
                 embedded
                 compact
                 searchQuery={searchQuery}
+                projectFilter={projectFilter}
+                projectOptions={projects.map((project) => ({ id: project.id, name: project.name }))}
                 dueFrom={dueFrom}
                 dueTo={dueTo}
                 statusFilter={statusFilter}
@@ -222,62 +303,10 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                 onTagChange={setTagFilter}
                 onAssigneeChange={setAssigneeFilter}
                 onSearchChange={setSearchQuery}
+                onProjectChange={(value) => setProjectFilter(value as string | 'All')}
                 onDueFromChange={setDueFrom}
                 onDueToChange={setDueTo}
               />
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={saveCurrentView}
-                  className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition-colors"
-                >
-                  Save view
-                </button>
-                {savedViews.length > 0 && (
-                  <select
-                    className="h-6 px-1.5 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700 outline-none"
-                    onChange={(event) => applySavedView(event.target.value)}
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      Apply view
-                    </option>
-                    {savedViews.map((view) => (
-                      <option key={view.id} value={view.id}>
-                        {view.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {activeProject && (
-                  <button
-                    onClick={handleOptimizeOrder}
-                    disabled={isTriaging}
-                    className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
-                  >
-                    {isTriaging ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListOrdered className="w-3 h-3" />}
-                    Optimize {projectStages[0]?.name || 'Backlog'}
-                  </button>
-                )}
-                {activeProject && canManageStages && (
-                  <button
-                    onClick={openStageEditor}
-                    className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition-colors inline-flex items-center gap-1"
-                  >
-                    <Settings2 className="w-3 h-3" />
-                    Stages
-                  </button>
-                )}
-
-                {selectedTaskIds.length > 0 && (
-                  <div className="h-6 px-1.5 rounded-md border border-slate-200 bg-slate-50 inline-flex items-center gap-1">
-                    <span className="text-[11px] text-slate-700">{selectedTaskIds.length} selected</span>
-                    <button onClick={() => setSelectedTaskIds([])} className="p-0.5 rounded hover:bg-slate-200">
-                      <X className="w-3 h-3 text-slate-500" />
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -296,6 +325,13 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         onSelectTask={setSelectedTask}
         onAddNewTask={() => setIsModalOpen(true)}
         onToggleTimer={onToggleTimer}
+      />
+      <SavedViewsManagerModal
+        isOpen={isSavedViewsOpen}
+        views={savedViews}
+        onClose={() => setIsSavedViewsOpen(false)}
+        onSave={saveManagedViews}
+        onApply={applySavedView}
       />
       {showStageEditor && (
         <div className="fixed inset-0 z-[180] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={(event) => event.target === event.currentTarget && setShowStageEditor(false)}>

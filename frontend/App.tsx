@@ -78,9 +78,9 @@ const App: React.FC = () => {
 
   const {
     tasks, categorizedTasks, aiLoading, aiSuggestions, activeTaskTitle,
-    priorityFilter, statusFilter, tagFilter, assigneeFilter, searchQuery, dueFrom, dueTo, uniqueTags,
+    priorityFilter, statusFilter, tagFilter, assigneeFilter, projectFilter, searchQuery, dueFrom, dueTo, uniqueTags,
     confettiActive, setConfettiActive, setPriorityFilter, setStatusFilter,
-    setTagFilter, setAssigneeFilter, setSearchQuery, setDueFrom, setDueTo, setAiSuggestions, refreshTasks,
+    setTagFilter, setAssigneeFilter, setProjectFilter, setSearchQuery, setDueFrom, setDueTo, setAiSuggestions, refreshTasks,
     createTask, updateStatus, updateTask, addComment, moveTask, deleteTask,
     assistWithAI, applyAISuggestions, bulkUpdateTasks, bulkDeleteTasks, toggleTimer
   } = useTasks(user, activeProjectId || undefined);
@@ -672,7 +672,7 @@ const App: React.FC = () => {
           </div>
         );
       default: return (
-        <KanbanView searchQuery={searchQuery} dueFrom={dueFrom} dueTo={dueTo} statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setSearchQuery={setSearchQuery} setDueFrom={setDueFrom} setDueTo={setDueTo} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
+        <KanbanView searchQuery={searchQuery} projectFilter={projectFilter} projects={projects.filter((p) => p.members.includes(user.id))} dueFrom={dueFrom} dueTo={dueTo} statusFilter={statusFilter} priorityFilter={priorityFilter} tagFilter={tagFilter} assigneeFilter={assigneeFilter} uniqueTags={uniqueTags} allUsers={allUsers} currentUser={user} activeProject={activeProject} categorizedTasks={categorizedTasks} selectedTaskIds={selectedTaskIds} compactMode={settings.compactMode} setStatusFilter={setStatusFilter} setPriorityFilter={setPriorityFilter} setTagFilter={setTagFilter} setAssigneeFilter={setAssigneeFilter} setProjectFilter={setProjectFilter} setSearchQuery={setSearchQuery} setDueFrom={setDueFrom} setDueTo={setDueTo} setSelectedTaskIds={setSelectedTaskIds} toggleTaskSelection={toggleTaskSelection} deleteTask={deleteTask} onToggleTimer={toggleTimer} handleStatusUpdate={handleStatusUpdateWithPolicy} moveTask={handleMoveTaskWithPolicy} assistWithAI={assistWithAI} setSelectedTask={setSelectedTask} setIsModalOpen={setIsModalOpen} refreshTasks={refreshTasks} onUpdateProjectStages={(projectId, stages) => handleUpdateProject(projectId, { stages })} />
       );
     }
   };
