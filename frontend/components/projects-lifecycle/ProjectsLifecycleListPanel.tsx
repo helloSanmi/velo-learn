@@ -13,6 +13,7 @@ interface ProjectsLifecycleListPanelProps {
   setFocusedProjectId: (id: string) => void;
   toggleProjectSelection: (id: string) => void;
   onBulkLifecycleAction: (action: 'archive' | 'complete' | 'delete' | 'restore', ids: string[]) => void;
+  canDeleteProject: (id: string) => boolean;
   clearSelection: () => void;
   activeProjectId: string | null;
 }
@@ -27,9 +28,12 @@ const ProjectsLifecycleListPanel: React.FC<ProjectsLifecycleListPanelProps> = ({
   setFocusedProjectId,
   toggleProjectSelection,
   onBulkLifecycleAction,
+  canDeleteProject,
   clearSelection,
   activeProjectId
 }) => {
+  const selectedDeletableIds = selectedProjectIds.filter((id) => canDeleteProject(id));
+
   return (
     <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">
       {selectedProjectIds.length > 0 && (
@@ -37,7 +41,9 @@ const ProjectsLifecycleListPanel: React.FC<ProjectsLifecycleListPanelProps> = ({
           <span className="text-xs text-slate-600 px-1">{selectedProjectIds.length} selected</span>
           <button onClick={() => onBulkLifecycleAction('archive', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Archive</button>
           <button onClick={() => onBulkLifecycleAction('complete', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Complete</button>
-          <button onClick={() => onBulkLifecycleAction('delete', selectedProjectIds)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">Delete</button>
+          {selectedDeletableIds.length > 0 && (
+            <button onClick={() => onBulkLifecycleAction('delete', selectedDeletableIds)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">Delete</button>
+          )}
           <button onClick={() => onBulkLifecycleAction('restore', selectedProjectIds)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Restore</button>
           <button onClick={clearSelection} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">Clear</button>
         </div>

@@ -8,6 +8,7 @@ interface TaskDetailDependenciesTabProps {
   dependencyQuery: string;
   setDependencyQuery: (value: string) => void;
   onToggleDependency: (depId: string) => void;
+  canManageDependencies: boolean;
 }
 
 const TaskDetailDependenciesTab: React.FC<TaskDetailDependenciesTabProps> = ({
@@ -15,7 +16,8 @@ const TaskDetailDependenciesTab: React.FC<TaskDetailDependenciesTabProps> = ({
   potentialDependencies,
   dependencyQuery,
   setDependencyQuery,
-  onToggleDependency
+  onToggleDependency,
+  canManageDependencies
 }) => {
   const selectedDeps = potentialDependencies.filter((dep) => task.blockedByIds?.includes(dep.id));
   const availableDeps = potentialDependencies.filter((dep) => {
@@ -27,12 +29,13 @@ const TaskDetailDependenciesTab: React.FC<TaskDetailDependenciesTabProps> = ({
   const renderDependencyRow = (dep: Task, isSelected: boolean) => (
     <button
       key={dep.id}
-      onClick={() => onToggleDependency(dep.id)}
+      onClick={() => canManageDependencies && onToggleDependency(dep.id)}
+      disabled={!canManageDependencies}
       className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all group ${
         isSelected
           ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
           : 'bg-white border-slate-200 hover:border-slate-300'
-      }`}
+      } ${!canManageDependencies ? 'opacity-55 cursor-not-allowed' : ''}`}
     >
       <div className="flex items-start gap-3 text-left min-w-0">
         <div
@@ -80,10 +83,12 @@ const TaskDetailDependenciesTab: React.FC<TaskDetailDependenciesTabProps> = ({
         <input
           value={dependencyQuery}
           onChange={(e) => setDependencyQuery(e.target.value)}
+          disabled={!canManageDependencies}
           placeholder="Search available tasks"
           className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
         />
       </label>
+      {!canManageDependencies ? <p className="text-[11px] text-slate-500">Only project owner/admin can edit dependencies.</p> : null}
 
       <div className="grid md:grid-cols-2 gap-3 flex-1 min-h-0">
         <section className="border border-slate-200 rounded-xl bg-white p-3 flex flex-col min-h-0">

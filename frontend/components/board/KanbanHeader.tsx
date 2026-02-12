@@ -25,6 +25,8 @@ const KanbanHeader: React.FC<KanbanHeaderProps> = ({
   uniqueTags,
   allUsers,
   projects,
+  onOpenOwnerChat,
+  ownerChatUnreadCount,
   onSaveView,
   onApplyView,
   appliedViewId,
@@ -56,6 +58,8 @@ const KanbanHeader: React.FC<KanbanHeaderProps> = ({
               currentUserId={currentUserId}
               allUsers={allUsers}
               showOwner={Boolean(activeProject)}
+              onOpenOwnerChat={onOpenOwnerChat}
+              ownerChatUnreadCount={ownerChatUnreadCount}
             />
 
             <KanbanHeaderActions

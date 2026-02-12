@@ -228,6 +228,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         return (
           <SettingsProjectsTab
             currentUserRole={user.role}
+            currentUserId={user.id}
             allUsers={allUsers}
             projectQuery={projectQuery}
             setProjectQuery={setProjectQuery}

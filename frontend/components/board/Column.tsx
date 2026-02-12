@@ -19,6 +19,10 @@ interface ColumnProps {
   onAddNewTask: () => void;
   readOnly?: boolean;
   onToggleTimer?: (id: string) => void;
+  canDeleteTask?: (taskId: string) => boolean;
+  canUseTaskAI?: (taskId: string) => boolean;
+  canToggleTaskTimer?: (taskId: string) => boolean;
+  className?: string;
 }
 
 const Column: React.FC<ColumnProps> = ({
@@ -35,7 +39,11 @@ const Column: React.FC<ColumnProps> = ({
   onSelectTask,
   onAddNewTask,
   readOnly = false,
-  onToggleTimer
+  onToggleTimer,
+  canDeleteTask,
+  canUseTaskAI,
+  canToggleTaskTimer,
+  className = ''
 }) => {
   const [isOver, setIsOver] = useState(false);
 
@@ -62,7 +70,7 @@ const Column: React.FC<ColumnProps> = ({
     <section
       className={`h-full min-h-0 bg-slate-100 border rounded-xl flex flex-col transition-colors ${
         isOver ? 'border-slate-400 bg-slate-100' : 'border-slate-200'
-      }`}
+      } ${className}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -106,6 +114,9 @@ const Column: React.FC<ColumnProps> = ({
             onSelect={onSelectTask}
             readOnly={readOnly}
             onToggleTimer={onToggleTimer}
+            canDelete={canDeleteTask ? canDeleteTask(task.id) : true}
+            canUseAIAssist={canUseTaskAI ? canUseTaskAI(task.id) : true}
+            canToggleTimer={canToggleTaskTimer ? canToggleTaskTimer(task.id) : true}
           />
         ))}
       </div>

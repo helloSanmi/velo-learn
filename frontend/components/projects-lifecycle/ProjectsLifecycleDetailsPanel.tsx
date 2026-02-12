@@ -4,6 +4,7 @@ import { Project, Task } from '../../types';
 
 interface ProjectsLifecycleDetailsPanelProps {
   currentUserRole?: 'admin' | 'member' | 'guest';
+  canManageProject: boolean;
   focusedProject: Project;
   focusedProjectTasks: Task[];
   focusedProjectStats: {
@@ -31,6 +32,7 @@ interface ProjectsLifecycleDetailsPanelProps {
 
 const ProjectsLifecycleDetailsPanel: React.FC<ProjectsLifecycleDetailsPanelProps> = ({
   currentUserRole,
+  canManageProject,
   focusedProject,
   focusedProjectTasks,
   focusedProjectStats,
@@ -109,7 +111,7 @@ const ProjectsLifecycleDetailsPanel: React.FC<ProjectsLifecycleDetailsPanelProps
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && editingProjectId === focusedProject.id ? (
+        {canManageProject && !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && editingProjectId === focusedProject.id ? (
           <>
             <input
               autoFocus
@@ -128,7 +130,7 @@ const ProjectsLifecycleDetailsPanel: React.FC<ProjectsLifecycleDetailsPanelProps
               Save
             </button>
           </>
-        ) : !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted ? (
+        ) : canManageProject && !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted ? (
           <button
             onClick={() => {
               setEditingProjectId(focusedProject.id);
@@ -140,60 +142,55 @@ const ProjectsLifecycleDetailsPanel: React.FC<ProjectsLifecycleDetailsPanelProps
           </button>
         ) : null}
 
-        {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
+        {canManageProject && !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
           <>
             <button onClick={() => onCompleteProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
               Complete
             </button>
             <button
-              disabled={currentUserRole !== 'admin'}
               onClick={() => onArchiveProject(focusedProject.id)}
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-40"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5"
             >
               <Archive className="w-3.5 h-3.5" /> Archive
             </button>
           </>
         )}
-        {focusedProject.isArchived && (
+        {canManageProject && focusedProject.isArchived && (
           <button
-            disabled={currentUserRole !== 'admin'}
             onClick={() => onRestoreProject(focusedProject.id)}
-            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-40"
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 inline-flex items-center gap-1.5"
           >
             <ArchiveRestore className="w-3.5 h-3.5" /> Restore
           </button>
         )}
-        {focusedProject.isCompleted && (
+        {canManageProject && focusedProject.isCompleted && (
           <button onClick={() => onReopenProject(focusedProject.id)} className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
             Reopen
           </button>
         )}
-        {!focusedProject.isDeleted ? (
+        {canManageProject && !focusedProject.isDeleted ? (
           <button
-            disabled={currentUserRole !== 'admin'}
             onClick={() => onDeleteProject(focusedProject.id)}
-            className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 inline-flex items-center gap-1.5 disabled:opacity-40"
+            className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 inline-flex items-center gap-1.5"
           >
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
-        ) : (
+        ) : canManageProject && focusedProject.isDeleted ? (
           <>
             <button
-              disabled={currentUserRole !== 'admin'}
               onClick={() => onRestoreProject(focusedProject.id)}
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 disabled:opacity-40"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700"
             >
               Restore
             </button>
             <button
-              disabled={currentUserRole !== 'admin'}
               onClick={() => onPurgeProject(focusedProject.id)}
-              className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 disabled:opacity-40"
+              className="h-9 px-3 rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700"
             >
               Purge
             </button>
           </>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden flex-1 min-h-0">

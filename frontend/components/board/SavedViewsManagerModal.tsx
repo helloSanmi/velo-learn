@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, Trash2, X } from 'lucide-react';
 import { SavedBoardView } from '../../services/savedViewService';
+import { dialogService } from '../../services/dialogService';
 
 interface SavedViewsManagerModalProps {
   isOpen: boolean;
@@ -36,7 +37,16 @@ const SavedViewsManagerModal: React.FC<SavedViewsManagerModalProps> = ({ isOpen,
     });
   };
 
-  const remove = (id: string) => setDraft((prev) => prev.filter((item) => item.id !== id));
+  const remove = async (id: string) => {
+    const target = draft.find((item) => item.id === id);
+    const confirmed = await dialogService.confirm(`Remove saved view "${target?.name || 'this view'}"?`, {
+      title: 'Remove saved view',
+      confirmText: 'Remove',
+      danger: true
+    });
+    if (!confirmed) return;
+    setDraft((prev) => prev.filter((item) => item.id !== id));
+  };
 
   const copyConfig = async (view: SavedBoardView) => {
     const payload = {

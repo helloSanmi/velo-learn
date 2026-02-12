@@ -40,6 +40,8 @@ interface GlobalModalsProps {
   projects: Project[];
   activeProjectId: string | null;
   aiEnabled: boolean;
+  canAssignMembers: boolean;
+  canManageTask: (taskId: string) => boolean;
   createTask: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, projectId?: string, assigneeIds?: string[]) => void;
   handleAddProject: (
     name: string,
@@ -53,6 +55,8 @@ interface GlobalModalsProps {
   handleUpdateTask: (id: string, updates: any) => void;
   handleCommentOnTask: (id: string, text: string) => void;
   deleteTask: (id: string) => void;
+  canDeleteTask: (taskId: string) => boolean;
+  canToggleTaskTimer: (taskId: string) => boolean;
   onToggleTimer: (id: string) => void;
   applyAISuggestions: (finalSteps: string[]) => void;
   handleGeneratedTasks: (generated: any[]) => void;
@@ -76,13 +80,20 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
   isSettingsOpen, setIsSettingsOpen, settingsTab, selectedTask, setSelectedTask,
   aiSuggestions, setAiSuggestions, aiLoading, activeTaskTitle, tasks, projects,
   projectTasks,
-  activeProjectId, aiEnabled, createTask, handleAddProject, handleUpdateTask,
-  handleCommentOnTask, deleteTask, onToggleTimer, applyAISuggestions, handleGeneratedTasks,
+  activeProjectId, aiEnabled, canAssignMembers, canManageTask, createTask, handleAddProject, handleUpdateTask,
+  handleCommentOnTask, deleteTask, canDeleteTask, canToggleTaskTimer, onToggleTimer, applyAISuggestions, handleGeneratedTasks,
   setActiveProjectId, refreshTasks, onRenameProject, onCompleteProject, onReopenProject, onArchiveProject, onRestoreProject, onDeleteProject, onPurgeProject, onChangeProjectOwner
 }) => {
   return (
     <>
-      <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={(title, description, priority, tags, dueDate, assigneeIds) => createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds)} />
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        canAssignMembers={canAssignMembers}
+        onSubmit={(title, description, priority, tags, dueDate, assigneeIds) =>
+          createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds)
+        }
+      />
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => {
@@ -101,6 +112,9 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
         onUpdate={handleUpdateTask} 
         onAddComment={handleCommentOnTask} 
         onDelete={deleteTask} 
+        canDelete={Boolean(selectedTask && canDeleteTask(selectedTask.id))}
+        canManageTask={Boolean(selectedTask && canManageTask(selectedTask.id))}
+        canTrackTime={Boolean(selectedTask && canToggleTaskTimer(selectedTask.id))}
         aiEnabled={aiEnabled}
         onToggleTimer={onToggleTimer}
       />

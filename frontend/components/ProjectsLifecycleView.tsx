@@ -8,6 +8,7 @@ import { getProjectStatus, StatusFilter, statusOrder } from './projects-lifecycl
 
 interface ProjectsLifecycleViewProps {
   currentUserRole?: 'admin' | 'member' | 'guest';
+  currentUserId: string;
   projects: Project[];
   projectTasks: Task[];
   activeProjectId: string | null;
@@ -23,6 +24,7 @@ interface ProjectsLifecycleViewProps {
 
 const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
   currentUserRole,
+  currentUserId,
   projects,
   projectTasks,
   activeProjectId,
@@ -95,6 +97,11 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
     setEditingProjectName('');
   };
 
+  const canManageProject = (project: Project) => {
+    const ownerId = project.createdBy || project.members?.[0];
+    return currentUserRole === 'admin' || ownerId === currentUserId;
+  };
+
   const toggleProjectSelection = (id: string) => {
     setSelectedProjectIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
@@ -115,6 +122,10 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
             setFocusedProjectId={setFocusedProjectId}
             toggleProjectSelection={toggleProjectSelection}
             onBulkLifecycleAction={onBulkLifecycleAction}
+            canDeleteProject={(projectId) => {
+              const target = projects.find((project) => project.id === projectId);
+              return target ? canManageProject(target) : false;
+            }}
             clearSelection={() => setSelectedProjectIds([])}
             activeProjectId={activeProjectId}
           />
@@ -122,6 +133,7 @@ const ProjectsLifecycleView: React.FC<ProjectsLifecycleViewProps> = ({
           {focusedProject ? (
             <ProjectsLifecycleDetailsPanel
               currentUserRole={currentUserRole}
+              canManageProject={canManageProject(focusedProject)}
               focusedProject={focusedProject}
               focusedProjectTasks={focusedProjectTasks}
               focusedProjectStats={focusedProjectStats}

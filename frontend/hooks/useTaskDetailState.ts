@@ -4,6 +4,7 @@ import { aiService } from '../services/aiService';
 import { userService } from '../services/userService';
 import { realtimeService } from '../services/realtimeService';
 import { TaskDetailTabType } from '../components/task-detail/types';
+import { dialogService } from '../services/dialogService';
 
 interface UseTaskDetailStateParams {
   task: Task;
@@ -207,7 +208,14 @@ export const useTaskDetailState = ({
     onUpdate(task.id, { subtasks: nextSubtasks });
   };
 
-  const handleRemoveSubtask = (subtaskId: string) => {
+  const handleRemoveSubtask = async (subtaskId: string) => {
+    const subtask = (task.subtasks || []).find((item) => item.id === subtaskId);
+    const confirmed = await dialogService.confirm(`Delete subtask "${subtask?.title || 'this subtask'}"?`, {
+      title: 'Delete subtask',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!confirmed) return;
     const nextSubtasks = (task.subtasks || []).filter((subtask) => subtask.id !== subtaskId);
     onUpdate(task.id, { subtasks: nextSubtasks });
   };

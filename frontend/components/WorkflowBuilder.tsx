@@ -3,6 +3,7 @@ import { WorkflowAction, WorkflowRule, WorkflowTrigger, User } from '../types';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import Button from './ui/Button';
 import { workflowService } from '../services/workflowService';
+import { dialogService } from '../services/dialogService';
 
 interface WorkflowBuilderProps {
   orgId: string;
@@ -59,7 +60,14 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r)));
   };
 
-  const removeRule = (id: string) => {
+  const removeRule = async (id: string) => {
+    const target = rules.find((rule) => rule.id === id);
+    const confirmed = await dialogService.confirm(`Delete workflow "${target?.name || 'this rule'}"?`, {
+      title: 'Delete workflow',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!confirmed) return;
     workflowService.deleteRule(id);
     setRules((prev) => prev.filter((r) => r.id !== id));
   };

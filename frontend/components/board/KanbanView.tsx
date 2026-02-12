@@ -1,14 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Project, ProjectStage, Task, TaskPriority, User } from '../../types';
 import KanbanHeader from './KanbanHeader';
-import ProjectStageEditorModal from './ProjectStageEditorModal';
 import KanbanBoard from './KanbanBoard';
-import SavedViewsManagerModal from './SavedViewsManagerModal';
-import SaveViewModal from './SaveViewModal';
+import KanbanModals from './KanbanModals';
+import ProjectOwnerChatModal from './ProjectOwnerChatModal';
 import { computeKanbanTotals } from './kanbanUtils';
 import { useSavedBoardViews } from './hooks/useSavedBoardViews';
 import { useKanbanStageManager } from './hooks/useKanbanStageManager';
 import { useKanbanTriage } from './hooks/useKanbanTriage';
+import { projectChatService } from '../../services/projectChatService';
+import { realtimeService } from '../../services/realtimeService';
 
 interface KanbanViewProps {
   searchQuery: string;
@@ -44,6 +45,9 @@ interface KanbanViewProps {
   setSelectedTask: (task: Task) => void;
   setIsModalOpen: (open: boolean) => void;
   onToggleTimer?: (id: string) => void;
+  canDeleteTask?: (taskId: string) => boolean;
+  canUseTaskAI?: (taskId: string) => boolean;
+  canToggleTaskTimer?: (taskId: string) => boolean;
   refreshTasks?: () => void;
   onUpdateProjectStages: (projectId: string, stages: ProjectStage[]) => void;
 }
@@ -82,14 +86,20 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   setSelectedTask,
   setIsModalOpen,
   onToggleTimer,
+  canDeleteTask,
+  canUseTaskAI,
+  canToggleTaskTimer,
   refreshTasks,
   onUpdateProjectStages
 }) => {
+  const [isOwnerChatOpen, setIsOwnerChatOpen] = useState(false);
+  const [ownerChatUnreadCount, setOwnerChatUnreadCount] = useState(0);
+
   const {
     projectStages,
     canManageStages,
     showStageEditor,
-    setShowStageEditor,
+    closeStageEditor,
     newStageName,
     setNewStageName,
     draftStages,
@@ -113,9 +123,11 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     savedViews,
     appliedViewId,
     isSavedViewsOpen,
-    setIsSavedViewsOpen,
+    openSavedViews,
+    closeSavedViews,
     isSaveViewOpen,
-    setIsSaveViewOpen,
+    openSaveView,
+    closeSaveView,
     saveViewName,
     setSaveViewName,
     saveCurrentView,
@@ -150,6 +162,28 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     refreshTasks
   });
 
+  useEffect(() => {
+    if (!activeProject) {
+      setOwnerChatUnreadCount(0);
+      return;
+    }
+
+    const refreshUnread = () => {
+      setOwnerChatUnreadCount(
+        projectChatService.getUnreadCountForUser(activeProject.orgId, activeProject.id, currentUser.id)
+      );
+    };
+
+    refreshUnread();
+    const unsubscribe = realtimeService.subscribe((event) => {
+      if (event.type !== 'PROJECT_CHAT_UPDATED') return;
+      if (event.orgId !== activeProject.orgId) return;
+      if (event.payload?.projectId !== activeProject.id) return;
+      refreshUnread();
+    });
+    return () => unsubscribe();
+  }, [activeProject, currentUser.id]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
       <KanbanHeader
@@ -173,11 +207,13 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         uniqueTags={uniqueTags}
         allUsers={allUsers}
         projects={projects}
-        onSaveView={() => setIsSaveViewOpen(true)}
+        onOpenOwnerChat={() => setIsOwnerChatOpen(true)}
+        ownerChatUnreadCount={ownerChatUnreadCount}
+        onSaveView={openSaveView}
         onApplyView={applySavedView}
         appliedViewId={appliedViewId}
         onDeleteAppliedView={deleteAppliedView}
-        onOpenManageViews={() => setIsSavedViewsOpen(true)}
+        onOpenManageViews={openSavedViews}
         onOptimizeOrder={handleOptimizeOrder}
         onOpenStages={openStageEditor}
         onClearSelected={() => setSelectedTaskIds([])}
@@ -204,35 +240,40 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         onSelectTask={setSelectedTask}
         onAddNewTask={() => setIsModalOpen(true)}
         onToggleTimer={onToggleTimer}
+        canDeleteTask={canDeleteTask}
+        canUseTaskAI={canUseTaskAI}
+        canToggleTaskTimer={canToggleTaskTimer}
       />
-      <SavedViewsManagerModal
-        isOpen={isSavedViewsOpen}
-        views={savedViews}
-        onClose={() => setIsSavedViewsOpen(false)}
-        onSave={saveManagedViews}
-        onApply={applySavedView}
-      />
-      <ProjectStageEditorModal
-        isOpen={showStageEditor}
+      <KanbanModals
+        isSavedViewsOpen={isSavedViewsOpen}
+        savedViews={savedViews}
+        onCloseSavedViews={closeSavedViews}
+        onSaveManagedViews={saveManagedViews}
+        onApplySavedView={applySavedView}
+        showStageEditor={showStageEditor}
         draftStages={draftStages}
         setDraftStages={setDraftStages}
         newStageName={newStageName}
         setNewStageName={setNewStageName}
-        onClose={() => setShowStageEditor(false)}
+        onCloseStageEditor={closeStageEditor}
         onAddStage={addStage}
         onRemoveStage={removeStage}
-        onSave={saveStages}
+        onSaveStages={saveStages}
+        isSaveViewOpen={isSaveViewOpen}
+        saveViewName={saveViewName}
+        setSaveViewName={setSaveViewName}
+        onCloseSaveView={closeSaveView}
+        onSaveView={saveCurrentView}
       />
-      <SaveViewModal
-        isOpen={isSaveViewOpen}
-        name={saveViewName}
-        setName={setSaveViewName}
-        onClose={() => {
-          setIsSaveViewOpen(false);
-          setSaveViewName('');
-        }}
-        onSave={saveCurrentView}
-      />
+      {activeProject ? (
+        <ProjectOwnerChatModal
+          isOpen={isOwnerChatOpen}
+          onClose={() => setIsOwnerChatOpen(false)}
+          project={activeProject}
+          currentUser={currentUser}
+          allUsers={allUsers}
+        />
+      ) : null}
     </div>
   );
 };

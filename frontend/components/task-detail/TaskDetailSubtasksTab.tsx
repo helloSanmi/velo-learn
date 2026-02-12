@@ -10,6 +10,7 @@ interface TaskDetailSubtasksTabProps {
   onAddSubtask: (e: React.FormEvent) => void;
   onToggleSubtask: (subtaskId: string) => void;
   onRemoveSubtask: (subtaskId: string) => void;
+  canManageSubtasks: boolean;
 }
 
 const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
@@ -18,7 +19,8 @@ const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
   setNewSubtaskTitle,
   onAddSubtask,
   onToggleSubtask,
-  onRemoveSubtask
+  onRemoveSubtask,
+  canManageSubtasks
 }) => {
   const completedSubtasks = (task.subtasks || []).filter((subtask: Subtask) => subtask.isCompleted).length;
 
@@ -47,12 +49,13 @@ const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
             task.subtasks.map((subtask) => (
               <div key={subtask.id} className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-white">
                 <button
-                  onClick={() => onToggleSubtask(subtask.id)}
+                  onClick={() => canManageSubtasks && onToggleSubtask(subtask.id)}
+                  disabled={!canManageSubtasks}
                   className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
                     subtask.isCompleted
                       ? 'bg-emerald-500 border-emerald-500 text-white'
                       : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400'
-                  }`}
+                  } ${!canManageSubtasks ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {subtask.isCompleted ? <Check className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
                 </button>
@@ -60,8 +63,9 @@ const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
                   {subtask.title}
                 </p>
                 <button
-                  onClick={() => onRemoveSubtask(subtask.id)}
-                  className="w-7 h-7 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center"
+                  onClick={() => canManageSubtasks && onRemoveSubtask(subtask.id)}
+                  disabled={!canManageSubtasks}
+                  className="w-7 h-7 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -75,13 +79,15 @@ const TaskDetailSubtasksTab: React.FC<TaskDetailSubtasksTabProps> = ({
         <input
           value={newSubtaskTitle}
           onChange={(e) => setNewSubtaskTitle(e.target.value)}
+          disabled={!canManageSubtasks}
           placeholder="Add subtask..."
           className="flex-1 h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300"
         />
-        <Button type="submit" variant="secondary" className="px-3 h-10">
+        <Button type="submit" variant="secondary" className="px-3 h-10" disabled={!canManageSubtasks}>
           <Plus className="w-4 h-4" />
         </Button>
       </form>
+      {!canManageSubtasks ? <p className="text-[11px] text-slate-500">Only project owner/admin can edit subtasks.</p> : null}
     </div>
   );
 };

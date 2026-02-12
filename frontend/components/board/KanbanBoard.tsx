@@ -17,6 +17,9 @@ interface KanbanBoardProps {
   onAddNewTask: () => void;
   readOnly?: boolean;
   onToggleTimer?: (id: string) => void;
+  canDeleteTask?: (taskId: string) => boolean;
+  canUseTaskAI?: (taskId: string) => boolean;
+  canToggleTaskTimer?: (taskId: string) => boolean;
 }
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -32,7 +35,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onSelectTask,
   onAddNewTask,
   readOnly = false,
-  onToggleTimer
+  onToggleTimer,
+  canDeleteTask,
+  canUseTaskAI,
+  canToggleTaskTimer
 }) => {
   const columns = statusOptions.map((status, index) => {
     const Icon =
@@ -46,11 +52,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   });
 
   const visibleColumns = columns.filter((col) => statusFilter === 'All' || col.id === statusFilter);
+  const singleColumn = visibleColumns.length === 1;
 
   return (
-    <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 md:px-8 pb-8">
-      <div className="max-w-[1800px] mx-auto h-full">
-        <div className={`grid gap-4 h-full ${visibleColumns.length === 1 ? 'grid-cols-1 max-w-2xl' : visibleColumns.length === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
+    <main className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 pb-8">
+      <div className={`${singleColumn ? 'max-w-[840px]' : 'max-w-[1800px]'} mx-auto h-full`}>
+        <div className={`h-full ${singleColumn ? '' : 'overflow-x-auto custom-scrollbar pb-2'}`}>
+          <div className={`${singleColumn ? 'grid grid-cols-1 h-full' : 'flex gap-4 h-full min-w-max pr-2'}`}>
           {visibleColumns.map((col) => (
             <Column
               key={col.id}
@@ -69,8 +77,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
               onAddNewTask={onAddNewTask}
               readOnly={readOnly}
               onToggleTimer={onToggleTimer}
+              canDeleteTask={canDeleteTask}
+              canUseTaskAI={canUseTaskAI}
+              canToggleTaskTimer={canToggleTaskTimer}
+              className={singleColumn ? '' : 'w-[330px] md:w-[360px] flex-shrink-0'}
             />
           ))}
+          </div>
         </div>
       </div>
     </main>

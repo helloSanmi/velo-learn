@@ -11,9 +11,10 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, assigneeIds?: string[]) => void;
+  canAssignMembers?: boolean;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAssignMembers = false }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
@@ -108,7 +109,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Assignees</label>
-                <AssigneePicker users={allUsers} selectedIds={assigneeIds} onChange={setAssigneeIds} compact />
+                <AssigneePicker users={allUsers} selectedIds={assigneeIds} onChange={setAssigneeIds} compact disabled={!canAssignMembers} />
+                {!canAssignMembers ? <p className="mt-1 text-[11px] text-slate-500">Only project owner/admin can assign members.</p> : null}
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Priority</label>

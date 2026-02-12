@@ -18,6 +18,7 @@ interface UseTaskPolicyActionsParams {
   ) => void;
   addComment: (taskId: string, text: string) => void;
   deleteTask: (id: string) => void;
+  toggleTimer: (id: string) => void;
   createTask: (
     title: string,
     description: string,
@@ -40,6 +41,7 @@ export const useTaskPolicyActions = ({
   updateTask,
   addComment,
   deleteTask,
+  toggleTimer,
   createTask
 }: UseTaskPolicyActionsParams) => {
   const [moveBackRequest, setMoveBackRequest] = useState<{ taskId: string; targetStatus: string; targetTaskId?: string } | null>(null);
@@ -54,6 +56,17 @@ export const useTaskPolicyActions = ({
   const getProjectDoneStageId = (projectId: string) => {
     const project = projects.find((item) => item.id === projectId);
     return project?.stages?.length ? project.stages[project.stages.length - 1].id : TaskStatus.DONE;
+  };
+
+  const isAssignedActor = (task?: Task) => {
+    if (!task) return false;
+    const assigneeIds =
+      Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0
+        ? task.assigneeIds
+        : task.assigneeId
+          ? [task.assigneeId]
+          : [];
+    return assigneeIds.includes(user.id);
   };
 
   const requiresApproval = (task: Task, targetStatus: string) => {
@@ -75,6 +88,10 @@ export const useTaskPolicyActions = ({
   const handleMoveTaskWithPolicy = (taskId: string, targetStatus: string, targetTaskId?: string) => {
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
+    if (!isAssignedActor(task)) {
+      toastService.warning('Permission denied', 'Only assigned members can move this task.');
+      return;
+    }
     const doneStageIdForPermission = getProjectDoneStageId(task.projectId);
     if ((targetStatus === doneStageIdForPermission || task.status === doneStageIdForPermission) && !ensureTaskPermission(taskId, 'complete')) return;
     if (requiresApproval(task, targetStatus)) {
@@ -104,6 +121,10 @@ export const useTaskPolicyActions = ({
   const handleStatusUpdateWithPolicy = (taskId: string, targetStatus: string) => {
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
+    if (!isAssignedActor(task)) {
+      toastService.warning('Permission denied', 'Only assigned members can update status.');
+      return;
+    }
     const doneStageIdForPermission = getProjectDoneStageId(task.projectId);
     if ((targetStatus === doneStageIdForPermission || task.status === doneStageIdForPermission) && !ensureTaskPermission(taskId, 'complete')) return;
     if (requiresApproval(task, targetStatus)) {
@@ -173,8 +194,26 @@ export const useTaskPolicyActions = ({
   const handleUpdateTaskWithPolicy = (id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>) => {
     const task = tasks.find((item) => item.id === id);
     if (!task) return;
+    const targetProject = projects.find((project) => project.id === task.projectId);
+    const canManageTaskData = canManageProject(targetProject);
     const hasAssignmentUpdate = typeof updates.assigneeId === 'string' || Array.isArray(updates.assigneeIds);
     const hasRenameUpdate = typeof updates.title === 'string' && updates.title !== task.title;
+    const hasDescriptionUpdate = typeof updates.description === 'string' && updates.description !== task.description;
+    const hasDependencyUpdate = Array.isArray(updates.blockedByIds);
+    const hasSubtaskUpdate = Array.isArray(updates.subtasks);
+    const hasAuditUpdate = typeof updates.isAtRisk === 'boolean';
+    const hasOwnerRestrictedUpdate =
+      hasAssignmentUpdate || hasRenameUpdate || hasDescriptionUpdate || hasDependencyUpdate || hasSubtaskUpdate || hasAuditUpdate;
+
+    if (hasOwnerRestrictedUpdate && !canManageTaskData) {
+      toastService.warning('Permission denied', 'Only project owners or admins can modify this part of the task.');
+      return;
+    }
+
+    if (!hasAssignmentUpdate && !hasOwnerRestrictedUpdate && !isAssignedActor(task) && !canManageTaskData) {
+      toastService.warning('Permission denied', 'Only assigned members can edit this task.');
+      return;
+    }
     if (hasAssignmentUpdate && !ensureTaskPermission(id, 'assign')) return;
     if (hasRenameUpdate && !ensureTaskPermission(id, 'rename')) return;
     if (typeof updates.status === 'string' && updates.status !== task.status) {
@@ -184,9 +223,32 @@ export const useTaskPolicyActions = ({
     updateTask(id, updates, user.displayName);
   };
 
-  const handleDeleteTaskWithPolicy = (id: string) => {
+  const handleDeleteTaskWithPolicy = async (id: string) => {
     if (!ensureTaskPermission(id, 'delete')) return;
+    const task = tasks.find((item) => item.id === id);
+    const confirmed = await dialogService.confirm(`Delete task "${task?.title || 'this task'}"?`, {
+      title: 'Delete task',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!confirmed) return;
     deleteTask(id);
+  };
+
+  const handleToggleTimerWithPolicy = (id: string) => {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    if (!isAssignedActor(task)) {
+      toastService.warning('Permission denied', 'Only assigned members can start or stop timer.');
+      return;
+    }
+    toggleTimer(id);
+  };
+
+  const handleCommentOnTaskWithPolicy = (id: string, text: string) => {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    addComment(id, text);
   };
 
   const handleCreateTaskWithPolicy = (
@@ -223,6 +285,8 @@ export const useTaskPolicyActions = ({
     handleStatusUpdateWithPolicy,
     handleUpdateTaskWithPolicy,
     handleDeleteTaskWithPolicy,
+    handleToggleTimerWithPolicy,
+    handleCommentOnTaskWithPolicy,
     handleCreateTaskWithPolicy,
     doneStageIds
   };

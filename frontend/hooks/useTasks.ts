@@ -51,7 +51,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
         const nextState = e.shiftKey ? historyManager.redo(tasks) : historyManager.undo(tasks);
         if (nextState) {
           setTasks(nextState);
-          if (user) taskService.reorderTasks(user.orgId, nextState);
+          if (user) taskService.reorderTasks(user.orgId, nextState, user.id, user.displayName);
         }
       }
     };
@@ -194,7 +194,7 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
       }
       updatedTasks.splice(insertionIndex, 0, task);
       const reordered = updatedTasks.map((t, i) => ({ ...t, order: i }));
-      taskService.reorderTasks(user.orgId, reordered);
+      taskService.reorderTasks(user.orgId, reordered, user.id, user.displayName);
       return reordered;
     });
   };
@@ -240,6 +240,13 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     
     const task = tasks.find(t => t.id === activeTaskId);
     if (!task) return;
+    const assigneeIds = getTaskAssigneeIds(task);
+    if (!assigneeIds.includes(user.id)) {
+      toastService.warning('Permission denied', 'Only assigned members can update this task.');
+      setAiSuggestions(null);
+      setActiveTaskId(null);
+      return;
+    }
 
     const newSubtasks: Subtask[] = finalSteps.map(title => ({
       id: createId(),

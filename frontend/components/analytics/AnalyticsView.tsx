@@ -163,7 +163,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
                 filteredPeople.map((person) => (
                   <div key={person.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={person.avatar} alt={person.displayName} className="w-7 h-7 rounded-lg border border-slate-200" />
+                      <img
+                        src={person.avatar}
+                        alt={person.displayName}
+                        title={person.displayName}
+                        className="w-7 h-7 rounded-lg border border-slate-200"
+                      />
                       <span className="text-sm text-slate-800 truncate">{person.displayName}</span>
                     </div>
                     <div className="text-xs text-slate-500">

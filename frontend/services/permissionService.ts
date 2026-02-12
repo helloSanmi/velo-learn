@@ -16,3 +16,13 @@ export const canManageTask = (user: User, projects: Project[], task?: Task) => {
   if (!project) return task.userId === user.id;
   return getProjectOwnerId(project) === user.id;
 };
+
+export const isTaskAssignedToUser = (user: User, task?: Task) => {
+  if (!task) return false;
+  const assigneeIds = Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0
+    ? task.assigneeIds
+    : task.assigneeId
+      ? [task.assigneeId]
+      : [];
+  return assigneeIds.includes(user.id);
+};

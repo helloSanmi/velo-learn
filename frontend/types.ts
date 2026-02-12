@@ -81,6 +81,17 @@ export interface Comment {
   timestamp: number;
 }
 
+export interface ProjectOwnerMessage {
+  id: string;
+  orgId: string;
+  projectId: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  createdAt: number;
+  readBy: string[];
+}
+
 export interface AuditEntry {
   id: string;
   userId: string;

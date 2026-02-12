@@ -5,7 +5,8 @@ import {
   TaskRestrictedAction,
   canManageProject as canManageProjectBase,
   canManageTask as canManageTaskBase,
-  getProjectOwnerId
+  getProjectOwnerId,
+  isTaskAssignedToUser
 } from '../services/permissionService';
 
 interface UseAccessControlParams {
@@ -25,27 +26,49 @@ export const useAccessControl = ({ user, projects, tasks }: UseAccessControlPara
     [user, projects]
   );
 
-  const ensureTaskPermission = useCallback(
+  const hasTaskPermission = useCallback(
     (taskId: string, action: TaskRestrictedAction) => {
       const task = tasks.find((item) => item.id === taskId);
-      if (!task) return false;
-      if (canManageTask(task)) return true;
+      if (!task || !user) return false;
+      if (action === 'delete' || action === 'assign' || action === 'rename') {
+        return canManageTask(task);
+      }
+      return isTaskAssignedToUser(user, task);
+    },
+    [tasks, user, canManageTask]
+  );
+
+  const ensureTaskPermission = useCallback(
+    (taskId: string, action: TaskRestrictedAction) => {
+      if (action === 'delete' || action === 'assign' || action === 'rename') {
+        if (hasTaskPermission(taskId, action)) return true;
+        const labels: Record<TaskRestrictedAction, string> = {
+          complete: 'complete tasks',
+          rename: 'rename tasks',
+          delete: 'delete tasks',
+          assign: 'assign task members'
+        };
+        toastService.warning('Permission denied', `Only project owners or admins can ${labels[action]}.`);
+        return false;
+      }
+      if (hasTaskPermission(taskId, action)) return true;
       const labels: Record<TaskRestrictedAction, string> = {
         complete: 'complete tasks',
         rename: 'rename tasks',
         delete: 'delete tasks',
         assign: 'assign task members'
       };
-      toastService.warning('Permission denied', `Only admins or project creators can ${labels[action]}.`);
+      toastService.warning('Permission denied', `Only assigned members can ${labels[action]}.`);
       return false;
     },
-    [tasks, canManageTask]
+    [hasTaskPermission]
   );
 
   return {
     getProjectOwnerId,
     canManageProject,
     canManageTask,
+    hasTaskPermission,
     ensureTaskPermission
   };
 };

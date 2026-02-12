@@ -76,6 +76,11 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
     setMenuPosition(null);
   };
 
+  const canManageProject = (project: Project) => {
+    const ownerId = project.createdBy || project.members?.[0];
+    return currentUser.role === 'admin' || ownerId === currentUser.id;
+  };
+
   const openEditProject = (project: Project) => {
     closeProjectMenu();
     setEditingProjectId(project.id);
@@ -236,27 +241,29 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="shrink-0">
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                          if (menuProjectId === project.id) {
-                            closeProjectMenu();
-                            return;
-                          }
-                          setMenuProjectId(project.id);
-                          setMenuPosition({
-                            top: rect.bottom + 6,
-                            left: Math.max(12, rect.right - 176)
-                          });
-                        }}
-                        className="w-6 h-6 rounded-md border border-transparent hover:border-[#ead4df] hover:bg-white text-slate-500 flex items-center justify-center"
-                        title="Project actions"
-                      >
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {canManageProject(project) && (
+                      <div className="shrink-0">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                            if (menuProjectId === project.id) {
+                              closeProjectMenu();
+                              return;
+                            }
+                            setMenuProjectId(project.id);
+                            setMenuPosition({
+                              top: rect.bottom + 6,
+                              left: Math.max(12, rect.right - 176)
+                            });
+                          }}
+                          className="w-6 h-6 rounded-md border border-transparent hover:border-[#ead4df] hover:bg-white text-slate-500 flex items-center justify-center"
+                          title="Project actions"
+                        >
+                          <MoreHorizontal className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -278,7 +285,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
         </button>
       )}
 
-      {menuProjectId && menuPosition && activeMenuProject && (
+      {menuProjectId && menuPosition && activeMenuProject && canManageProject(activeMenuProject) && (
         <div ref={menuRef}>
           <SidebarProjectActionsMenu
             position={menuPosition}

@@ -4,6 +4,7 @@ import { Project, Task, TaskStatus, User } from '../../types';
 
 interface SettingsProjectsTabProps {
   currentUserRole?: User['role'];
+  currentUserId: string;
   allUsers: User[];
   projectQuery: string;
   setProjectQuery: (value: string) => void;
@@ -31,6 +32,7 @@ interface SettingsProjectsTabProps {
 
 const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
   currentUserRole,
+  currentUserId,
   allUsers,
   projectQuery,
   setProjectQuery,
@@ -57,6 +59,11 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
 }) => {
   const ownerById = new Map(allUsers.map((user) => [user.id, user]));
   const canChangeOwner = currentUserRole === 'admin';
+  const canManageFocusedProject = (() => {
+    if (!focusedProject) return false;
+    const ownerId = focusedProject.createdBy || focusedProject.members?.[0];
+    return currentUserRole === 'admin' || ownerId === currentUserId;
+  })();
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 h-full min-h-0 flex flex-col">
@@ -199,7 +206,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
               })()}
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {editingProjectId === focusedProject.id ? (
+              {canManageFocusedProject && editingProjectId === focusedProject.id ? (
                 <>
                   <input
                     autoFocus
@@ -211,7 +218,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                     Save
                   </button>
                 </>
-              ) : (
+              ) : canManageFocusedProject ? (
                 <button
                   onClick={() => {
                     setEditingProjectId(focusedProject.id);
@@ -221,8 +228,8 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                 >
                   Rename
                 </button>
-              )}
-              {!focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
+              ) : null}
+              {canManageFocusedProject && !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
                 <>
                   <button onClick={() => onCompleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
                     Complete
@@ -232,21 +239,21 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                   </button>
                 </>
               )}
-              {focusedProject.isArchived && (
+              {canManageFocusedProject && focusedProject.isArchived && (
                 <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700 inline-flex items-center gap-1">
                   <ArchiveRestore className="w-3 h-3" /> Restore
                 </button>
               )}
-              {focusedProject.isCompleted && (
+              {canManageFocusedProject && focusedProject.isCompleted && (
                 <button onClick={() => onReopenProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
                   Reopen
                 </button>
               )}
-              {!focusedProject.isDeleted ? (
+              {canManageFocusedProject && !focusedProject.isDeleted ? (
                 <button onClick={() => onDeleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-[10px] text-rose-700">
                   Delete
                 </button>
-              ) : (
+              ) : canManageFocusedProject && focusedProject.isDeleted ? (
                 <>
                   <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
                     Restore
@@ -255,7 +262,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                     Purge
                   </button>
                 </>
-              )}
+              ) : null}
             </div>
           </section>
         ) : (

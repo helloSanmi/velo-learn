@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Cloud } from 'lucide-react';
+import { ArrowLeft, Cloud, Eye, EyeOff } from 'lucide-react';
 import { userService } from '../services/userService';
 import { User } from '../types';
 import Button from './ui/Button';
@@ -18,6 +18,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [orgName, setOrgName] = useState('');
   const [selectedTier, setSelectedTier] = useState<Tier>('pro');
   const [error, setError] = useState('');
@@ -132,14 +133,24 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
 
               <div>
                 <label className="mb-1.5 block text-xs text-slate-500">Password</label>
-                <input
-                  required
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="h-11 w-full rounded-xl border border-slate-300 px-3.5 outline-none focus:ring-2 focus:ring-slate-300"
-                />
+                <div className="relative">
+                  <input
+                    required
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3.5 pr-11 outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {!isLogin ? (

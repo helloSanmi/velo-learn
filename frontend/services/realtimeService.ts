@@ -5,6 +5,7 @@ export type RealtimeEventType =
   | 'PROJECTS_UPDATED'
   | 'USERS_UPDATED'
   | 'SETTINGS_UPDATED'
+  | 'PROJECT_CHAT_UPDATED'
   | 'COMMENT_TYPING'
   | 'PRESENCE_PING';
 

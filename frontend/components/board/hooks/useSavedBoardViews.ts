@@ -49,6 +49,14 @@ export const useSavedBoardViews = ({
   const [isSaveViewOpen, setIsSaveViewOpen] = useState(false);
   const [saveViewName, setSaveViewName] = useState('');
 
+  const openSavedViews = () => setIsSavedViewsOpen(true);
+  const closeSavedViews = () => setIsSavedViewsOpen(false);
+  const openSaveView = () => setIsSaveViewOpen(true);
+  const closeSaveView = () => {
+    setIsSaveViewOpen(false);
+    setSaveViewName('');
+  };
+
   const saveCurrentView = () => {
     const trimmedName = saveViewName.trim();
     if (!trimmedName) {
@@ -128,9 +136,11 @@ export const useSavedBoardViews = ({
     savedViews,
     appliedViewId,
     isSavedViewsOpen,
-    setIsSavedViewsOpen,
+    openSavedViews,
+    closeSavedViews,
     isSaveViewOpen,
-    setIsSaveViewOpen,
+    openSaveView,
+    closeSaveView,
     saveViewName,
     setSaveViewName,
     saveCurrentView,

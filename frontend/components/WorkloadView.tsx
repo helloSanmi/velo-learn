@@ -137,7 +137,12 @@ const WorkloadView: React.FC<WorkloadViewProps> = ({ users, tasks, onReassign })
                 <article key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      <img src={u.avatar} className="w-10 h-10 rounded-xl border border-slate-200" alt={u.displayName} />
+                      <img
+                        src={u.avatar}
+                        className="w-10 h-10 rounded-xl border border-slate-200"
+                        alt={u.displayName}
+                        title={u.displayName}
+                      />
                       <div className="min-w-0">
                         <h3 className="text-sm font-semibold text-slate-900 truncate">{u.displayName}</h3>
                         <p className="text-xs text-slate-500 capitalize">{u.role || 'member'}</p>

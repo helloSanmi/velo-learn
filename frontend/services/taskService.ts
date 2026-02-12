@@ -25,6 +25,98 @@ const emitTasksUpdated = (orgId: string, actorId?: string, taskId?: string) => {
   });
 };
 
+const stageLabel = (status?: string) =>
+  (status || '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (value) => value.toUpperCase())
+    .trim() || 'Unknown';
+
+const formatDuration = (ms: number) => {
+  const totalMinutes = Math.max(0, Math.round(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+};
+
+const resolveActorDisplayName = (orgId: string, userId: string, displayName?: string) => {
+  if (displayName?.trim()) return displayName.trim();
+  const user = userService.getUsers(orgId).find((candidate) => candidate.id === userId);
+  return user?.displayName || 'Unknown user';
+};
+
+const createAuditEntry = (userId: string, displayName: string, action: string) => ({
+  id: createId(),
+  userId,
+  displayName,
+  action,
+  timestamp: Date.now()
+});
+
+const buildUpdateAuditActions = (
+  task: Task,
+  updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>,
+  orgId: string
+): string[] => {
+  const actions: string[] = [];
+
+  if (typeof updates.title === 'string' && updates.title !== task.title) {
+    actions.push(`renamed task to "${updates.title}"`);
+  }
+  if (typeof updates.description === 'string' && updates.description !== task.description) {
+    actions.push(updates.description.trim() ? 'updated description' : 'cleared description');
+  }
+  if (typeof updates.status === 'string' && updates.status !== task.status) {
+    actions.push(`moved task to ${stageLabel(updates.status)}`);
+  }
+  if (updates.priority && updates.priority !== task.priority) {
+    actions.push(`set priority to ${updates.priority}`);
+  }
+  if ('dueDate' in updates && updates.dueDate !== task.dueDate) {
+    actions.push(updates.dueDate ? `set due date to ${new Date(updates.dueDate).toLocaleDateString()}` : 'cleared due date');
+  }
+  if (Array.isArray(updates.tags) && JSON.stringify(updates.tags) !== JSON.stringify(task.tags || [])) {
+    actions.push(updates.tags.length > 0 ? `updated tags (${updates.tags.length})` : 'cleared tags');
+  }
+  if (Array.isArray(updates.blockedByIds) && JSON.stringify(updates.blockedByIds) !== JSON.stringify(task.blockedByIds || [])) {
+    actions.push(`updated dependencies (${updates.blockedByIds.length})`);
+  }
+  if (Array.isArray(updates.subtasks) && JSON.stringify(updates.subtasks) !== JSON.stringify(task.subtasks || [])) {
+    const completed = updates.subtasks.filter((subtask) => subtask.isCompleted).length;
+    actions.push(`updated subtasks (${completed}/${updates.subtasks.length} complete)`);
+  }
+  if (typeof updates.timeLogged === 'number' && updates.timeLogged !== (task.timeLogged || 0)) {
+    const delta = updates.timeLogged - (task.timeLogged || 0);
+    actions.push(delta > 0 ? `logged ${formatDuration(delta)} manually` : 'updated tracked time');
+  }
+  if (typeof updates.isAtRisk === 'boolean' && updates.isAtRisk !== Boolean(task.isAtRisk)) {
+    actions.push(updates.isAtRisk ? 'marked task at risk' : 'marked task on track');
+  }
+  if ('approvedAt' in updates && updates.approvedAt && updates.approvedAt !== task.approvedAt) {
+    actions.push('approved this task');
+  }
+  if (typeof updates.movedBackReason === 'string' && updates.movedBackReason.trim()) {
+    const fromStage = updates.movedBackFromStatus ? stageLabel(updates.movedBackFromStatus) : stageLabel(task.status);
+    actions.push(`moved task backward from ${fromStage}: "${updates.movedBackReason.trim()}"`);
+  }
+
+  const previousAssigneeIds = getTaskAssigneeIds(task);
+  const nextAssigneeIds =
+    Array.isArray(updates.assigneeIds) && updates.assigneeIds.length > 0
+      ? updates.assigneeIds
+      : typeof updates.assigneeId === 'string'
+        ? (updates.assigneeId ? [updates.assigneeId] : [])
+        : previousAssigneeIds;
+  if (JSON.stringify(previousAssigneeIds) !== JSON.stringify(nextAssigneeIds)) {
+    const usersById = new Map(userService.getUsers(orgId).map((user) => [user.id, user.displayName]));
+    const names = nextAssigneeIds.map((id) => usersById.get(id) || 'Unknown');
+    actions.push(names.length > 0 ? `updated assignees: ${names.join(', ')}` : 'cleared assignees');
+  }
+
+  return actions;
+};
+
 export const taskService = {
   getAllTasksForOrg: (orgId: string): Task[] => {
     try {
@@ -93,6 +185,7 @@ export const taskService = {
     const project = projectService.getProjects(orgId).find((item) => item.id === projectId);
     const defaultStage = project?.stages?.[0]?.id || TaskStatus.TODO;
     
+    const actorDisplayName = resolveActorDisplayName(orgId, userId);
     const newTask: Task = {
       id: createId(),
       orgId,
@@ -115,8 +208,8 @@ export const taskService = {
       auditLog: [{
         id: createId(),
         userId,
-        displayName: 'System',
-        action: 'Node initialized',
+        displayName: actorDisplayName,
+        action: 'created this task',
         timestamp: Date.now()
       }],
       timeLogged: 0,
@@ -154,6 +247,7 @@ export const taskService = {
     let notifyAssigneeIds: string[] = [];
     let notifyTaskTitle: string = '';
 
+    const actorDisplayName = resolveActorDisplayName(orgId, userId, displayName);
     const updatedTasks = allTasks.map(t => {
       if (t.id === id) {
         const previousAssignees = getTaskAssigneeIds(t);
@@ -178,21 +272,10 @@ export const taskService = {
         }
 
         const auditLog = [...(t.auditLog || [])];
-        if (displayName) {
-          Object.keys(normalizedUpdates).forEach(key => {
-            const newVal = (normalizedUpdates as any)[key];
-            const oldVal = (t as any)[key];
-            if (newVal !== undefined && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-              auditLog.push({
-                id: createId(),
-                userId,
-                displayName,
-                action: `Reconfigured ${key}`,
-                timestamp: Date.now()
-              });
-            }
-          });
-        }
+        const auditActions = buildUpdateAuditActions(t, normalizedUpdates, orgId);
+        auditActions.forEach((action) => {
+          auditLog.push(createAuditEntry(userId, actorDisplayName, action));
+        });
         return { ...t, ...normalizedUpdates, auditLog, updatedAt: Date.now(), version: (t.version || 1) + 1 };
       }
       return t;
@@ -218,18 +301,23 @@ export const taskService = {
 
   toggleTimer: (userId: string, orgId: string, id: string): Task[] => {
     const allTasks = readStoredTasks();
+    const actorDisplayName = resolveActorDisplayName(orgId, userId);
     const updatedTasks = allTasks.map(t => {
       if (t.id === id) {
+        const auditLog = [...(t.auditLog || [])];
         if (t.isTimerRunning) {
           const sessionTime = Date.now() - (t.timerStartedAt || Date.now());
+          auditLog.push(createAuditEntry(userId, actorDisplayName, `stopped timer (+${formatDuration(sessionTime)})`));
           return {
             ...t,
             isTimerRunning: false,
             timeLogged: (t.timeLogged || 0) + sessionTime,
-            timerStartedAt: undefined
+            timerStartedAt: undefined,
+            auditLog
           };
         } else {
-          return { ...t, isTimerRunning: true, timerStartedAt: Date.now() };
+          auditLog.push(createAuditEntry(userId, actorDisplayName, 'started timer'));
+          return { ...t, isTimerRunning: true, timerStartedAt: Date.now(), auditLog };
         }
       }
       return t;
@@ -246,12 +334,13 @@ export const taskService = {
 
   addComment: (userId: string, orgId: string, taskId: string, text: string, displayName: string): Task[] => {
     const allTasks = readStoredTasks();
+    const actorDisplayName = resolveActorDisplayName(orgId, userId, displayName);
     const updatedTasks = allTasks.map(t => {
       if (t.id === taskId) {
         const newComment: Comment = {
           id: createId(),
           userId,
-          displayName,
+          displayName: actorDisplayName,
           text,
           timestamp: Date.now()
         };
@@ -262,13 +351,19 @@ export const taskService = {
             notificationService.addNotification({
               userId: assigneeId,
               title: 'Velo Transmission',
-              message: `${displayName} commented on "${t.title}"`,
+              message: `${actorDisplayName} commented on "${t.title}"`,
               type: 'SYSTEM',
               linkId: taskId
             });
           });
         }
-        return { ...t, comments: [...(t.comments || []), newComment], updatedAt: Date.now(), version: (t.version || 1) + 1 };
+        return {
+          ...t,
+          comments: [...(t.comments || []), newComment],
+          auditLog: [...(t.auditLog || []), createAuditEntry(userId, actorDisplayName, 'added a comment')],
+          updatedAt: Date.now(),
+          version: (t.version || 1) + 1
+        };
       }
       return t;
     });
@@ -296,13 +391,25 @@ export const taskService = {
     return taskService.getTasks(userId, orgId);
   },
 
-  reorderTasks: (orgId: string, reorderedTasks: Task[]): void => {
+  reorderTasks: (orgId: string, reorderedTasks: Task[], actorId?: string, actorDisplayName?: string): void => {
     const allTasks = readStoredTasks();
+    const actorName = actorId ? resolveActorDisplayName(orgId, actorId, actorDisplayName) : 'System';
     const visibleTaskIds = reorderedTasks.map(t => t.id);
     const hiddenTasks = allTasks.filter(t => !visibleTaskIds.includes(t.id));
+    const previousById = new Map(allTasks.map((task) => [task.id, task]));
     writeStoredTasks([
       ...hiddenTasks,
-      ...reorderedTasks.map((task) => ({ ...task, updatedAt: Date.now(), version: (task.version || 1) + 1 }))
+      ...reorderedTasks.map((task) => {
+        const previous = previousById.get(task.id);
+        const statusChanged = previous && previous.status !== task.status;
+        const auditLog = [...(task.auditLog || [])];
+        if (statusChanged) {
+          auditLog.push(
+            createAuditEntry(actorId || 'system', actorName, `moved task to ${stageLabel(task.status)}`)
+          );
+        }
+        return { ...task, auditLog, updatedAt: Date.now(), version: (task.version || 1) + 1 };
+      })
     ]);
     syncGuardService.markLocalMutation();
     emitTasksUpdated(orgId);

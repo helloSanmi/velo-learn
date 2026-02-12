@@ -22,6 +22,8 @@ export interface KanbanHeaderProps {
   uniqueTags: string[];
   allUsers: User[];
   projects: Project[];
+  onOpenOwnerChat: () => void;
+  ownerChatUnreadCount: number;
   onSaveView: () => void;
   onApplyView: (id: string) => void;
   appliedViewId: string | null;

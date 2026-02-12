@@ -20,6 +20,9 @@ interface TaskDetailModalProps {
   currentUser?: User;
   aiEnabled?: boolean;
   onToggleTimer?: (id: string) => void;
+  canDelete?: boolean;
+  canManageTask?: boolean;
+  canTrackTime?: boolean;
 }
 
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -31,7 +34,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onDelete,
   currentUser,
   aiEnabled = true,
-  onToggleTimer
+  onToggleTimer,
+  canDelete = true,
+  canManageTask = false,
+  canTrackTime = false
 }) => {
   if (!task) return null;
 
@@ -74,6 +80,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           setIsEditing={state.setIsEditing}
           description={state.description}
           setDescription={state.setDescription}
+          canManageTask={canManageTask}
+          canTrackTime={canTrackTime}
         />
       );
     }
@@ -86,6 +94,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           dependencyQuery={state.dependencyQuery}
           setDependencyQuery={state.setDependencyQuery}
           onToggleDependency={state.handleToggleDependency}
+          canManageDependencies={canManageTask}
         />
       );
     }
@@ -99,6 +108,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           onAddSubtask={state.handleAddSubtask}
           onToggleSubtask={state.handleToggleSubtask}
           onRemoveSubtask={state.handleRemoveSubtask}
+          canManageSubtasks={canManageTask}
         />
       );
     }
@@ -135,13 +145,16 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         <TaskDetailHeader task={task} onClose={onClose} />
         <TaskDetailTabs task={task} activeTab={state.activeTab} setActiveTab={state.setActiveTab} />
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-5 custom-scrollbar scroll-smooth">{renderTabContent()}</div>
+        <div className={`flex-1 p-4 md:p-5 custom-scrollbar scroll-smooth ${state.activeTab === 'activity' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          {renderTabContent()}
+        </div>
 
         <TaskDetailFooter
           task={task}
           onClose={onClose}
           onDelete={onDelete}
           onEdit={() => state.setIsEditing(true)}
+          canDelete={canDelete}
         />
       </div>
     </div>

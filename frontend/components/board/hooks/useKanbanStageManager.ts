@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Project, ProjectStage, Task } from '../../../types';
 import { toastService } from '../../../services/toastService';
+import { dialogService } from '../../../services/dialogService';
 import { buildProjectStages, canManageProjectStages } from '../kanbanUtils';
 
 interface UseKanbanStageManagerOptions {
@@ -43,6 +44,10 @@ export const useKanbanStageManager = ({
     setDraftStages(projectStages.map((stage) => ({ ...stage })));
     setNewStageName('');
     setShowStageEditor(true);
+  };
+
+  const closeStageEditor = () => {
+    setShowStageEditor(false);
   };
 
   const saveStages = () => {
@@ -105,7 +110,7 @@ export const useKanbanStageManager = ({
     setNewStageName('');
   };
 
-  const removeStage = (stageId: string) => {
+  const removeStage = async (stageId: string) => {
     if (!canManageStages) {
       toastService.warning('Permission denied', 'Only admins or project owners can manage stages.');
       return;
@@ -115,6 +120,14 @@ export const useKanbanStageManager = ({
       toastService.warning('Cannot delete stage', 'A project must keep at least one stage.');
       return;
     }
+
+    const stage = draftStages.find((item) => item.id === stageId);
+    const confirmed = await dialogService.confirm(`Delete stage "${stage?.name || 'this stage'}"?`, {
+      title: 'Delete stage',
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!confirmed) return;
 
     setDraftStages((prev) => prev.filter((stage) => stage.id !== stageId));
     if (statusFilter !== 'All' && statusFilter === stageId) {
@@ -126,7 +139,7 @@ export const useKanbanStageManager = ({
     projectStages,
     canManageStages,
     showStageEditor,
-    setShowStageEditor,
+    closeStageEditor,
     newStageName,
     setNewStageName,
     draftStages,

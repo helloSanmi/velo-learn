@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MainViewType, Project, ProjectStage, ProjectTemplate, Task, TaskPriority, User } from '../../types';
 import KanbanView from '../board/KanbanView';
 import AnalyticsView from '../analytics/AnalyticsView';
@@ -63,6 +63,9 @@ interface WorkspaceMainViewProps {
   handleBulkLifecycleAction: (action: 'complete' | 'archive' | 'delete' | 'restore' | 'reopen' | 'purge', ids: string[]) => void;
   handleUpdateTaskWithPolicy: (id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>) => void;
   onToggleTimer?: (id: string) => void;
+  canDeleteTask: (taskId: string) => boolean;
+  canManageTask: (taskId: string) => boolean;
+  canToggleTaskTimer: (taskId: string) => boolean;
 }
 
 const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
@@ -118,15 +121,38 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
   handlePurgeProject,
   handleBulkLifecycleAction,
   handleUpdateTaskWithPolicy,
-  onToggleTimer
+  onToggleTimer,
+  canDeleteTask,
+  canManageTask,
+  canToggleTaskTimer
 }) => {
+  const visibleProjectIds = useMemo(() => new Set(visibleProjects.map((project) => project.id)), [visibleProjects]);
+  const scopedTasks = useMemo(
+    () => tasks.filter((task) => task.projectId === 'general' || visibleProjectIds.has(task.projectId)),
+    [tasks, visibleProjectIds]
+  );
+  const scopedProjectTasks = useMemo(
+    () => allProjectTasks.filter((task) => task.projectId === 'general' || visibleProjectIds.has(task.projectId)),
+    [allProjectTasks, visibleProjectIds]
+  );
+  const scopedUsers = useMemo(() => {
+    const memberIds = new Set<string>([user.id]);
+    visibleProjects.forEach((project) => project.members.forEach((memberId) => memberIds.add(memberId)));
+    scopedTasks.forEach((task) => {
+      if (task.assigneeId) memberIds.add(task.assigneeId);
+      (task.assigneeIds || []).forEach((assigneeId) => memberIds.add(assigneeId));
+    });
+    return allUsers.filter((member) => memberIds.has(member.id));
+  }, [allUsers, scopedTasks, user.id, visibleProjects]);
+
   switch (currentView) {
     case 'projects':
       return (
         <ProjectsLifecycleView
           currentUserRole={user.role}
-          projects={projects}
-          projectTasks={allProjectTasks}
+          currentUserId={user.id}
+          projects={visibleProjects}
+          projectTasks={scopedProjectTasks}
           activeProjectId={activeProject?.id || null}
           onRenameProject={handleRenameProject}
           onCompleteProject={handleCompleteProject}
@@ -139,14 +165,14 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
         />
       );
     case 'analytics':
-      return <AnalyticsView tasks={tasks} projects={projects} allUsers={allUsers} />;
+      return <AnalyticsView tasks={scopedTasks} projects={visibleProjects} allUsers={scopedUsers} />;
     case 'roadmap':
-      return <RoadmapView tasks={tasks} projects={projects} />;
+      return <RoadmapView tasks={scopedTasks} projects={visibleProjects} />;
     case 'resources':
       return (
         <WorkloadView
-          users={allUsers}
-          tasks={tasks}
+          users={scopedUsers}
+          tasks={scopedTasks}
           onReassign={(taskId, userId) => handleUpdateTaskWithPolicy(taskId, { assigneeId: userId, assigneeIds: [userId] })}
         />
       );
@@ -202,6 +228,9 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
           setSelectedTaskIds={setSelectedTaskIds}
           toggleTaskSelection={toggleTaskSelection}
           deleteTask={handleDeleteTaskWithPolicy}
+          canDeleteTask={canDeleteTask}
+          canUseTaskAI={canManageTask}
+          canToggleTaskTimer={canToggleTaskTimer}
           onToggleTimer={onToggleTimer}
           handleStatusUpdate={handleStatusUpdateWithPolicy}
           moveTask={handleMoveTaskWithPolicy}
