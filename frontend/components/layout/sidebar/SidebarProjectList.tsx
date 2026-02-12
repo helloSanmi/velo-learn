@@ -149,7 +149,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
 
   return (
     <div ref={rootRef} className="space-y-1.5">
-      <p className="px-3 text-[11px] font-medium tracking-wide text-[#8a506f] mb-2 truncate">Workspace</p>
+      <p className="px-3 text-[11px] font-medium tracking-wide text-slate-500 mb-2 truncate">Workspace</p>
       <SidebarNavButton
         active={currentView === 'board' && activeProjectId === null}
         onClick={() => {
@@ -176,7 +176,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
         </div>
         <button
           onClick={onAddProject}
-          className="w-8 h-8 rounded-lg text-[#8a506f] hover:text-[#76003f] bg-white border border-[#ead4df] transition-colors shrink-0 flex items-center justify-center"
+          className="w-8 h-8 rounded-lg text-slate-600 hover:text-slate-900 bg-white border border-slate-200 transition-colors shrink-0 flex items-center justify-center"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -184,7 +184,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
 
       <button
         onClick={() => setIsProjectListCollapsed((prev) => !prev)}
-        className="w-full h-7 px-3 rounded-md border border-[#ead4df] bg-white text-[11px] font-medium text-[#8a506f] inline-flex items-center justify-between"
+        className="w-full h-7 px-3 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-600 inline-flex items-center justify-between"
       >
         <span>{isProjectListCollapsed ? 'Show project list' : 'Hide project list'}</span>
         {isProjectListCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -192,7 +192,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
 
       {!isProjectListCollapsed && (
         <div
-          className="space-y-1 max-h-[26vh] lg:max-h-[calc(100dvh-460px)] 2xl:max-h-[calc(100dvh-420px)] overflow-y-auto custom-scrollbar pr-1 pl-3 border-l border-[#ead4df] ml-3"
+          className="space-y-1 max-h-[26vh] lg:max-h-[calc(100dvh-460px)] 2xl:max-h-[calc(100dvh-420px)] overflow-y-auto custom-scrollbar pr-1 pl-3 border-l border-slate-200 ml-3"
           onScroll={closeProjectMenu}
         >
           {activeProjects.length > 0 ? (
@@ -209,8 +209,8 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
                   <div
                     className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors font-medium border group ${
                       isActive
-                        ? 'bg-white border-[#e6d2dc] text-[#76003f] shadow-sm'
-                        : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'
+                        ? 'bg-slate-100 border-slate-200 text-slate-900 shadow-sm'
+                        : 'text-slate-600 border-transparent hover:bg-slate-100 hover:border-slate-200 hover:text-slate-900'
                     }`}
                   >
                     <button
@@ -223,14 +223,14 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
                     >
                       <div
                         className={`w-3 h-3 rounded-full ${project.color} shrink-0 ${
-                          isLiveProject ? 'active-node ring-1 ring-[#76003f]/15 ring-offset-0' : ''
+                          isLiveProject ? 'active-node ring-1 ring-slate-400/30 ring-offset-0' : ''
                         }`}
                       />
                       <span className="truncate tracking-tight text-sm">{project.name}</span>
                     </button>
                     {project.isPublic && <Globe className={`w-3 h-3 shrink-0 ${isActive ? 'text-slate-500' : 'text-slate-400'}`} />}
                     <div
-                      className="w-5 h-5 rounded-full overflow-hidden border border-[#ead4df] bg-slate-100 shrink-0"
+                      className="w-5 h-5 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0"
                       title={`Owner: ${ownerName}`}
                     >
                       {owner?.avatar ? (
@@ -257,7 +257,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
                               left: Math.max(12, rect.right - 176)
                             });
                           }}
-                          className="w-6 h-6 rounded-md border border-transparent hover:border-[#ead4df] hover:bg-white text-slate-500 flex items-center justify-center"
+                          className="w-6 h-6 rounded-md border border-transparent hover:border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center"
                           title="Project actions"
                         >
                           <MoreHorizontal className="w-3.5 h-3.5" />
@@ -279,7 +279,7 @@ const SidebarProjectList: React.FC<SidebarProjectListProps> = ({
       {!isProjectListCollapsed && activeProjects.length > cappedProjectCount && (
         <button
           onClick={() => setShowAllProjects((prev) => !prev)}
-          className="w-full h-7 px-3 rounded-md border border-[#ead4df] bg-white text-[11px] font-medium text-[#8a506f]"
+          className="w-full h-7 px-3 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-600"
         >
           {showAllProjects ? `Show fewer (${cappedProjectCount})` : `Show all (${activeProjects.length})`}
         </button>

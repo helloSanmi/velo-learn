@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Edit2, Loader2, Pause, Play, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Clock, Loader2, Pause, Play, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Task, TaskPriority, User } from '../../types';
 import Button from '../ui/Button';
 import AssigneePicker from '../ui/AssigneePicker';
@@ -27,8 +27,6 @@ interface TaskDetailGeneralTabProps {
   riskAssessment: { isAtRisk: boolean; reason: string } | null;
   isAIThinking: boolean;
   runAIAudit: () => Promise<void>;
-  isEditing: boolean;
-  setIsEditing: (value: boolean) => void;
   description: string;
   setDescription: (value: string) => void;
   canManageTask: boolean;
@@ -58,8 +56,6 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
   riskAssessment,
   isAIThinking,
   runAIAudit,
-  isEditing,
-  setIsEditing,
   description,
   setDescription,
   canManageTask,
@@ -221,17 +217,8 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
       </div>
 
       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 relative group">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Documentation</h4>
-          <button
-            onClick={() => canManageTask && setIsEditing(!isEditing)}
-            disabled={!canManageTask}
-            className="p-2 text-indigo-600 hover:bg-white rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-        </div>
-        {isEditing && canManageTask ? (
+        <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-2">Documentation</h4>
+        {canManageTask ? (
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

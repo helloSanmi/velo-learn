@@ -14,18 +14,18 @@ const SidebarNavButton: React.FC<SidebarNavButtonProps> = ({ active, onClick, ic
       onClick={onClick}
       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-sm transition-colors border ${
         active
-          ? 'bg-white text-[#76003f] border-[#e6d2dc] shadow-sm'
-          : 'text-slate-600 border-transparent hover:bg-white hover:border-[#ead4df] hover:text-[#76003f]'
+          ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm'
+          : 'text-slate-600 border-transparent hover:bg-slate-100 hover:border-slate-200 hover:text-slate-900'
       }`}
     >
       <div className="flex items-center gap-3 min-w-0">
-        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#76003f]' : 'text-slate-400'}`} />
+        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-slate-700' : 'text-slate-400'}`} />
         <span className="truncate">{label}</span>
       </div>
       {badge && (
         <span
           className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-            active ? 'bg-[#f5eaf0] text-[#76003f]' : 'bg-slate-200 text-slate-700'
+            active ? 'bg-slate-200 text-slate-700' : 'bg-slate-200 text-slate-700'
           }`}
         >
           {badge}

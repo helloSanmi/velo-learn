@@ -24,7 +24,6 @@ export const useTaskDetailState = ({
   onAddComment
 }: UseTaskDetailStateParams) => {
   const [activeTab, setActiveTab] = useState<TaskDetailTabType>('general');
-  const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -253,8 +252,6 @@ export const useTaskDetailState = ({
   return {
     activeTab,
     setActiveTab,
-    isEditing,
-    setIsEditing,
     description,
     setDescription,
     assigneeIds,

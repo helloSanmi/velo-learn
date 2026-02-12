@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`h-full w-full bg-[#fbf7f9] border-r border-[#ead4df] flex flex-col p-4 text-slate-600 overflow-hidden ${
+      className={`h-full w-full bg-slate-50 border-r border-slate-200 flex flex-col p-4 text-slate-600 overflow-hidden ${
         isOpen ? 'fixed inset-0 z-[56] lg:relative lg:inset-auto' : 'hidden lg:flex'
       }`}
     >
@@ -90,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
 
         <div className="space-y-1.5">
-          <p className="px-3 text-[11px] font-medium tracking-wide text-[#8a506f] mb-2 truncate">Insights</p>
+          <p className="px-3 text-[11px] font-medium tracking-wide text-slate-500 mb-2 truncate">Insights</p>
           <SidebarNavButton
             active={currentView === 'roadmap'}
             onClick={() => runSidebarAction(() => onViewChange('roadmap'))}
@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <p className="px-3 text-[11px] font-medium tracking-wide text-[#8a506f] mb-2 truncate">Workflows</p>
+          <p className="px-3 text-[11px] font-medium tracking-wide text-slate-500 mb-2 truncate">Workflows</p>
           <SidebarNavButton
             active={currentView === 'workflows'}
             onClick={() => runSidebarAction(() => onViewChange('workflows'))}
@@ -136,10 +136,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <p className="px-3 text-[11px] font-medium tracking-wide text-[#8a506f] mb-2 truncate">Tools</p>
+          <p className="px-3 text-[11px] font-medium tracking-wide text-slate-500 mb-2 truncate">Tools</p>
           <button
             onClick={() => runSidebarAction(onOpenCommandCenter)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium text-sm transition-colors text-left"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 hover:border-slate-200 border border-transparent hover:text-slate-900 font-medium text-sm transition-colors text-left"
           >
             <div className="flex items-center gap-3 min-w-0">
               <Terminal className="w-4 h-4 text-slate-400 shrink-0" />
@@ -148,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
           <button
             onClick={() => runSidebarAction(onOpenVoiceCommander)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium text-sm transition-colors text-left"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 hover:border-slate-200 border border-transparent hover:text-slate-900 font-medium text-sm transition-colors text-left"
           >
             <div className="flex items-center gap-3 min-w-0">
               <Mic className="w-4 h-4 text-slate-400 shrink-0" />
@@ -158,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
           <button
             onClick={() => runSidebarAction(onOpenVisionModal)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium text-sm transition-colors text-left"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 hover:border-slate-200 border border-transparent hover:text-slate-900 font-medium text-sm transition-colors text-left"
           >
             <div className="flex items-center gap-3 min-w-0">
               <Camera className="w-4 h-4 text-slate-400 shrink-0" />
@@ -171,10 +171,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         <RecentActivityPanel recentActions={recentActions} />
       </div>
 
-      <div className="pt-4 border-t border-[#ead4df] shrink-0">
+      <div className="pt-4 border-t border-slate-200 shrink-0">
         <button
           onClick={() => runSidebarAction(onOpenSettings)}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white hover:border-[#ead4df] border border-transparent hover:text-[#76003f] font-medium transition-colors text-sm group"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 hover:border-slate-200 border border-transparent hover:text-slate-900 font-medium transition-colors text-sm group"
         >
           <Settings className="w-4 h-4 text-slate-400 shrink-0" />
           <span className="truncate">Settings</span>

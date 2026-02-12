@@ -7,7 +7,6 @@ import TaskDetailCommentsTab from './task-detail/TaskDetailCommentsTab';
 import TaskDetailActivityTab from './task-detail/TaskDetailActivityTab';
 import TaskDetailHeader from './task-detail/TaskDetailHeader';
 import TaskDetailTabs from './task-detail/TaskDetailTabs';
-import TaskDetailFooter from './task-detail/TaskDetailFooter';
 import { useTaskDetailState } from '../hooks/useTaskDetailState';
 
 interface TaskDetailModalProps {
@@ -76,8 +75,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           riskAssessment={state.riskAssessment}
           isAIThinking={state.isAIThinking}
           runAIAudit={state.runAIAudit}
-          isEditing={state.isEditing}
-          setIsEditing={state.setIsEditing}
           description={state.description}
           setDescription={state.setDescription}
           canManageTask={canManageTask}
@@ -142,20 +139,12 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/45 backdrop-blur-sm animate-in fade-in duration-200"
     >
       <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 h-[88vh] md:h-[84vh] flex flex-col border border-slate-200">
-        <TaskDetailHeader task={task} onClose={onClose} />
+        <TaskDetailHeader task={task} onClose={onClose} onDelete={onDelete} canDelete={canDelete} />
         <TaskDetailTabs task={task} activeTab={state.activeTab} setActiveTab={state.setActiveTab} />
 
         <div className={`flex-1 p-4 md:p-5 custom-scrollbar scroll-smooth ${state.activeTab === 'activity' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           {renderTabContent()}
         </div>
-
-        <TaskDetailFooter
-          task={task}
-          onClose={onClose}
-          onDelete={onDelete}
-          onEdit={() => state.setIsEditing(true)}
-          canDelete={canDelete}
-        />
       </div>
     </div>
   );
