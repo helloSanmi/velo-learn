@@ -42,9 +42,11 @@ export const savedViewService = {
     write([next, ...shifted]);
     return next;
   },
-  update: (id: string, updates: Partial<Pick<SavedBoardView, 'name'>>) => {
+  update: (userId: string, orgId: string, id: string, updates: Partial<Pick<SavedBoardView, 'name'>>) => {
     const current = read();
-    const updated = current.map((item) => (item.id === id ? { ...item, ...updates } : item));
+    const updated = current.map((item) =>
+      item.id === id && item.userId === userId && item.orgId === orgId ? { ...item, ...updates } : item
+    );
     write(updated);
   },
   replaceForUser: (userId: string, orgId: string, ordered: SavedBoardView[]) => {
@@ -53,7 +55,7 @@ export const savedViewService = {
     const normalized = ordered.map((item, index) => ({ ...item, sortOrder: index }));
     write([...retained, ...normalized]);
   },
-  remove: (id: string) => {
-    write(read().filter((v) => v.id !== id));
+  remove: (userId: string, orgId: string, id: string) => {
+    write(read().filter((v) => !(v.id === id && v.userId === userId && v.orgId === orgId)));
   }
 };

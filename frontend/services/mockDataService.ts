@@ -407,10 +407,6 @@ export const mockDataService = {
       if (!localStorage.getItem(INVITES_KEY)) {
         localStorage.setItem(INVITES_KEY, JSON.stringify([]));
       }
-      if (!localStorage.getItem(SESSION_KEY)) {
-        const adminUser = INITIAL_USERS.find((u) => u.username === 'admin') || INITIAL_USERS[0];
-        localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
-      }
     } catch (error) {
       console.error('Failed to initialize Velo cluster data:', error);
     }

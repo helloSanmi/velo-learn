@@ -113,7 +113,7 @@ export const useSavedBoardViews = ({
     });
     if (!confirmed) return;
 
-    savedViewService.remove(appliedViewId);
+    savedViewService.remove(currentUser.id, currentUser.orgId, appliedViewId);
     setSavedViews(savedViewService.list(currentUser.id, currentUser.orgId));
     setAppliedViewId(null);
     toastService.info('View deleted', `"${view.name}" was removed.`);

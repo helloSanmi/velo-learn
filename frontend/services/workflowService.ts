@@ -18,14 +18,17 @@ export const workflowService = {
     return newRule;
   },
 
-  deleteRule: (id: string) => {
+  deleteRule: (orgId: string, id: string) => {
     const all: WorkflowRule[] = JSON.parse(localStorage.getItem(WORKFLOWS_KEY) || '[]');
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(all.filter(r => r.id !== id)));
+    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(all.filter(r => !(r.id === id && r.orgId === orgId))));
   },
 
-  toggleRule: (id: string) => {
+  toggleRule: (orgId: string, id: string) => {
     const all: WorkflowRule[] = JSON.parse(localStorage.getItem(WORKFLOWS_KEY) || '[]');
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(all.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r)));
+    localStorage.setItem(
+      WORKFLOWS_KEY,
+      JSON.stringify(all.map(r => (r.id === id && r.orgId === orgId ? { ...r, isActive: !r.isActive } : r)))
+    );
   },
 
   getTemplates: (): ProjectTemplate[] => [

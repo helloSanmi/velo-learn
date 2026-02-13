@@ -264,6 +264,7 @@ export const taskService = {
         .filter((assigneeId) => assigneeId !== userId)
         .forEach((assigneeId) =>
           notificationService.addNotification({
+            orgId,
             userId: assigneeId,
             title: 'Node Provisioned',
             message: `Assigned: ${title}`,
@@ -371,6 +372,7 @@ export const taskService = {
     if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
       notifyAssigneeIds.forEach((notifyAssigneeId) => {
         notificationService.addNotification({
+          orgId,
           userId: notifyAssigneeId,
           title: 'Node Recalibrated',
           message: `Assigned: ${notifyTaskTitle}`,
@@ -433,6 +435,7 @@ export const taskService = {
         if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
           notifyAssigneeIds.forEach((assigneeId) => {
             notificationService.addNotification({
+              orgId,
               userId: assigneeId,
               title: 'Velo Transmission',
               message: `${actorDisplayName} commented on "${t.title}"`,

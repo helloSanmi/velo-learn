@@ -56,7 +56,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
   };
 
   const toggleRule = (id: string) => {
-    workflowService.toggleRule(id);
+    workflowService.toggleRule(orgId, id);
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r)));
   };
 
@@ -68,7 +68,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ orgId }) => {
       danger: true
     });
     if (!confirmed) return;
-    workflowService.deleteRule(id);
+    workflowService.deleteRule(orgId, id);
     setRules((prev) => prev.filter((r) => r.id !== id));
   };
 

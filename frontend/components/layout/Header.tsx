@@ -28,18 +28,18 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onR
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(() => {
-    const alerts = notificationService.getNotifications(user.id);
+    const alerts = notificationService.getNotifications(user.orgId, user.id);
     setNotifications(alerts);
-  }, [user.id]);
+  }, [user.id, user.orgId]);
 
   useEffect(() => {
     fetchNotifications();
     const handleAlertUpdate = (e: any) => {
-      if (e.detail.userId === user.id) fetchNotifications();
+      if (e.detail.userId === user.id && e.detail.orgId === user.orgId) fetchNotifications();
     };
     window.addEventListener('notificationsUpdated', handleAlertUpdate);
     return () => window.removeEventListener('notificationsUpdated', handleAlertUpdate);
-  }, [user.id, fetchNotifications]);
+  }, [user.id, user.orgId, fetchNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -128,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onR
                     <p className="text-xs text-slate-500">{unreadCount} unread</p>
                   </div>
                   <button
-                    onClick={() => notificationService.markAllAsRead(user.id)}
+                    onClick={() => notificationService.markAllAsRead(user.orgId, user.id)}
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-[#76003f] hover:text-[#640035] disabled:opacity-40"
                     disabled={unreadCount === 0}
                   >
@@ -146,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNewTask, onReset, onR
                       <button
                         key={item.id}
                         onClick={() => {
-                          notificationService.markAsRead(item.id);
+                          notificationService.markAsRead(user.orgId, user.id, item.id);
                           if (item.linkId) onOpenTaskFromNotification(item.linkId);
                           setIsNotificationsOpen(false);
                         }}

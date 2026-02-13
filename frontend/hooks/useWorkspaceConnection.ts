@@ -89,6 +89,7 @@ export const useWorkspaceConnection = ({
       if (hoursToDue <= 24 && hoursToDue > 0 && !alerted[dueKey]) {
         alerted[dueKey] = '1';
         notificationService.addNotification({
+          orgId: user.orgId,
           userId: task.assigneeId || task.userId,
           title: 'Due soon',
           message: `"${task.title}" is due within 24 hours.`,
@@ -100,6 +101,7 @@ export const useWorkspaceConnection = ({
       if (hoursToDue <= 0 && !alerted[overdueKey]) {
         alerted[overdueKey] = '1';
         notificationService.addNotification({
+          orgId: user.orgId,
           userId: task.assigneeId || task.userId,
           title: 'Task overdue',
           message: `"${task.title}" is overdue.`,
@@ -112,6 +114,7 @@ export const useWorkspaceConnection = ({
         alerted[escalateKey] = '1';
         admins.forEach((adminId) => {
           notificationService.addNotification({
+            orgId: user.orgId,
             userId: adminId,
             title: 'SLA escalation',
             message: `High-priority task "${task.title}" is overdue by more than 24 hours.`,
@@ -133,6 +136,7 @@ export const useWorkspaceConnection = ({
           alerted[approvalKey] = '1';
           admins.forEach((adminId) => {
             notificationService.addNotification({
+              orgId: user.orgId,
               userId: adminId,
               title: 'Forecast approval needed',
               message: `"${task.title}" exceeds calibration threshold and requires completion approval.`,

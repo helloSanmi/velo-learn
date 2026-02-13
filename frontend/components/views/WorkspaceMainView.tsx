@@ -170,7 +170,7 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
         />
       );
     case 'analytics':
-      return withLazy(<AnalyticsView tasks={scopedTasks} projects={visibleProjects} allUsers={scopedUsers} />);
+      return withLazy(<AnalyticsView tasks={scopedTasks} projects={visibleProjects} allUsers={scopedUsers} orgId={user.orgId} />);
     case 'roadmap':
       return withLazy(<RoadmapView tasks={scopedTasks} projects={visibleProjects} />);
     case 'resources':

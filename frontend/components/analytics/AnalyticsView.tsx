@@ -9,11 +9,12 @@ interface AnalyticsViewProps {
   tasks: Task[];
   projects: Project[];
   allUsers: User[];
+  orgId: string;
 }
 
 type LoadFilter = 'All' | 'High' | 'Medium' | 'Low';
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, projects, allUsers }) => {
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, projects, allUsers, orgId }) => {
   const taskAssigneeIds = (task: Task): string[] => {
     if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
     return task.assigneeId ? [task.assigneeId] : [];
@@ -23,8 +24,6 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, projects, allUsers
   const [peopleQuery, setPeopleQuery] = useState('');
   const [loadFilter, setLoadFilter] = useState<LoadFilter>('All');
   const [activityUserFilter, setActivityUserFilter] = useState('All');
-  const orgId = allUsers[0]?.orgId || tasks[0]?.orgId || '';
-
   useEffect(() => {
     if (!orgId) return;
     estimationService.recomputeOrgProfiles(orgId, tasks);
