@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Cloud, Inbox, Mail, Monitor, Pencil, Shield, ShieldCheck, Smartphone, Sparkles, User } from 'lucide-react';
 import Button from '../ui/Button';
 import SettingsToggleRow from './SettingsToggleRow';
-import { UserSettings } from '../../services/settingsService';
+import { settingsService, UserSettings } from '../../services/settingsService';
 import { Organization, SecurityGroup, Team, User as UserType } from '../../types';
 import { dialogService } from '../../services/dialogService';
 
@@ -33,6 +33,8 @@ const SettingsCoreTabs: React.FC<SettingsCoreTabsProps> = ({
 }) => {
   const [securityRequireApprovalDraft, setSecurityRequireApprovalDraft] = useState(settings.estimationRequireApproval);
   const [securityThresholdDraft, setSecurityThresholdDraft] = useState(settings.estimationApprovalThreshold);
+  const [securityRequire2FADraft, setSecurityRequire2FADraft] = useState(settings.requireTwoFactorAuth);
+  const [securityRetentionDraft, setSecurityRetentionDraft] = useState(settings.dataRetentionPolicy);
   const [avatarDraft, setAvatarDraft] = useState(user.avatar || '');
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
@@ -41,7 +43,15 @@ const SettingsCoreTabs: React.FC<SettingsCoreTabsProps> = ({
     if (activeTab !== 'security') return;
     setSecurityRequireApprovalDraft(settings.estimationRequireApproval);
     setSecurityThresholdDraft(settings.estimationApprovalThreshold);
-  }, [activeTab, settings.estimationRequireApproval, settings.estimationApprovalThreshold]);
+    setSecurityRequire2FADraft(settings.requireTwoFactorAuth);
+    setSecurityRetentionDraft(settings.dataRetentionPolicy);
+  }, [
+    activeTab,
+    settings.estimationRequireApproval,
+    settings.estimationApprovalThreshold,
+    settings.requireTwoFactorAuth,
+    settings.dataRetentionPolicy
+  ]);
 
   useEffect(() => {
     if (activeTab !== 'profile') return;
@@ -210,101 +220,137 @@ const SettingsCoreTabs: React.FC<SettingsCoreTabsProps> = ({
   }
 
   if (activeTab === 'security') {
+    const canEditSecurity = user.role === 'admin';
     const hasSecurityChanges =
       securityRequireApprovalDraft !== settings.estimationRequireApproval ||
-      securityThresholdDraft !== settings.estimationApprovalThreshold;
+      securityThresholdDraft !== settings.estimationApprovalThreshold ||
+      securityRequire2FADraft !== settings.requireTwoFactorAuth ||
+      securityRetentionDraft !== settings.dataRetentionPolicy;
 
     return (
-      <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-slate-700" />
-                <p className="text-base font-semibold text-slate-900">Workspace Security</p>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Workspace ID: {org?.id?.slice(0, 8) || 'N/A'}...SEC</p>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                Data is isolated per workspace with role-scoped access controls.
-              </p>
+      <div className="space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-slate-700" />
+              <p className="text-sm font-semibold text-slate-900">Workspace Security</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
-                Session: Authenticated
-              </span>
-              <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 capitalize">
-                Role: {user.role || 'member'}
-              </span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Authenticated</span>
+              <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 capitalize">{user.role || 'member'}</span>
             </div>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">Workspace ID: {org?.id?.slice(0, 8) || 'N/A'}...SEC</p>
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => dialogService.notice('Security scan completed. No critical risks detected.', { title: 'Security check' })}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Run check
+            </Button>
           </div>
         </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full h-9"
-          onClick={() => dialogService.notice('Security scan completed. No critical risks detected.', { title: 'Security check' })}
-        >
-          <ShieldCheck className="w-4 h-4 mr-2" /> Run Security Check
-        </Button>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <div>
-              <p className="text-sm font-semibold text-slate-900">Security Policies</p>
-              <p className="text-xs text-slate-500 mt-0.5">Control approval behavior for high-risk forecast adjustments.</p>
+              <p className="text-xs font-semibold text-slate-900">Approval required for high forecast risk</p>
+              <p className="text-[11px] text-slate-500">Block high-risk completions until approval.</p>
             </div>
             <button
+              disabled={!canEditSecurity}
               onClick={() => setSecurityRequireApprovalDraft((prev) => !prev)}
-              className={`w-11 h-6 rounded-full p-1 transition-colors ${securityRequireApprovalDraft ? 'bg-slate-900' : 'bg-slate-300'}`}
+              className={`w-11 h-6 rounded-full p-1 transition-colors ${securityRequireApprovalDraft ? 'bg-slate-900' : 'bg-slate-300'} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${securityRequireApprovalDraft ? 'translate-x-5' : ''}`} />
             </button>
           </div>
-          <div>
-            <label className="text-xs text-slate-500">Approval threshold</label>
-            <input
-              type="number"
-              min={0}
-              max={2}
-              step={0.05}
-              value={securityThresholdDraft}
-              disabled={!securityRequireApprovalDraft}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                if (!Number.isFinite(value)) return;
-                const clamped = Math.max(0, Math.min(2, value));
-                setSecurityThresholdDraft(Number(clamped.toFixed(2)));
-              }}
-              className="mt-1 w-full h-9 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-            />
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-medium text-slate-500">Approval threshold</p>
+              <input
+                type="number"
+                min={0}
+                max={2}
+                step={0.05}
+                value={securityThresholdDraft}
+                disabled={!securityRequireApprovalDraft || !canEditSecurity}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (!Number.isFinite(value)) return;
+                  const clamped = Math.max(0, Math.min(2, value));
+                  setSecurityThresholdDraft(Number(clamped.toFixed(2)));
+                }}
+                className="mt-1 h-8 w-full rounded-md border border-slate-300 px-2 text-xs outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              />
+            </label>
+
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <div>
+                <p className="text-[11px] font-medium text-slate-900">Require Two-Factor Authentication (2FA)</p>
+                <p className="text-[11px] text-slate-500">Require for all users.</p>
+              </div>
+              <button
+                disabled={!canEditSecurity}
+                onClick={() => setSecurityRequire2FADraft((prev) => !prev)}
+                className={`w-11 h-6 rounded-full p-1 transition-colors ${securityRequire2FADraft ? 'bg-slate-900' : 'bg-slate-300'} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${securityRequire2FADraft ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-slate-500">
-            Value range: 0.00 to 2.00. Higher values require stricter approval.
-          </p>
+
+          <label className="block rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[11px] font-medium text-slate-500">Data retention</p>
+            <select
+              value={securityRetentionDraft}
+              disabled={!canEditSecurity}
+              onChange={(event) => setSecurityRetentionDraft(event.target.value as UserSettings['dataRetentionPolicy'])}
+              className="mt-1 h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-xs outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <option value="30_days">30 days</option>
+              <option value="90_days">90 days</option>
+              <option value="365_days">365 days</option>
+              <option value="indefinite">Indefinitely</option>
+            </select>
+          </label>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSecurityRequireApprovalDraft(true);
-              setSecurityThresholdDraft(1.35);
-            }}
-            disabled={!hasSecurityChanges}
-          >
-            Reset to default
-          </Button>
-          <Button
-            disabled={!hasSecurityChanges}
-            onClick={() => {
-              if (securityRequireApprovalDraft !== settings.estimationRequireApproval) onToggle('estimationRequireApproval');
-              if (securityThresholdDraft !== settings.estimationApprovalThreshold) onThresholdChange(securityThresholdDraft);
-              dialogService.notice('Security settings updated.', { title: 'Security' });
-            }}
-          >
-            Apply changes
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] text-slate-500">
+            {!canEditSecurity ? 'View only: only admins can change security policies.' : hasSecurityChanges ? 'Unsaved security changes.' : 'No pending changes.'}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSecurityRequireApprovalDraft(true);
+                setSecurityThresholdDraft(1.35);
+                setSecurityRequire2FADraft(false);
+                setSecurityRetentionDraft('90_days');
+              }}
+              disabled={!hasSecurityChanges || !canEditSecurity}
+            >
+              Reset to default
+            </Button>
+            <Button
+              disabled={!hasSecurityChanges || !canEditSecurity}
+              onClick={() => {
+                if (securityRequireApprovalDraft !== settings.estimationRequireApproval) onToggle('estimationRequireApproval');
+                if (securityThresholdDraft !== settings.estimationApprovalThreshold) onThresholdChange(securityThresholdDraft);
+                if (securityRequire2FADraft !== settings.requireTwoFactorAuth) onToggle('requireTwoFactorAuth');
+                if (securityRetentionDraft !== settings.dataRetentionPolicy) {
+                  settingsService.updateSettings({ dataRetentionPolicy: securityRetentionDraft });
+                }
+                dialogService.notice('Security settings updated.', { title: 'Security' });
+              }}
+            >
+              Apply changes
+            </Button>
+          </div>
         </div>
       </div>
     );

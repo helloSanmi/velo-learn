@@ -11,6 +11,8 @@ export interface UserSettings {
   showPersonalCalibration: boolean;
   estimationRequireApproval: boolean;
   estimationApprovalThreshold: number;
+  requireTwoFactorAuth: boolean;
+  dataRetentionPolicy: '30_days' | '90_days' | '365_days' | 'indefinite';
 }
 
 const SETTINGS_KEY = 'velo_settings';
@@ -25,7 +27,9 @@ const DEFAULT_SETTINGS: UserSettings = {
   enableEstimateCalibration: true,
   showPersonalCalibration: true,
   estimationRequireApproval: true,
-  estimationApprovalThreshold: 1.35
+  estimationApprovalThreshold: 1.35,
+  requireTwoFactorAuth: false,
+  dataRetentionPolicy: '90_days'
 };
 
 export const settingsService = {
