@@ -23,8 +23,19 @@ export const normalizeTaskForRead = (task: Task): Task =>
     auditLog: task.auditLog || [],
     subtasks: task.subtasks || [],
     tags: task.tags || [],
+    securityGroupIds: Array.isArray(task.securityGroupIds) ? Array.from(new Set(task.securityGroupIds.filter(Boolean))) : [],
     timeLogged: task.timeLogged || 0,
-    blockedByIds: task.blockedByIds || []
+    blockedByIds: task.blockedByIds || [],
+    estimateMinutes:
+      typeof task.estimateMinutes === 'number' && Number.isFinite(task.estimateMinutes) && task.estimateMinutes > 0
+        ? Math.round(task.estimateMinutes)
+        : undefined,
+    estimateProvidedBy: task.estimateProvidedBy || task.userId,
+    estimateProvidedAt: task.estimateProvidedAt || task.createdAt || Date.now(),
+    actualMinutes:
+      typeof task.actualMinutes === 'number' && Number.isFinite(task.actualMinutes) && task.actualMinutes > 0
+        ? Math.round(task.actualMinutes)
+        : undefined
   });
 
 export const readStoredTasks = (): Task[] => {

@@ -9,6 +9,7 @@ import { taskService } from '../services/taskService';
 import { toastService } from '../services/toastService';
 import { userService } from '../services/userService';
 import { presenceService } from '../services/presenceService';
+import { estimationService } from '../services/estimationService';
 
 interface UseWorkspaceConnectionOptions {
   user: User | null;
@@ -119,6 +120,28 @@ export const useWorkspaceConnection = ({
           });
         });
       }
+
+      if (settings.enableEstimateCalibration && task.estimateMinutes && !task.estimateRiskApprovedAt) {
+        const estimatorId = task.estimateProvidedBy || task.userId;
+        const preview = estimationService.getAdjustmentPreview(user.orgId, estimatorId, task.estimateMinutes, {
+          projectId: task.projectId,
+          status: task.status,
+          tags: task.tags
+        });
+        const approvalKey = `${task.id}:estimate_approval`;
+        if (preview.requiresApproval && !alerted[approvalKey]) {
+          alerted[approvalKey] = '1';
+          admins.forEach((adminId) => {
+            notificationService.addNotification({
+              userId: adminId,
+              title: 'Forecast approval needed',
+              message: `"${task.title}" exceeds calibration threshold and requires completion approval.`,
+              type: 'SYSTEM',
+              linkId: task.id
+            });
+          });
+        }
+      }
     });
 
     localStorage.setItem(key, JSON.stringify(alerted));
@@ -160,6 +183,11 @@ export const useWorkspaceConnection = ({
 
       if (event.type === 'USERS_UPDATED') {
         setAllUsers(userService.getUsers(user.orgId));
+        return;
+      }
+
+      if (event.type === 'GROUPS_UPDATED') {
+        setSelectedTask((prev) => (prev ? { ...prev } : prev));
         return;
       }
 

@@ -10,6 +10,7 @@ import { useKanbanStageManager } from './hooks/useKanbanStageManager';
 import { useKanbanTriage } from './hooks/useKanbanTriage';
 import { projectChatService } from '../../services/projectChatService';
 import { realtimeService } from '../../services/realtimeService';
+import { estimationService } from '../../services/estimationService';
 
 interface KanbanViewProps {
   searchQuery: string;
@@ -155,6 +156,23 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   });
 
   const totals = useMemo(() => computeKanbanTotals(categorizedTasks, projectStages), [categorizedTasks, projectStages]);
+  const forecastSummary = useMemo(() => {
+    const tasks = Object.values(categorizedTasks).flat();
+    const estimatedMinutes = tasks.reduce((sum, task) => sum + (task.estimateMinutes || 0), 0);
+    const adjustedMinutes = tasks.reduce((sum, task) => {
+      if (!task.estimateMinutes || task.estimateMinutes <= 0) return sum;
+      const estimatorId = task.estimateProvidedBy || task.userId;
+      const preview = estimationService.getAdjustmentPreview(currentUser.orgId, estimatorId, task.estimateMinutes, {
+        projectId: task.projectId,
+        status: task.status,
+        tags: task.tags
+      });
+      return sum + preview.adjustedMinutes;
+    }, 0);
+    const factor = estimatedMinutes > 0 ? adjustedMinutes / estimatedMinutes : 1;
+    const riskLabel = factor >= 1.3 ? 'At risk' : factor >= 1.1 ? 'Tight' : 'On-track';
+    return { estimatedMinutes, adjustedMinutes, riskLabel } as const;
+  }, [categorizedTasks, currentUser.orgId]);
   const { isTriaging, handleOptimizeOrder } = useKanbanTriage({
     activeProject,
     projectStages,
@@ -191,6 +209,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
         activeProject={activeProject}
         currentUserId={currentUser.id}
         totals={totals}
+        forecastSummary={forecastSummary}
         savedViews={savedViews}
         projectStages={projectStages}
         isTriaging={isTriaging}

@@ -5,6 +5,7 @@ import { User } from '../../../types';
 interface KanbanHeaderTitleProps {
   projectName: string;
   totals: { total: number; todo: number; inProgress: number; done: number };
+  forecastSummary?: { estimatedMinutes: number; adjustedMinutes: number; riskLabel: 'On-track' | 'Tight' | 'At risk' };
   ownerId?: string;
   currentUserId: string;
   allUsers: User[];
@@ -16,6 +17,7 @@ interface KanbanHeaderTitleProps {
 const KanbanHeaderTitle: React.FC<KanbanHeaderTitleProps> = ({
   projectName,
   totals,
+  forecastSummary,
   ownerId,
   currentUserId,
   allUsers,
@@ -33,6 +35,11 @@ const KanbanHeaderTitle: React.FC<KanbanHeaderTitleProps> = ({
         {totals.total} tasks • {totals.todo} to do • {totals.inProgress} in progress • {totals.done} done
         {showOwner ? ` • Owner: ${ownerLabel}` : ''}
       </p>
+      {forecastSummary && forecastSummary.estimatedMinutes > 0 ? (
+        <p className="text-[11px] text-slate-500 mt-0.5">
+          Forecast: {Math.round(forecastSummary.estimatedMinutes / 60)}h planned • {Math.round(forecastSummary.adjustedMinutes / 60)}h risk-adjusted • {forecastSummary.riskLabel}
+        </p>
+      ) : null}
       {showOwner ? (
         <button
           onClick={onOpenOwnerChat}

@@ -2,14 +2,12 @@ import React from 'react';
 import { Clock, Loader2, Pause, Play, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Task, TaskPriority, User } from '../../types';
 import Button from '../ui/Button';
-import AssigneePicker from '../ui/AssigneePicker';
+import { estimationService } from '../../services/estimationService';
 
 interface TaskDetailGeneralTabProps {
   task: Task;
   aiEnabled: boolean;
   allUsers: User[];
-  assigneeIds: string[];
-  setAssigneeIds: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>) => void;
   onAddComment: (id: string, text: string) => void;
   currentUser?: User;
@@ -37,8 +35,6 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
   task,
   aiEnabled,
   allUsers,
-  assigneeIds,
-  setAssigneeIds,
   onUpdate,
   onAddComment,
   currentUser,
@@ -61,6 +57,16 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
   canManageTask,
   canTrackTime
 }) => {
+  const estimateMinutes = task.estimateMinutes || 0;
+  const estimationPreview =
+    estimateMinutes > 0
+      ? estimationService.getAdjustmentPreview(task.orgId, task.estimateProvidedBy || task.userId, estimateMinutes, {
+        projectId: task.projectId,
+        status: task.status,
+        tags: task.tags
+      })
+      : null;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {task.movedBackAt && task.movedBackReason ? (
@@ -105,24 +111,65 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
         </div>
       ) : null}
       <div className={`grid grid-cols-1 ${aiEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3`}>
-        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col min-h-[220px] overflow-visible">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assignees</h4>
-            <span className="text-[10px] font-semibold text-slate-500">{assigneeIds.length} selected</span>
-          </div>
-          <div className="flex-1 min-h-0 overflow-visible">
-            <AssigneePicker
-              users={allUsers}
-              selectedIds={assigneeIds}
-              onChange={(nextIds) => {
-                setAssigneeIds(nextIds);
-                onUpdate(task.id, { assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
-              }}
-              disabled={!canManageTask}
-              compact
-              dropdownUnassignedOnly
-              showInitialsChips
-            />
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col min-h-[220px]">
+          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Forecast</h4>
+          <div className="flex-1 min-h-0 flex flex-col gap-2.5">
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Planned effort</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 leading-none">
+                {estimateMinutes > 0 ? `${Math.max(0.25, estimateMinutes / 60).toFixed(2)}h` : 'Not set'}
+              </p>
+              {canManageTask ? (
+                <input
+                  type="number"
+                  min={0}
+                  step={0.25}
+                  value={estimateMinutes > 0 ? (estimateMinutes / 60).toString() : ''}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (!Number.isFinite(value) || value <= 0) {
+                      onUpdate(task.id, { estimateMinutes: undefined, estimateProvidedBy: currentUser?.id, estimateProvidedAt: Date.now() });
+                      return;
+                    }
+                    onUpdate(task.id, {
+                      estimateMinutes: Math.round(value * 60),
+                      estimateProvidedBy: currentUser?.id,
+                      estimateProvidedAt: Date.now()
+                    });
+                  }}
+                  className="mt-2 h-8 w-full rounded-md border border-slate-300 px-2 text-xs outline-none focus:ring-2 focus:ring-slate-300"
+                  placeholder="Set planned hours"
+                />
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Risk-adjusted plan</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                {estimationPreview ? `${Math.max(0.25, estimationPreview.adjustedMinutes / 60).toFixed(2)}h` : 'Set estimate first'}
+              </p>
+              {estimationPreview ? (
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {estimationPreview.explanation}
+                </p>
+              ) : null}
+            </div>
+            {estimationPreview?.requiresApproval ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800">
+                Completion requires Project Owner/Admin approval.
+              </div>
+            ) : null}
+            {canManageTask && estimationPreview?.requiresApproval && !task.estimateRiskApprovedAt ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs self-start"
+                onClick={() =>
+                  onUpdate(task.id, { estimateRiskApprovedAt: Date.now(), estimateRiskApprovedBy: currentUser?.displayName || 'Admin' })
+                }
+              >
+                Approve risk-adjusted completion
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -132,12 +179,15 @@ const TaskDetailGeneralTab: React.FC<TaskDetailGeneralTabProps> = ({
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
               <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="text-lg font-bold text-slate-900 leading-none">{formatTrackedTime(totalTrackedMs)}</p>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${
+                <p className="text-lg font-bold text-slate-900 leading-none whitespace-nowrap">{formatTrackedTime(totalTrackedMs)}</p>
+                <span
+                  className={`inline-flex items-center justify-center rounded-full p-1.5 ${
                   task.isTimerRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                }`}>
+                  }`}
+                  title={task.isTimerRunning ? 'Timer running' : 'Timer stopped'}
+                  aria-label={task.isTimerRunning ? 'Timer running' : 'Timer stopped'}
+                >
                   <Clock className="w-3 h-3" />
-                  {task.isTimerRunning ? 'Running' : 'Stopped'}
                 </span>
               </div>
             </div>

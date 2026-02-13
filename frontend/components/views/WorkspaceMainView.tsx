@@ -1,13 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { MainViewType, Project, ProjectStage, ProjectTemplate, Task, TaskPriority, User } from '../../types';
 import KanbanView from '../board/KanbanView';
-import AnalyticsView from '../analytics/AnalyticsView';
-import RoadmapView from '../RoadmapView';
-import WorkloadView from '../WorkloadView';
-import IntegrationHub from '../IntegrationHub';
-import WorkflowBuilder from '../WorkflowBuilder';
-import ProjectsLifecycleView from '../ProjectsLifecycleView';
-import TemplatesView from '../templates/TemplatesView';
+
+const AnalyticsView = lazy(() => import('../analytics/AnalyticsView'));
+const RoadmapView = lazy(() => import('../RoadmapView'));
+const WorkloadView = lazy(() => import('../WorkloadView'));
+const IntegrationHub = lazy(() => import('../IntegrationHub'));
+const WorkflowBuilder = lazy(() => import('../WorkflowBuilder'));
+const ProjectsLifecycleView = lazy(() => import('../ProjectsLifecycleView'));
+const TemplatesView = lazy(() => import('../templates/TemplatesView'));
 
 interface WorkspaceMainViewProps {
   currentView: MainViewType;
@@ -126,6 +127,10 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
   canManageTask,
   canToggleTaskTimer
 }) => {
+  const withLazy = (node: React.ReactNode) => (
+    <Suspense fallback={<div className="flex-1 p-6 text-sm text-slate-500">Loading view...</div>}>{node}</Suspense>
+  );
+
   const visibleProjectIds = useMemo(() => new Set(visibleProjects.map((project) => project.id)), [visibleProjects]);
   const scopedTasks = useMemo(
     () => tasks.filter((task) => task.projectId === 'general' || visibleProjectIds.has(task.projectId)),
@@ -147,7 +152,7 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
 
   switch (currentView) {
     case 'projects':
-      return (
+      return withLazy(
         <ProjectsLifecycleView
           currentUserRole={user.role}
           currentUserId={user.id}
@@ -165,11 +170,11 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
         />
       );
     case 'analytics':
-      return <AnalyticsView tasks={scopedTasks} projects={visibleProjects} allUsers={scopedUsers} />;
+      return withLazy(<AnalyticsView tasks={scopedTasks} projects={visibleProjects} allUsers={scopedUsers} />);
     case 'roadmap':
-      return <RoadmapView tasks={scopedTasks} projects={visibleProjects} />;
+      return withLazy(<RoadmapView tasks={scopedTasks} projects={visibleProjects} />);
     case 'resources':
-      return (
+      return withLazy(
         <WorkloadView
           users={scopedUsers}
           tasks={scopedTasks}
@@ -177,9 +182,9 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
         />
       );
     case 'integrations':
-      return <IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />;
+      return withLazy(<IntegrationHub projects={projects} onUpdateProject={handleUpdateProject} />);
     case 'workflows':
-      return (
+      return withLazy(
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 custom-scrollbar">
           <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 md:p-6 border border-slate-200">
             <WorkflowBuilder orgId={user.orgId} allUsers={allUsers} />
@@ -187,7 +192,7 @@ const WorkspaceMainView: React.FC<WorkspaceMainViewProps> = ({
         </div>
       );
     case 'templates':
-      return (
+      return withLazy(
         <TemplatesView
           templateQuery={templateQuery}
           setTemplateQuery={setTemplateQuery}

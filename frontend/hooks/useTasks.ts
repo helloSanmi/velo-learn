@@ -66,11 +66,27 @@ export const useTasks = (user: User | null, activeProjectId?: string) => {
     tags: string[] = [],
     dueDate?: number,
     projectId: string = 'p1',
-    assigneeIds: string[] = []
+    assigneeIds: string[] = [],
+    securityGroupIds: string[] = [],
+    estimateMinutes?: number,
+    estimateProvidedBy?: string
   ) => {
     if (!user) return;
     historyManager.push(tasks);
-    taskService.createTask(user.id, user.orgId, projectId, title, description, priority, tags, dueDate, assigneeIds);
+    taskService.createTask(
+      user.id,
+      user.orgId,
+      projectId,
+      title,
+      description,
+      priority,
+      tags,
+      dueDate,
+      assigneeIds,
+      securityGroupIds,
+      estimateMinutes,
+      estimateProvidedBy
+    );
     refreshTasks();
   };
 

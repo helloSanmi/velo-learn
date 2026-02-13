@@ -5,6 +5,7 @@ import Badge from './ui/Badge';
 import { projectService } from '../services/projectService';
 import { settingsService } from '../services/settingsService';
 import { userService } from '../services/userService';
+import { estimationService } from '../services/estimationService';
 
 interface TaskItemProps {
   task: Task;
@@ -103,6 +104,17 @@ const TaskItem: React.FC<TaskItemProps> = ({
     () => assignees.map((assignee: any) => assignee.displayName || assignee.username || 'Unknown').join(', '),
     [assignees]
   );
+  const adjustedEstimateLabel = useMemo(() => {
+    if (!task.estimateMinutes || task.estimateMinutes <= 0) return '';
+    const estimator = task.estimateProvidedBy || task.userId;
+    const preview = estimationService.getAdjustmentPreview(task.orgId, estimator, task.estimateMinutes, {
+      projectId: task.projectId,
+      status: task.status,
+      tags: task.tags
+    });
+    const hours = Math.max(0.25, preview.adjustedMinutes / 60);
+    return `Adj ${hours.toFixed(hours >= 10 ? 1 : 2)}h`;
+  }, [task]);
 
   return (
     <article
@@ -196,6 +208,11 @@ const TaskItem: React.FC<TaskItemProps> = ({
               <Clock className="w-3 h-3" /> {formattedTime}
             </span>
           )}
+          {adjustedEstimateLabel ? (
+            <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200">
+              {adjustedEstimateLabel}
+            </span>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-1.5">

@@ -1,7 +1,8 @@
-import React from 'react';
-import { Check, Edit2, Loader2, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { MailPlus, Search, ShieldCheck, UserPlus, Users, X } from 'lucide-react';
 import Button from '../ui/Button';
-import { Organization, User as UserType } from '../../types';
+import { OrgInvite, Organization, User as UserType } from '../../types';
+import { dialogService } from '../../services/dialogService';
 
 interface SettingsAdminTabProps {
   user: UserType;
@@ -11,17 +12,37 @@ interface SettingsAdminTabProps {
   setIsProvisioning: (value: boolean) => void;
   newUserName: string;
   setNewUserName: (value: string) => void;
+  newUserFirstName: string;
+  setNewUserFirstName: (value: string) => void;
+  newUserLastName: string;
+  setNewUserLastName: (value: string) => void;
+  newUserEmail: string;
+  setNewUserEmail: (value: string) => void;
+  newUserRole: 'member' | 'admin';
+  setNewUserRole: (value: 'member' | 'admin') => void;
   provisionError: string;
   handleProvision: (e: React.FormEvent) => void;
-  isUpgrading: boolean;
-  handleUpgradeTier: (tier: 'starter' | 'pro' | 'enterprise') => void;
+  seatPurchaseCount: number;
+  setSeatPurchaseCount: (value: number) => void;
+  handleBuyMoreSeats: () => void;
   editingUserId: string | null;
-  editNameValue: string;
-  setEditNameValue: (value: string) => void;
+  editFirstNameValue: string;
+  setEditFirstNameValue: (value: string) => void;
+  editLastNameValue: string;
+  setEditLastNameValue: (value: string) => void;
+  editEmailValue: string;
+  setEditEmailValue: (value: string) => void;
   handleCommitEdit: () => void;
   handleStartEdit: (targetUser: UserType) => void;
   handleUpdateUserRole: (userId: string, role: 'admin' | 'member') => void;
   handlePurgeUser: (userId: string) => void;
+  invites: OrgInvite[];
+  newInviteIdentifier: string;
+  setNewInviteIdentifier: (value: string) => void;
+  newInviteRole: 'member' | 'admin';
+  setNewInviteRole: (value: 'member' | 'admin') => void;
+  handleCreateInvite: () => void;
+  handleRevokeInvite: (inviteId: string) => void;
 }
 
 const SettingsAdminTab: React.FC<SettingsAdminTabProps> = ({
@@ -32,165 +53,403 @@ const SettingsAdminTab: React.FC<SettingsAdminTabProps> = ({
   setIsProvisioning,
   newUserName,
   setNewUserName,
+  newUserFirstName,
+  setNewUserFirstName,
+  newUserLastName,
+  setNewUserLastName,
+  newUserEmail,
+  setNewUserEmail,
+  newUserRole,
+  setNewUserRole,
   provisionError,
   handleProvision,
-  isUpgrading,
-  handleUpgradeTier,
+  seatPurchaseCount,
+  setSeatPurchaseCount,
+  handleBuyMoreSeats,
   editingUserId,
-  editNameValue,
-  setEditNameValue,
+  editFirstNameValue,
+  setEditFirstNameValue,
+  editLastNameValue,
+  setEditLastNameValue,
+  editEmailValue,
+  setEditEmailValue,
   handleCommitEdit,
   handleStartEdit,
   handleUpdateUserRole,
-  handlePurgeUser
+  handlePurgeUser,
+  invites,
+  newInviteIdentifier,
+  setNewInviteIdentifier,
+  newInviteRole,
+  setNewInviteRole,
+  handleCreateInvite,
+  handleRevokeInvite
 }) => {
-  const seatUsage = (allUsers.length / (org?.totalSeats || 1)) * 100;
+  const [userSearch, setUserSearch] = useState('');
+  const seatLimit = Math.max(1, org?.totalSeats || 1);
+  const usedSeats = allUsers.length;
+  const planLabel = (org?.plan || 'basic').toUpperCase();
+  const canShowUpgrade = (org?.plan || 'basic') !== 'pro';
+  const seatLabel = org?.seatPrice ? `$${org.seatPrice} per seat / month` : 'Free plan';
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return allUsers;
+    return allUsers.filter((member) =>
+      `${member.firstName || ''} ${member.lastName || ''} ${member.displayName} ${member.email || ''} ${member.username}`.toLowerCase().includes(q)
+    );
+  }, [allUsers, userSearch]);
+
+  const activeInvites = useMemo(
+    () => invites.filter((invite) => !invite.revoked && invite.expiresAt > Date.now() && (invite.maxUses || 1) > invite.usedCount),
+    [invites]
+  );
+
+  const getNameParts = (member: UserType) => {
+    const displayParts = (member.displayName || '').trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: member.firstName || displayParts[0] || '-',
+      lastName: member.lastName || displayParts.slice(1).join(' ') || '-'
+    };
+  };
+
+  const handleOpenProvisionPanel = () => setIsProvisioning(true);
+
+  const handleCloseProvisionPanel = () => {
+    setIsProvisioning(false);
+    setNewUserName('');
+    setNewUserFirstName('');
+    setNewUserLastName('');
+    setNewUserEmail('');
+    setNewUserRole('member');
+  };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Team</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            {org?.name || 'Workspace'} • ID {org?.id?.slice(0, 8) || 'N/A'} • Created {new Date(org?.createdAt || 0).toLocaleDateString()}
-          </p>
-        </div>
-        <span className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-600 inline-flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5" /> Admin
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl border border-slate-200 bg-white">
-          <p className="text-[11px] text-slate-500">Members</p>
-          <p className="text-lg font-semibold text-slate-900 mt-1">{allUsers.length}</p>
-        </div>
-        <div className="p-4 rounded-xl border border-slate-200 bg-white">
-          <p className="text-[11px] text-slate-500">Seat limit</p>
-          <p className="text-lg font-semibold text-slate-900 mt-1">{org?.totalSeats || 0}</p>
-        </div>
-        <div className="p-4 rounded-xl border border-slate-200 bg-white">
-          <p className="text-[11px] text-slate-500">Usage</p>
-          <p className="text-lg font-semibold text-slate-900 mt-1">{Math.round(seatUsage)}%</p>
-        </div>
-      </div>
-
-      <div className="p-4 rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">Seat usage</p>
-          <p className="text-xs text-slate-500">
-            {allUsers.length} / {org?.totalSeats || 0}
-          </p>
-        </div>
-        <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-          <div style={{ width: `${Math.min(seatUsage, 100)}%` }} className="h-full bg-slate-900 transition-all duration-500" />
-        </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {[
-            { id: 'starter', name: 'Starter', seats: 3 },
-            { id: 'pro', name: 'Pro', seats: 15 },
-            { id: 'enterprise', name: 'Enterprise', seats: 100 }
-          ].map((tier) => (
-            <button
-              key={tier.id}
-              onClick={() => handleUpgradeTier(tier.id as 'starter' | 'pro' | 'enterprise')}
-              disabled={isUpgrading}
-              className={`h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
-                org?.totalSeats === tier.seats ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {tier.name} ({tier.seats})
-            </button>
-          ))}
-        </div>
-        {isUpgrading && (
-          <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating plan...
+    <div className="relative space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold tracking-tight text-slate-900">Licenses</h3>
+            <p className="mt-0.5 text-xs text-slate-500">Licensed users for {org?.name || 'this workspace'}.</p>
           </div>
-        )}
-      </div>
 
-      <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">Members</p>
-          <Button size="sm" variant="outline" onClick={() => setIsProvisioning(!isProvisioning)} className="h-8 rounded-lg border-slate-200">
-            <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Add member
+          <div className="text-right">
+            <div className="inline-flex items-center gap-2">
+              <p className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-900">
+                <ShieldCheck className="h-4 w-4" /> {planLabel}
+              </p>
+              {canShowUpgrade ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => dialogService.notice('Contact sales to upgrade plan and increase default license capacity.', { title: 'Upgrade plan' })}
+                >
+                  Upgrade
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+          <p className="text-xs text-slate-700">
+            <span className="font-semibold text-slate-900">{usedSeats}</span> / <span className="font-semibold text-slate-900">{seatLimit}</span> seats used
+          </p>
+          <span className="inline-flex h-7.5 items-center rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600">{seatLabel}</span>
+          <input
+            type="number"
+            min={1}
+            value={seatPurchaseCount}
+            onChange={(event) => setSeatPurchaseCount(Math.max(1, Number(event.target.value) || 1))}
+            className="h-7.5 w-20 rounded-md border border-slate-300 bg-white px-2 text-xs outline-none"
+          />
+          <Button size="sm" onClick={handleBuyMoreSeats}>Buy seats</Button>
+          <Button size="sm" variant="outline" onClick={handleOpenProvisionPanel}>
+            <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add user
           </Button>
         </div>
+      </div>
 
-        {isProvisioning && (
-          <div className="p-3 border border-slate-200 rounded-lg bg-slate-50">
-            <form onSubmit={handleProvision} className="flex flex-col sm:flex-row gap-2">
+      <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold tracking-tight text-slate-900">Licensed users</p>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <label className="relative w-full sm:w-[280px]">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
-                autoFocus
-                placeholder="Username"
-                value={newUserName}
-                onChange={(event) => setNewUserName(event.target.value)}
-                className="flex-1 h-9 rounded-lg border border-slate-300 px-3 text-sm outline-none"
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+                placeholder="Search first/last/email/username"
+                className="h-8 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-2.5 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-400"
               />
-              <Button type="submit" size="sm" className="h-9">
-                Add
-              </Button>
-            </form>
-            {provisionError && <p className="text-xs text-rose-600 mt-2">{provisionError}</p>}
+            </label>
+            <Button size="sm" variant="outline" onClick={handleOpenProvisionPanel}>
+              <Users className="mr-1.5 h-3.5 w-3.5" /> Add user
+            </Button>
           </div>
-        )}
+        </div>
 
-        <div className="space-y-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
-          {allUsers.map((member) => (
-            <div key={member.id} className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-lg bg-white">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
-                  <img src={member.avatar} className="w-full h-full object-cover" alt={member.displayName} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  {editingUserId === member.id ? (
-                    <div className="flex items-center gap-2 max-w-xs">
-                      <input
-                        autoFocus
-                        value={editNameValue}
-                        onChange={(event) => setEditNameValue(event.target.value)}
-                        onKeyDown={(event) => event.key === 'Enter' && handleCommitEdit()}
-                        className="h-8 w-full px-3 bg-white border border-slate-300 rounded-lg text-sm outline-none"
-                      />
-                      <button onClick={handleCommitEdit} className="w-8 h-8 bg-slate-900 text-white rounded-lg inline-flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5">
-                      {member.displayName} {member.id === user.id ? '(You)' : ''}
-                      <button onClick={() => handleStartEdit(member)} className="p-1 text-slate-300 hover:text-slate-700 transition-colors">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </p>
-                  )}
-                  <p className="text-[11px] text-slate-500 truncate">{member.email}</p>
-                </div>
+        <div className="overflow-auto rounded-md border border-slate-200">
+          <table className="w-full min-w-[760px] text-left text-xs">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-2 py-1.5">Licensed</th>
+                <th className="px-2 py-1.5">User</th>
+                <th className="px-2 py-1.5">Role</th>
+                <th className="px-2 py-1.5">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((member) => {
+                const { firstName, lastName } = getNameParts(member);
+                const isEditing = editingUserId === member.id;
+                return (
+                  <tr key={member.id} className="border-t border-slate-200 align-top">
+                    <td className="px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Yes</span>
+                        <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">Active</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {isEditing ? (
+                        <div className="grid gap-1.5 sm:grid-cols-3">
+                          <input
+                            autoFocus
+                            value={editFirstNameValue}
+                            onChange={(event) => setEditFirstNameValue(event.target.value)}
+                            placeholder="First"
+                            className="h-7 w-full rounded-md border border-slate-300 px-2 text-xs outline-none"
+                          />
+                          <input
+                            value={editLastNameValue}
+                            onChange={(event) => setEditLastNameValue(event.target.value)}
+                            placeholder="Last"
+                            className="h-7 w-full rounded-md border border-slate-300 px-2 text-xs outline-none"
+                          />
+                          <input
+                            value={editEmailValue}
+                            onChange={(event) => setEditEmailValue(event.target.value)}
+                            placeholder="Email"
+                            onKeyDown={(event) => event.key === 'Enter' && handleCommitEdit()}
+                            className="h-7 w-full rounded-md border border-slate-300 px-2 text-xs outline-none"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-medium text-slate-900">{firstName} {lastName}{member.id === user.id ? ' (You)' : ''}</p>
+                          <p className="text-[11px] text-slate-500">{member.email || '-'}</p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        value={member.role || 'member'}
+                        onChange={(event) => handleUpdateUserRole(member.id, event.target.value as 'admin' | 'member')}
+                        disabled={member.id === user.id}
+                        className="h-7 rounded-md border border-slate-300 bg-white px-2 text-xs outline-none disabled:opacity-40"
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        {member.id === user.id ? (
+                          <span className="text-[11px] text-slate-400">Current user</span>
+                        ) : (
+                          <>
+                            {!isEditing ? (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(member)}
+                                className="inline-flex h-7 items-center rounded-md border border-slate-300 bg-white px-2.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                              >
+                                Edit
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleCommitEdit}
+                                className="inline-flex h-7 items-center rounded-md border border-slate-800 bg-slate-800 px-2.5 text-[11px] font-medium text-white hover:bg-slate-900"
+                              >
+                                Save
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handlePurgeUser(member.id)}
+                              className="inline-flex h-7 items-center rounded-md border border-rose-200 bg-white px-2.5 text-[11px] font-medium text-rose-700 hover:bg-rose-50"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+        <div className="flex items-center gap-1.5">
+          <MailPlus className="h-3.5 w-3.5 text-slate-500" />
+          <p className="text-sm font-semibold tracking-tight text-slate-900">Invite others</p>
+        </div>
+        <p className="mt-0.5 text-[11px] text-slate-500">Create single-use tokens to join this workspace.</p>
+
+        <div className="mt-2 grid gap-1.5 md:grid-cols-[1fr_140px_auto]">
+          <input
+            placeholder="Emails (comma-separated)"
+            value={newInviteIdentifier}
+            onChange={(event) => setNewInviteIdentifier(event.target.value)}
+            className="h-7.5 rounded-md border border-slate-300 px-2 text-xs outline-none"
+          />
+          <select
+            value={newInviteRole}
+            onChange={(event) => setNewInviteRole(event.target.value as 'member' | 'admin')}
+            className="h-7.5 rounded-md border border-slate-300 bg-white px-2 text-xs outline-none"
+          >
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <Button size="sm" onClick={handleCreateInvite}>Create invite</Button>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-xs font-semibold tracking-tight text-slate-900">Pending invites</p>
+          <p className="text-[11px] text-slate-500">{activeInvites.length}</p>
+        </div>
+        <div className="mt-1 max-h-28 overflow-auto rounded-md border border-slate-200">
+          <table className="w-full min-w-[700px] text-left text-sm">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-2 py-1.5">Identifier</th>
+                <th className="px-2 py-1.5">Role</th>
+                <th className="px-2 py-1.5">Expiry Date</th>
+                <th className="px-2 py-1.5">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeInvites.length === 0 ? (
+                <tr>
+                  <td className="px-2 py-2 text-xs text-slate-500" colSpan={4}>No pending invites.</td>
+                </tr>
+              ) : activeInvites.map((invite) => (
+                <tr key={invite.id} className="border-t border-slate-200">
+                  <td className="px-2 py-1.5 text-xs">{invite.invitedIdentifier || invite.token}</td>
+                  <td className="px-2 py-1.5 text-xs capitalize">{invite.role}</td>
+                  <td className="px-2 py-1.5 text-xs">{new Date(invite.expiresAt).toLocaleDateString()}</td>
+                  <td className="px-2 py-1.5">
+                    <Button size="sm" variant="outline" onClick={() => handleRevokeInvite(invite.id)}>Cancel</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {isProvisioning ? (
+        <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/10 backdrop-blur-[1px]">
+          <aside className="ml-auto flex h-full w-full max-w-md flex-col rounded-l-xl border-l border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Add user</p>
+                <p className="text-xs text-slate-500">Create a licensed user in this workspace.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCloseProvisionPanel}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProvision} className="flex-1 space-y-4 overflow-y-auto p-4">
+              <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Details</p>
+                <p className="mt-1 text-xs text-slate-500">Set identity, access level, and license source.</p>
+              </section>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">First name</span>
+                <input
+                  autoFocus
+                  placeholder="e.g. John"
+                  value={newUserFirstName}
+                  onChange={(event) => setNewUserFirstName(event.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Last name</span>
+                <input
+                  placeholder="e.g. Doe"
+                  value={newUserLastName}
+                  onChange={(event) => setNewUserLastName(event.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Username</span>
+                <input
+                  placeholder="e.g. john"
+                  value={newUserName}
+                  onChange={(event) => setNewUserName(event.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Email</span>
+                <input
+                  type="email"
+                  placeholder="e.g. john@company.com"
+                  value={newUserEmail}
+                  onChange={(event) => setNewUserEmail(event.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Role</span>
                 <select
-                  value={member.role || 'member'}
-                  onChange={(event) => handleUpdateUserRole(member.id, event.target.value as 'admin' | 'member')}
-                  disabled={member.id === user.id}
-                  className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs outline-none cursor-pointer disabled:opacity-40"
+                  value={newUserRole}
+                  onChange={(event) => setNewUserRole(event.target.value as 'member' | 'admin')}
+                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-400"
                 >
                   <option value="member">Member</option>
                   <option value="admin">Admin</option>
                 </select>
-                <button
-                  onClick={() => handlePurgeUser(member.id)}
-                  disabled={member.id === user.id}
-                  className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-20"
-                  title="Remove user"
-                >
-                  <Trash2 className="w-4 h-4 mx-auto" />
-                </button>
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">License</span>
+                <input
+                  value={`${planLabel} (workspace plan)`}
+                  readOnly
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600"
+                />
+              </label>
+
+              {provisionError ? <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{provisionError}</p> : null}
+
+              <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-slate-200 bg-white pt-3">
+                <Button type="button" size="sm" variant="outline" onClick={handleCloseProvisionPanel}>Cancel</Button>
+                <Button type="submit" size="sm">Create user</Button>
               </div>
-            </div>
-          ))}
+            </form>
+          </aside>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 };

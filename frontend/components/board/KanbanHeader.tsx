@@ -9,6 +9,7 @@ const KanbanHeader: React.FC<KanbanHeaderProps> = ({
   activeProject,
   currentUserId,
   totals,
+  forecastSummary,
   savedViews,
   projectStages,
   isTriaging,
@@ -54,6 +55,7 @@ const KanbanHeader: React.FC<KanbanHeaderProps> = ({
             <KanbanHeaderTitle
               projectName={activeProject ? activeProject.name : 'All Projects'}
               totals={totals}
+              forecastSummary={forecastSummary}
               ownerId={ownerId}
               currentUserId={currentUserId}
               allUsers={allUsers}

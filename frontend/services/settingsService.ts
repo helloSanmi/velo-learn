@@ -7,6 +7,10 @@ export interface UserSettings {
   compactMode: boolean;
   theme: 'Light' | 'Dark' | 'Aurora';
   enableNotifications: boolean;
+  enableEstimateCalibration: boolean;
+  showPersonalCalibration: boolean;
+  estimationRequireApproval: boolean;
+  estimationApprovalThreshold: number;
 }
 
 const SETTINGS_KEY = 'velo_settings';
@@ -17,7 +21,11 @@ const DEFAULT_SETTINGS: UserSettings = {
   realTimeUpdates: true,
   compactMode: false,
   theme: 'Light',
-  enableNotifications: true
+  enableNotifications: true,
+  enableEstimateCalibration: true,
+  showPersonalCalibration: true,
+  estimationRequireApproval: true,
+  estimationApprovalThreshold: 1.35
 };
 
 export const settingsService = {

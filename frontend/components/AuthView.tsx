@@ -6,29 +6,36 @@ import Button from './ui/Button';
 
 interface AuthViewProps {
   onAuthSuccess: (user: User) => void;
-  initialMode?: 'login' | 'register';
+  initialMode?: 'login' | 'register' | 'join';
   onBackToHome?: () => void;
   onOpenPricing?: () => void;
   onOpenSupport?: () => void;
 }
 
 type Tier = 'free' | 'pro' | 'enterprise';
+type AuthMode = 'login' | 'signup' | 'join';
 
 const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login', onBackToHome }) => {
-  const [isLogin, setIsLogin] = useState(initialMode === 'login');
+  const initialAuthMode: AuthMode = initialMode === 'register' ? 'signup' : initialMode === 'join' ? 'join' : 'login';
+  const [mode, setMode] = useState<AuthMode>(initialAuthMode);
   const [identifier, setIdentifier] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [orgName, setOrgName] = useState('');
   const [selectedTier, setSelectedTier] = useState<Tier>('pro');
+  const [seatCount, setSeatCount] = useState(15);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const plans: Array<{ id: Tier; label: string; seats: string }> = [
-    { id: 'free', label: 'Free', seats: '3 seats' },
-    { id: 'pro', label: 'Basic', seats: '15 seats' },
-    { id: 'enterprise', label: 'Pro', seats: '100 seats' }
+  const plans: Array<{ id: Tier; label: string; baseSeats: number; price: number }> = [
+    { id: 'free', label: 'Free', baseSeats: 3, price: 0 },
+    { id: 'pro', label: 'Basic', baseSeats: 5, price: 5 },
+    { id: 'enterprise', label: 'Pro', baseSeats: 10, price: 7 }
   ];
+  const selectedPlan = plans.find((plan) => plan.id === selectedTier) || plans[1];
+  const effectiveSeatCount = Math.max(selectedPlan.baseSeats, seatCount);
+  const monthlyTotal = selectedPlan.price * effectiveSeatCount;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +47,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
 
     setLoading(true);
 
-    if (isLogin) {
+    if (mode === 'login') {
       const user = userService.login(identifier.trim());
       if (!user) {
         setError('Account not found.');
@@ -51,19 +58,33 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
       return;
     }
 
+    if (mode === 'join') {
+      if (!inviteToken.trim()) {
+        setError('Enter your invite token.');
+        setLoading(false);
+        return;
+      }
+      const result = userService.acceptInvite(inviteToken, identifier.trim());
+      if (!result.success || !result.user) {
+        setError(result.error || 'Unable to join workspace.');
+        setLoading(false);
+        return;
+      }
+      onAuthSuccess(result.user);
+      return;
+    }
+
     if (!orgName.trim()) {
       setError('Enter your organization name.');
       setLoading(false);
       return;
     }
 
-    const user = userService.register(identifier.trim(), orgName.trim());
-    const seatsMap = { free: 3, pro: 15, enterprise: 100 };
-    const orgs = JSON.parse(localStorage.getItem('velo_orgs') || '[]');
-    localStorage.setItem(
-      'velo_orgs',
-      JSON.stringify(orgs.map((o: any) => (o.id === user.orgId ? { ...o, totalSeats: seatsMap[selectedTier] } : o)))
-    );
+    const user = userService.register(identifier.trim(), orgName.trim(), {
+      plan: selectedTier === 'enterprise' ? 'pro' : selectedTier === 'pro' ? 'basic' : 'free',
+      totalSeats: effectiveSeatCount
+    });
+    sessionStorage.setItem('velo_post_signup_setup', JSON.stringify({ orgId: user.orgId, userId: user.id, createdAt: Date.now() }));
     onAuthSuccess(user);
   };
 
@@ -74,10 +95,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
           <aside className="hidden border-r border-[#ead4df] bg-[#f6eaf0] p-8 lg:block">
             <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Workspace access</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-              Sign in or create a workspace.
+              Start or join your workspace.
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              Use the demo password to access existing users or create a new workspace with an initial plan.
+              SaaS onboarding: create an org, allocate licenses, invite members with tokens, and onboard teams/groups.
             </p>
             <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
               <p className="font-semibold text-slate-900">Demo access</p>
@@ -92,7 +113,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
                 <div className="rounded-xl bg-slate-900 p-2 text-white"><Cloud className="h-4 w-4" /></div>
                 <div>
                   <p className="text-xl font-semibold tracking-tight text-slate-900">Velo<span className="text-[#76003f]">.</span></p>
-                  <p className="text-xs text-slate-500">{isLogin ? 'Sign in to continue' : 'Create your workspace'}</p>
+                  <p className="text-xs text-slate-500">
+                    {mode === 'login' ? 'Sign in to continue' : mode === 'signup' ? 'Create your workspace' : 'Join your workspace'}
+                  </p>
                 </div>
               </div>
               {onBackToHome ? (
@@ -102,24 +125,43 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
               ) : null}
             </div>
 
-            <div className="mb-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            <div className="mb-6 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
               <button
                 type="button"
-                onClick={() => { setIsLogin(true); setError(''); }}
-                className={`h-10 rounded-lg text-sm font-medium ${isLogin ? 'bg-white text-[#76003f] shadow-sm' : 'text-slate-500'}`}
+                onClick={() => { setMode('login'); setError(''); }}
+                className={`h-10 rounded-lg text-sm font-medium ${mode === 'login' ? 'bg-white text-[#76003f] shadow-sm' : 'text-slate-500'}`}
               >
                 Sign in
               </button>
               <button
                 type="button"
-                onClick={() => { setIsLogin(false); setError(''); }}
-                className={`h-10 rounded-lg text-sm font-medium ${!isLogin ? 'bg-white text-[#76003f] shadow-sm' : 'text-slate-500'}`}
+                onClick={() => { setMode('signup'); setError(''); }}
+                className={`h-10 rounded-lg text-sm font-medium ${mode === 'signup' ? 'bg-white text-[#76003f] shadow-sm' : 'text-slate-500'}`}
               >
-                Sign up
+                Create org
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('join'); setError(''); }}
+                className={`h-10 rounded-lg text-sm font-medium ${mode === 'join' ? 'bg-white text-[#76003f] shadow-sm' : 'text-slate-500'}`}
+              >
+                Join org
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'join' ? (
+                <div>
+                  <label className="mb-1.5 block text-xs text-slate-500">Invite token</label>
+                  <input
+                    required
+                    value={inviteToken}
+                    onChange={(e) => setInviteToken(e.target.value)}
+                    placeholder="velo_xxxxxxxx"
+                    className="h-11 w-full rounded-xl border border-slate-300 px-3.5 outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+              ) : null}
               <div>
                 <label className="mb-1.5 block text-xs text-slate-500">Username or email</label>
                 <input
@@ -153,7 +195,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
                 </div>
               </div>
 
-              {!isLogin ? (
+              {mode === 'signup' ? (
                 <>
                   <div>
                     <label className="mb-1.5 block text-xs text-slate-500">Organization</label>
@@ -179,11 +221,41 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
                         >
                           <div className="flex items-center justify-between">
                             <p className="font-medium">{plan.label}</p>
-                            <p className={`text-xs ${selectedTier === plan.id ? 'text-slate-200' : 'text-slate-500'}`}>{plan.seats}</p>
+                            <p className={`text-xs ${selectedTier === plan.id ? 'text-slate-200' : 'text-slate-500'}`}>
+                              {plan.price > 0 ? `$${plan.price}/user` : 'Free'}
+                            </p>
                           </div>
+                          <p className={`text-xs mt-1 ${selectedTier === plan.id ? 'text-slate-200' : 'text-slate-500'}`}>
+                            Starts with {plan.baseSeats} licenses
+                          </p>
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-slate-500">Licenses (seats)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={selectedPlan.baseSeats}
+                        step={1}
+                        value={effectiveSeatCount}
+                        onChange={(e) => setSeatCount(Number(e.target.value))}
+                        className="h-11 w-full rounded-xl border border-slate-300 px-3.5 outline-none focus:ring-2 focus:ring-slate-300"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSeatCount((prev) => Math.max(selectedPlan.baseSeats, prev + 5))}
+                      >
+                        Buy +5
+                      </Button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {selectedPlan.price > 0
+                        ? `${effectiveSeatCount} seats • Estimated $${monthlyTotal}/month`
+                        : `${effectiveSeatCount} seats on Free plan`}
+                    </p>
                   </div>
                 </>
               ) : null}
@@ -191,11 +263,15 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, initialMode = 'login
               {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div> : null}
 
               <Button type="submit" className="h-11 w-full bg-[#76003f] hover:bg-[#640035]" isLoading={loading}>
-                {isLogin ? 'Sign in' : 'Create workspace'}
+                {mode === 'login' ? 'Sign in' : mode === 'signup' ? 'Create workspace' : 'Join workspace'}
               </Button>
             </form>
             <p className="mt-4 text-center text-xs text-slate-500">
-              {isLogin ? 'New workspace? Switch to Sign up.' : 'Already registered? Switch to Sign in.'}
+              {mode === 'login'
+                ? 'Need a new org? Use Create org. Have invite? Use Join org.'
+                : mode === 'signup'
+                  ? 'Already registered? Switch to Sign in.'
+                  : 'No invite yet? Ask your admin to send one from Settings → Licenses.'}
             </p>
           </section>
         </div>

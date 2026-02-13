@@ -6,6 +6,8 @@ import { settingsService } from './settingsService';
 import { userService } from './userService';
 import { syncGuardService } from './syncGuardService';
 import { realtimeService } from './realtimeService';
+import { estimationService } from './estimationService';
+import { groupService } from './groupService';
 import { createId } from '../utils/id';
 import {
   getTaskAssigneeIds,
@@ -54,6 +56,16 @@ const createAuditEntry = (userId: string, displayName: string, action: string) =
   timestamp: Date.now()
 });
 
+const isDoneStatusForProject = (orgId: string, projectId: string, status?: string) => {
+  if (!status) return false;
+  const normalized = status.toLowerCase();
+  if (normalized === 'done' || normalized === 'completed') return true;
+  const project = projectService.getProjects(orgId).find((item) => item.id === projectId);
+  const doneStageId = project?.stages?.[project.stages.length - 1]?.id;
+  if (doneStageId && status === doneStageId) return true;
+  return normalized.includes('done');
+};
+
 const buildUpdateAuditActions = (
   task: Task,
   updates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>>,
@@ -90,6 +102,12 @@ const buildUpdateAuditActions = (
     const delta = updates.timeLogged - (task.timeLogged || 0);
     actions.push(delta > 0 ? `logged ${formatDuration(delta)} manually` : 'updated tracked time');
   }
+  if (typeof updates.estimateMinutes === 'number' && updates.estimateMinutes !== task.estimateMinutes) {
+    actions.push(`updated estimate to ${updates.estimateMinutes}m`);
+  }
+  if ('estimateRiskApprovedAt' in updates && updates.estimateRiskApprovedAt && updates.estimateRiskApprovedAt !== task.estimateRiskApprovedAt) {
+    actions.push('approved risk-adjusted completion');
+  }
   if (typeof updates.isAtRisk === 'boolean' && updates.isAtRisk !== Boolean(task.isAtRisk)) {
     actions.push(updates.isAtRisk ? 'marked task at risk' : 'marked task on track');
   }
@@ -112,6 +130,9 @@ const buildUpdateAuditActions = (
     const usersById = new Map(userService.getUsers(orgId).map((user) => [user.id, user.displayName]));
     const names = nextAssigneeIds.map((id) => usersById.get(id) || 'Unknown');
     actions.push(names.length > 0 ? `updated assignees: ${names.join(', ')}` : 'cleared assignees');
+  }
+  if (Array.isArray(updates.securityGroupIds) && JSON.stringify(updates.securityGroupIds) !== JSON.stringify(task.securityGroupIds || [])) {
+    actions.push(updates.securityGroupIds.length > 0 ? `updated security groups (${updates.securityGroupIds.length})` : 'cleared security groups');
   }
 
   return actions;
@@ -177,11 +198,24 @@ export const taskService = {
     priority: TaskPriority,
     tags: string[] = [],
     dueDate?: number,
-    assigneeIds: string[] = []
+    assigneeIds: string[] = [],
+    securityGroupIds: string[] = [],
+    estimateMinutes?: number,
+    estimateProvidedBy?: string
   ): Task => {
     const allTasks = readStoredTasks();
     const maxOrder = allTasks.length > 0 ? Math.max(...allTasks.map(t => t.order)) : 0;
-    const normalizedAssigneeIds = Array.from(new Set(assigneeIds.filter(Boolean)));
+    const allUsers = userService.getUsers(orgId);
+    const allProjects = projectService.getProjects(orgId);
+    const resolvedAssignments = groupService.resolveAssigneeIdsFromGroups(
+      orgId,
+      projectId || 'general',
+      assigneeIds,
+      securityGroupIds,
+      allUsers,
+      allProjects
+    );
+    const normalizedAssigneeIds = resolvedAssignments.assigneeIds;
     const project = projectService.getProjects(orgId).find((item) => item.id === projectId);
     const defaultStage = project?.stages?.[0]?.id || TaskStatus.TODO;
     
@@ -192,6 +226,7 @@ export const taskService = {
       userId,
       assigneeId: normalizedAssigneeIds[0],
       assigneeIds: normalizedAssigneeIds,
+      securityGroupIds: resolvedAssignments.securityGroupIds,
       projectId: projectId || 'general',
       title,
       description,
@@ -213,11 +248,15 @@ export const taskService = {
         timestamp: Date.now()
       }],
       timeLogged: 0,
-      blockedByIds: []
+      blockedByIds: [],
+      estimateMinutes: estimateMinutes && estimateMinutes > 0 ? Math.round(estimateMinutes) : undefined,
+      estimateProvidedBy: estimateProvidedBy || userId,
+      estimateProvidedAt: estimateMinutes && estimateMinutes > 0 ? Date.now() : undefined
     };
     
     writeStoredTasks([...allTasks, newTask]);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, [...allTasks, newTask]);
     emitTasksUpdated(orgId, userId, newTask.id);
     const settings = settingsService.getSettings();
     if (settings.enableNotifications) {
@@ -253,14 +292,32 @@ export const taskService = {
         const previousAssignees = getTaskAssigneeIds(t);
         const normalizedUpdates: Partial<Omit<Task, 'id' | 'userId' | 'createdAt' | 'order'>> = { ...updates };
 
-        if (Array.isArray(normalizedUpdates.assigneeIds)) {
-          const uniqueAssignees = Array.from(new Set(normalizedUpdates.assigneeIds.filter(Boolean)));
-          normalizedUpdates.assigneeIds = uniqueAssignees;
-          normalizedUpdates.assigneeId = uniqueAssignees[0];
-        } else if (typeof normalizedUpdates.assigneeId === 'string') {
-          const nextIds = normalizedUpdates.assigneeId ? [normalizedUpdates.assigneeId] : [];
-          normalizedUpdates.assigneeIds = nextIds;
-          normalizedUpdates.assigneeId = nextIds[0];
+        const allUsers = userService.getUsers(orgId);
+        const allProjects = projectService.getProjects(orgId);
+        const hasAssigneeUpdates = Array.isArray(normalizedUpdates.assigneeIds) || typeof normalizedUpdates.assigneeId === 'string';
+        const hasGroupUpdates = Array.isArray(normalizedUpdates.securityGroupIds);
+
+        if (hasAssigneeUpdates || hasGroupUpdates) {
+          const nextDirectAssigneeIds =
+            Array.isArray(normalizedUpdates.assigneeIds)
+              ? normalizedUpdates.assigneeIds
+              : typeof normalizedUpdates.assigneeId === 'string'
+                ? (normalizedUpdates.assigneeId ? [normalizedUpdates.assigneeId] : [])
+                : previousAssignees;
+          const nextGroupIds = Array.isArray(normalizedUpdates.securityGroupIds)
+            ? normalizedUpdates.securityGroupIds
+            : (Array.isArray(t.securityGroupIds) ? t.securityGroupIds : []);
+          const resolvedAssignments = groupService.resolveAssigneeIdsFromGroups(
+            orgId,
+            t.projectId,
+            nextDirectAssigneeIds,
+            nextGroupIds,
+            allUsers,
+            allProjects
+          );
+          normalizedUpdates.assigneeIds = resolvedAssignments.assigneeIds;
+          normalizedUpdates.assigneeId = resolvedAssignments.assigneeIds[0];
+          normalizedUpdates.securityGroupIds = resolvedAssignments.securityGroupIds;
         }
 
         const nextAssignees = Array.isArray(normalizedUpdates.assigneeIds)
@@ -276,13 +333,39 @@ export const taskService = {
         auditActions.forEach((action) => {
           auditLog.push(createAuditEntry(userId, actorDisplayName, action));
         });
-        return { ...t, ...normalizedUpdates, auditLog, updatedAt: Date.now(), version: (t.version || 1) + 1 };
+        const nextStatus = typeof normalizedUpdates.status === 'string' ? normalizedUpdates.status : t.status;
+        const completedAt = isDoneStatusForProject(orgId, t.projectId, nextStatus)
+          ? (t.completedAt || Date.now())
+          : t.completedAt;
+        const actualMinutes = isDoneStatusForProject(orgId, t.projectId, nextStatus)
+          ? Math.max(1, Math.round(((typeof normalizedUpdates.timeLogged === 'number' ? normalizedUpdates.timeLogged : t.timeLogged) || 0) / 60000))
+          : t.actualMinutes;
+        const estimateProvidedBy =
+          typeof normalizedUpdates.estimateMinutes === 'number'
+            ? (normalizedUpdates.estimateProvidedBy || userId)
+            : t.estimateProvidedBy;
+        const estimateProvidedAt =
+          typeof normalizedUpdates.estimateMinutes === 'number'
+            ? Date.now()
+            : t.estimateProvidedAt;
+        return {
+          ...t,
+          ...normalizedUpdates,
+          estimateProvidedBy,
+          estimateProvidedAt,
+          completedAt,
+          actualMinutes,
+          auditLog,
+          updatedAt: Date.now(),
+          version: (t.version || 1) + 1
+        };
       }
       return t;
     });
 
     writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, updatedTasks);
     emitTasksUpdated(orgId, userId, id);
     const settings = settingsService.getSettings();
     if (settings.enableNotifications && notifyAssigneeIds.length > 0) {
@@ -324,6 +407,7 @@ export const taskService = {
     });
     writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, updatedTasks);
     emitTasksUpdated(orgId, userId, id);
     return taskService.getTasks(userId, orgId);
   },
@@ -369,6 +453,7 @@ export const taskService = {
     });
     writeStoredTasks(updatedTasks);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, updatedTasks);
     emitTasksUpdated(orgId, userId, taskId);
     return taskService.getTasks(userId, orgId);
   },
@@ -378,6 +463,7 @@ export const taskService = {
     const updated = allTasks.filter(t => t.id !== id);
     writeStoredTasks(updated);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, updated);
     emitTasksUpdated(orgId, userId, id);
     return taskService.getTasks(userId, orgId);
   },
@@ -387,6 +473,7 @@ export const taskService = {
     const updated = allTasks.filter((t) => t.projectId !== projectId);
     writeStoredTasks(updated);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, updated);
     emitTasksUpdated(orgId, userId);
     return taskService.getTasks(userId, orgId);
   },
@@ -408,10 +495,17 @@ export const taskService = {
             createAuditEntry(actorId || 'system', actorName, `moved task to ${stageLabel(task.status)}`)
           );
         }
-        return { ...task, auditLog, updatedAt: Date.now(), version: (task.version || 1) + 1 };
+        const completedAt = isDoneStatusForProject(orgId, task.projectId, task.status)
+          ? (task.completedAt || Date.now())
+          : task.completedAt;
+        const actualMinutes = isDoneStatusForProject(orgId, task.projectId, task.status)
+          ? Math.max(1, Math.round((task.timeLogged || 0) / 60000))
+          : task.actualMinutes;
+        return { ...task, completedAt, actualMinutes, auditLog, updatedAt: Date.now(), version: (task.version || 1) + 1 };
       })
     ]);
     syncGuardService.markLocalMutation();
+    estimationService.recomputeOrgProfiles(orgId, [...hiddenTasks, ...reorderedTasks]);
     emitTasksUpdated(orgId);
   },
 

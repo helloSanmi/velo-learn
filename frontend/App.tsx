@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Task, User, Project, TaskPriority, MainViewType } from './types';
+import { SecurityGroup, Task, Team, User, Project, TaskPriority, MainViewType } from './types';
 import { userService } from './services/userService';
 import { projectService } from './services/projectService';
 import { taskService } from './services/taskService';
@@ -12,7 +12,10 @@ import { useWorkspaceBootstrap } from './hooks/useWorkspaceBootstrap';
 import { useWorkspaceConnection } from './hooks/useWorkspaceConnection';
 import { useActiveProjectPersistence } from './hooks/useActiveProjectPersistence';
 import { useProjectManagement } from './hooks/useProjectManagement';
+import { usePostSignupAdminSetup } from './hooks/usePostSignupAdminSetup';
 import { settingsService, UserSettings } from './services/settingsService';
+import { groupService } from './services/groupService';
+import { teamService } from './services/teamService';
 
 import WorkspaceLayout from './components/layout/WorkspaceLayout';
 import GlobalModals from './components/modals/GlobalModals';
@@ -28,10 +31,11 @@ import { syncGuardService } from './services/syncGuardService';
 import AuthRouter from './components/views/AuthRouter';
 import WorkspaceMainView from './components/views/WorkspaceMainView';
 import MoveBackReasonModal from './components/modals/MoveBackReasonModal';
+import AdminSetupModal from './components/modals/AdminSetupModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => userService.getCurrentUser());
-  const [authView, setAuthView] = useState<'landing' | 'pricing' | 'support' | 'login' | 'register'>('landing');
+  const [authView, setAuthView] = useState<'landing' | 'pricing' | 'support' | 'login' | 'register' | 'join'>('landing');
   const [allUsers, setAllUsers] = useState<User[]>(() => {
     const current = userService.getCurrentUser();
     return current ? userService.getUsers(current.orgId) : [];
@@ -39,6 +43,14 @@ const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(() => {
     const current = userService.getCurrentUser();
     return current ? projectService.getProjects(current.orgId) : [];
+  });
+  const [groups, setGroups] = useState<SecurityGroup[]>(() => {
+    const current = userService.getCurrentUser();
+    return current ? groupService.getGroups(current.orgId) : [];
+  });
+  const [teams, setTeams] = useState<Team[]>(() => {
+    const current = userService.getCurrentUser();
+    return current ? teamService.getTeams(current.orgId) : [];
   });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<MainViewType>('board');
@@ -80,6 +92,8 @@ const App: React.FC = () => {
     if (!user) return;
     setAllUsers(userService.getUsers(user.orgId));
     setProjects(projectService.getProjects(user.orgId));
+    setGroups(groupService.getGroups(user.orgId));
+    setTeams(teamService.getTeams(user.orgId));
     refreshTasks();
     setSelectedTask((prev) => {
       if (!prev) return null;
@@ -126,6 +140,13 @@ const App: React.FC = () => {
       refreshWorkspaceData();
     }
   }, [user, refreshWorkspaceData]);
+
+  const { isAdminSetupOpen, setIsAdminSetupOpen, completeSetup } = usePostSignupAdminSetup(
+    user,
+    teams,
+    groups,
+    isSettingsOpen
+  );
 
   const { canManageProject, canManageTask, hasTaskPermission, ensureTaskPermission } = useAccessControl({ user, projects, tasks });
 
@@ -221,22 +242,129 @@ const App: React.FC = () => {
     [templateQuery]
   );
 
+  const themeClass = settings.theme === 'Dark' ? 'dark-theme' : settings.theme === 'Aurora' ? 'aurora-theme' : '';
+  const visibleProjects = user
+    ? (user.role === 'admin' ? projects : projects.filter((project) => project.members.includes(user.id)))
+    : [];
+
+  const handleOpenSettings = useCallback((tab: SettingsTabType) => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  }, []);
+
+  const canDeleteTaskById = useCallback((taskId: string) => hasTaskPermission(taskId, 'delete'), [hasTaskPermission]);
+  const canToggleTaskTimerById = useCallback((taskId: string) => hasTaskPermission(taskId, 'complete'), [hasTaskPermission]);
+  const canManageTaskById = useCallback((taskId: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    return task ? canManageTask(task) : false;
+  }, [tasks, canManageTask]);
+
+  const handleDeleteOrganization = useCallback(() => {
+    if (!user) return;
+    const result = userService.deleteOrganization(user.id, user.orgId);
+    if (!result.success) {
+      toastService.error('Delete failed', result.error || 'Could not delete workspace.');
+      return;
+    }
+    setIsSettingsOpen(false);
+    setSelectedTask(null);
+    setSelectedTaskIds([]);
+    setProjects([]);
+    setAllUsers([]);
+    setGroups([]);
+    setTeams([]);
+    setActiveProjectId(null);
+    setCurrentView('board');
+    setUser(null);
+    setAuthView('landing');
+  }, [user]);
+
+  const handleBulkPriority = useCallback((priority: TaskPriority) => {
+    const allowed = selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'rename'));
+    bulkUpdateTasks(allowed, { priority });
+    toastService.success('Priorities updated', `${allowed.length} task${allowed.length > 1 ? 's updated' : ' updated'}.`);
+    setSelectedTaskIds([]);
+  }, [bulkUpdateTasks, ensureTaskPermission, selectedTaskIds]);
+
+  const handleBulkStatus = useCallback((status: string) => {
+    bulkUpdateTasks(
+      selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'complete')),
+      { status }
+    );
+    setSelectedTaskIds([]);
+  }, [bulkUpdateTasks, ensureTaskPermission, selectedTaskIds]);
+
+  const handleBulkAssignee = useCallback((assigneeId: string) => {
+    bulkUpdateTasks(
+      selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'assign')),
+      { assigneeId, assigneeIds: [assigneeId] }
+    );
+    setSelectedTaskIds([]);
+  }, [bulkUpdateTasks, ensureTaskPermission, selectedTaskIds]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true });
+    if (!confirmed) return;
+    bulkDeleteTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'delete')));
+    setSelectedTaskIds([]);
+  }, [bulkDeleteTasks, ensureTaskPermission, selectedTaskIds]);
+
+  const handleAddProjectFromModal = useCallback((
+    name: string,
+    description: string,
+    color: string,
+    members: string[],
+    templateId?: string,
+    aiGeneratedTasks?: any[],
+    meta?: { startDate?: number; endDate?: number; budgetCost?: number; scopeSummary?: string; scopeSize?: number }
+  ) => {
+    if (!user) return;
+    const proj = projectService.createProject(user.orgId, name, description, color, members, meta, user.id);
+    setProjects([...projects, proj]);
+    setActiveProjectId(proj.id);
+    setIsProjectModalOpen(false);
+    setProjectModalTemplateId(null);
+    if (templateId) {
+      const template = workflowService.getTemplates().find((item) => item.id === templateId);
+      template?.tasks.forEach((templateTask) =>
+        handleCreateTaskWithPolicy(templateTask.title, templateTask.description, templateTask.priority, templateTask.tags, undefined, proj.id)
+      );
+    }
+    if (aiGeneratedTasks && aiGeneratedTasks.length > 0) {
+      aiGeneratedTasks.forEach((generatedTask) =>
+        handleCreateTaskWithPolicy(generatedTask.title, generatedTask.description, generatedTask.priority, generatedTask.tags || ['AI-Ingested'], undefined, proj.id)
+      );
+    }
+  }, [handleCreateTaskWithPolicy, projects, setProjects, user]);
+
+  const handleUpdateTaskFromModal = useCallback((taskId: string, updates: any) => {
+    handleUpdateTaskWithPolicy(taskId, updates);
+    if (selectedTask?.id === taskId) setSelectedTask({ ...selectedTask, ...updates });
+  }, [handleUpdateTaskWithPolicy, selectedTask]);
+
+  const handleCommentOnTaskFromModal = useCallback((taskId: string, text: string) => {
+    handleCommentOnTaskWithPolicy(taskId, text);
+    const updatedTask = taskService.getTaskById(taskId);
+    if (updatedTask) setSelectedTask(updatedTask);
+  }, [handleCommentOnTaskWithPolicy]);
+
+  const handleGeneratedTasksFromVision = useCallback((generated: any[]) => {
+    generated.forEach((item) =>
+      handleCreateTaskWithPolicy(item.title, item.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1')
+    );
+  }, [activeProjectId, handleCreateTaskWithPolicy]);
+
   if (publicProject) {
-      const projectTasks = tasks.filter(t => t.projectId === publicProject.id);
-      return <PublicBoardView project={publicProject} tasks={projectTasks} />;
+    const projectTasks = tasks.filter((task) => task.projectId === publicProject.id);
+    return <PublicBoardView project={publicProject} tasks={projectTasks} />;
   }
 
   if (!user) {
     return <AuthRouter authView={authView} setAuthView={setAuthView} onAuthSuccess={setUser} />;
   }
 
-  const themeClass = settings.theme === 'Dark' ? 'dark-theme' : settings.theme === 'Aurora' ? 'aurora-theme' : '';
-  const visibleProjects = user.role === 'admin'
-    ? projects
-    : projects.filter((project) => project.members.includes(user.id));
-
   return (
-    <WorkspaceLayout user={user} allUsers={allUsers} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={(tab) => { setSettingsTab(tab); setIsSettingsOpen(true); }} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onUpdateProject={handleUpdateProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
+    <WorkspaceLayout user={user} allUsers={allUsers} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} projects={visibleProjects} activeProjectId={activeProjectId} currentView={currentView} themeClass={themeClass} compactMode={settings.compactMode} onLogout={handleLogout} onNewTask={() => setIsModalOpen(true)} onReset={handleReset} onRefreshData={refreshWorkspaceData} onOpenSettings={handleOpenSettings} onOpenTaskFromNotification={handleOpenTaskFromNotification} onCloseSidebar={() => setIsSidebarOpen(false)} onProjectSelect={setActiveProjectId} onViewChange={setCurrentView} onOpenCommandCenter={() => setIsCommandCenterOpen(true)} onOpenVoiceCommander={() => setIsVoiceCommanderOpen(true)} onOpenVisionModal={() => setIsVisionModalOpen(true)} onAddProject={() => { setProjectModalTemplateId(null); setIsProjectModalOpen(true); }} onUpdateProject={handleUpdateProject} onCompleteProject={handleCompleteProject} onArchiveProject={handleArchiveProject} onDeleteProject={handleDeleteProject} onlineCount={onlineCount} isOnline={!isOffline}>
       <Confetti active={confettiActive} onComplete={() => setConfettiActive(false)} />
       <WorkspaceMainView
         currentView={currentView}
@@ -292,46 +420,34 @@ const App: React.FC = () => {
         handleBulkLifecycleAction={handleBulkLifecycleAction}
         handleUpdateTaskWithPolicy={handleUpdateTaskWithPolicy}
         onToggleTimer={handleToggleTimerWithPolicy}
-        canDeleteTask={(taskId) => hasTaskPermission(taskId, 'delete')}
-        canManageTask={(taskId) => {
-          const task = tasks.find((item) => item.id === taskId);
-          return task ? canManageTask(task) : false;
-        }}
-        canToggleTaskTimer={(taskId) => hasTaskPermission(taskId, 'complete')}
+        canDeleteTask={canDeleteTaskById}
+        canManageTask={canManageTaskById}
+        canToggleTaskTimer={canToggleTaskTimerById}
       />
       {(isOffline || hasPendingSync) && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[200] rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-sm">
           {isOffline ? 'Offline: local changes queued' : 'Local changes pending sync'}
         </div>
       )}
-      <SelectionActionBar selectedCount={selectedTaskIds.length} allUsers={allUsers} onClear={() => setSelectedTaskIds([])} onBulkPriority={(p) => { const allowed = selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'rename')); bulkUpdateTasks(allowed, { priority: p }); toastService.success('Priorities updated', `${allowed.length} task${allowed.length > 1 ? 's updated' : ' updated'}.`); setSelectedTaskIds([]); }} onBulkStatus={(s) => { bulkUpdateTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'complete')), { status: s }); setSelectedTaskIds([]); }} onBulkAssignee={(u) => { bulkUpdateTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'assign')), { assigneeId: u, assigneeIds: [u] }); setSelectedTaskIds([]); }} onBulkDelete={async () => { const confirmed = await dialogService.confirm('Delete selected tasks?', { title: 'Bulk delete', confirmText: 'Delete', danger: true }); if (confirmed) { bulkDeleteTasks(selectedTaskIds.filter((taskId) => ensureTaskPermission(taskId, 'delete'))); setSelectedTaskIds([]); } }} />
-      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} projectModalTemplateId={projectModalTemplateId} setProjectModalTemplateId={setProjectModalTemplateId} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} canAssignMembers={Boolean(activeProject && canManageProject(activeProject))} canManageTask={(taskId) => { const task = tasks.find((item) => item.id === taskId); return task ? canManageTask(task) : false; }} createTask={handleCreateTaskWithPolicy} 
-        handleAddProject={(n, d, c, m, tid, aiGeneratedTasks, meta) => {
-            const proj = projectService.createProject(user.orgId, n, d, c, m, meta, user.id);
-            setProjects([...projects, proj]);
-            setActiveProjectId(proj.id);
-            setIsProjectModalOpen(false);
-            setProjectModalTemplateId(null);
-            if (tid) {
-              const tmpl = workflowService.getTemplates().find(t => t.id === tid);
-              tmpl?.tasks.forEach(t => handleCreateTaskWithPolicy(t.title, t.description, t.priority, t.tags, undefined, proj.id));
-            }
-            if (aiGeneratedTasks && aiGeneratedTasks.length > 0) {
-              aiGeneratedTasks.forEach(t => handleCreateTaskWithPolicy(t.title, t.description, t.priority, t.tags || ['AI-Ingested'], undefined, proj.id));
-            }
-        }}
-        handleUpdateTask={(id, u) => { handleUpdateTaskWithPolicy(id, u); if(selectedTask?.id === id) setSelectedTask({...selectedTask, ...u}); }}
-        handleCommentOnTask={(id, t) => {
-          handleCommentOnTaskWithPolicy(id, t);
-          const updatedTask = taskService.getTaskById(id);
-          if (updatedTask) setSelectedTask(updatedTask);
-        }}
+      <SelectionActionBar
+        selectedCount={selectedTaskIds.length}
+        allUsers={allUsers}
+        onClear={() => setSelectedTaskIds([])}
+        onBulkPriority={handleBulkPriority}
+        onBulkStatus={handleBulkStatus}
+        onBulkAssignee={handleBulkAssignee}
+        onBulkDelete={handleBulkDelete}
+      />
+      <GlobalModals user={user} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} isProjectModalOpen={isProjectModalOpen} setIsProjectModalOpen={setIsProjectModalOpen} projectModalTemplateId={projectModalTemplateId} setProjectModalTemplateId={setProjectModalTemplateId} isCommandCenterOpen={isCommandCenterOpen} setIsCommandCenterOpen={setIsCommandCenterOpen} isVoiceCommanderOpen={isVoiceCommanderOpen} setIsVoiceCommanderOpen={setIsVoiceCommanderOpen} isVisionModalOpen={isVisionModalOpen} setIsVisionModalOpen={setIsVisionModalOpen} isCommandPaletteOpen={isCommandPaletteOpen} setIsCommandPaletteOpen={setIsCommandPaletteOpen} isSettingsOpen={isSettingsOpen} setIsSettingsOpen={setIsSettingsOpen} settingsTab={settingsTab} selectedTask={selectedTask} setSelectedTask={setSelectedTask} aiSuggestions={aiSuggestions} setAiSuggestions={setAiSuggestions} aiLoading={aiLoading} activeTaskTitle={activeTaskTitle} tasks={tasks} projectTasks={allProjectTasks} projects={projects} activeProjectId={activeProjectId} aiEnabled={settings.aiSuggestions} canAssignMembers={Boolean(activeProject && canManageProject(activeProject))} canManageTask={canManageTaskById} createTask={handleCreateTaskWithPolicy}
+        handleAddProject={handleAddProjectFromModal}
+        handleUpdateTask={handleUpdateTaskFromModal}
+        handleCommentOnTask={handleCommentOnTaskFromModal}
         deleteTask={handleDeleteTaskWithPolicy}
-        canDeleteTask={(taskId) => hasTaskPermission(taskId, 'delete')}
-        canToggleTaskTimer={(taskId) => hasTaskPermission(taskId, 'complete')}
+        canDeleteTask={canDeleteTaskById}
+        canToggleTaskTimer={canToggleTaskTimerById}
         onToggleTimer={handleToggleTimerWithPolicy}
         applyAISuggestions={applyAISuggestions}
-        handleGeneratedTasks={(g) => g.forEach(x => handleCreateTaskWithPolicy(x.title, x.description, TaskPriority.MEDIUM, ['Vision Scan'], undefined, activeProjectId || 'p1'))}
+        handleGeneratedTasks={handleGeneratedTasksFromVision}
         setActiveProjectId={setActiveProjectId}
         refreshTasks={refreshTasks}
         onRenameProject={handleRenameProject}
@@ -342,6 +458,8 @@ const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onPurgeProject={handlePurgeProject}
         onChangeProjectOwner={handleChangeProjectOwner}
+        onDeleteOrganization={handleDeleteOrganization}
+        onUserUpdated={setUser}
       />
       <MoveBackReasonModal
         isOpen={Boolean(moveBackRequest)}
@@ -350,6 +468,23 @@ const App: React.FC = () => {
         onReasonChange={setMoveBackReason}
         onCancel={closeMoveBackPrompt}
         onSubmit={submitMoveBackReason}
+      />
+      <AdminSetupModal
+        isOpen={isAdminSetupOpen}
+        user={user}
+        allUsers={allUsers}
+        teams={teams}
+        groups={groups}
+        onTeamsChanged={setTeams}
+        onGroupsChanged={setGroups}
+        onOpenSettingsTab={(tab) => {
+          setIsAdminSetupOpen(false);
+          handleOpenSettings(tab);
+        }}
+        onComplete={() => {
+          completeSetup();
+          refreshWorkspaceData();
+        }}
       />
       <DialogHost />
       <ToastHost />

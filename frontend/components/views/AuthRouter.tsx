@@ -6,8 +6,8 @@ import SupportPage from '../SupportPage';
 import { User } from '../../types';
 
 interface AuthRouterProps {
-  authView: 'landing' | 'pricing' | 'support' | 'login' | 'register';
-  setAuthView: (view: 'landing' | 'pricing' | 'support' | 'login' | 'register') => void;
+  authView: 'landing' | 'pricing' | 'support' | 'login' | 'register' | 'join';
+  setAuthView: (view: 'landing' | 'pricing' | 'support' | 'login' | 'register' | 'join') => void;
   onAuthSuccess: (user: User | null) => void;
 }
 

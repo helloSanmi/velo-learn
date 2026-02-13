@@ -17,7 +17,7 @@ interface UseProjectManagementOptions {
   setSelectedTask: Dispatch<SetStateAction<Task | null>>;
   setCurrentView: Dispatch<SetStateAction<MainViewType>>;
   setUser: Dispatch<SetStateAction<User | null>>;
-  setAuthView: Dispatch<SetStateAction<'landing' | 'pricing' | 'support' | 'login' | 'register'>>;
+  setAuthView: Dispatch<SetStateAction<'landing' | 'pricing' | 'support' | 'login' | 'register' | 'join'>>;
 }
 
 export const useProjectManagement = ({

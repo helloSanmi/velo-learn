@@ -6,6 +6,7 @@ export interface KanbanHeaderProps {
   activeProject?: Project;
   currentUserId: string;
   totals: { total: number; todo: number; inProgress: number; done: number };
+  forecastSummary?: { estimatedMinutes: number; adjustedMinutes: number; riskLabel: 'On-track' | 'Tight' | 'At risk' };
   savedViews: SavedBoardView[];
   projectStages: ProjectStage[];
   isTriaging: boolean;

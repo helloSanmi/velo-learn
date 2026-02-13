@@ -18,6 +18,34 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: (id) => {
+              if (id.includes('node_modules')) {
+                if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react';
+                if (id.includes('lucide-react')) return 'vendor-icons';
+                if (id.includes('@google/genai')) return 'vendor-ai';
+                return 'vendor';
+              }
+              if (id.includes('/components/analytics/')) return 'view-analytics';
+              if (id.includes('/components/RoadmapView')) return 'view-roadmap';
+              if (id.includes('/components/WorkloadView')) return 'view-resources';
+              if (id.includes('/components/ProjectsLifecycleView')) return 'view-projects';
+              if (id.includes('/components/SettingsModal')) return 'modal-settings';
+              if (id.includes('/components/AICommandCenter') || id.includes('/components/AIModal') || id.includes('/components/VisionModal')) {
+                return 'modal-ai';
+              }
+              return undefined;
+            }
+          }
+        }
+      },
+      test: {
+        globals: true,
+        environment: 'jsdom',
+        include: ['services/__tests__/**/*.test.ts']
       }
     };
 });

@@ -68,7 +68,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 h-full min-h-0 flex flex-col">
       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-        <h3 className="text-sm font-semibold text-slate-900">Project Lifecycle</h3>
+        <h3 className="text-base font-semibold text-slate-900">Project Lifecycle</h3>
         <p className="text-xs text-slate-500 mt-1">Select any project to open its full details panel.</p>
       </div>
 
@@ -92,7 +92,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
               { title: 'Deleted', count: deletedProjects.length }
             ].map((item) => (
               <div key={item.title} className="h-9 px-2 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">{item.title}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{item.title}</p>
                 <p className="text-xs font-semibold text-slate-900">{item.count}</p>
               </div>
             ))}
@@ -105,7 +105,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
               { title: 'Deleted', items: deletedProjects, empty: 'No deleted projects.' }
             ].map((group) => (
               <div key={group.title} className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 px-1">{group.title}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 px-1">{group.title}</p>
                 {group.items.length === 0 ? (
                   <div className="h-14 border border-dashed border-slate-200 rounded-lg text-xs text-slate-500 flex items-center justify-center text-center px-3">
                     {group.empty}
@@ -135,7 +135,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
           <section className="border border-slate-200 rounded-xl bg-white p-4 flex flex-col min-h-0 ring-1 ring-slate-200">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Project details</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project details</p>
                 <h4 className="text-base font-semibold text-slate-900 truncate mt-1">{focusedProject.name}</h4>
                 <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{focusedProject.description || 'No description.'}</p>
               </div>
@@ -145,19 +145,19 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
             </div>
             <div className="grid grid-cols-4 gap-2 mt-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <p className="text-[10px] text-slate-500">Total</p>
+                <p className="text-xs text-slate-500">Total</p>
                 <p className="text-sm font-semibold text-slate-900">{focusedProjectTasks.length}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <p className="text-[10px] text-slate-500">To do</p>
+                <p className="text-xs text-slate-500">To do</p>
                 <p className="text-sm font-semibold text-slate-900">{focusedProjectTasks.filter((task) => task.status === TaskStatus.TODO).length}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <p className="text-[10px] text-slate-500">In progress</p>
+                <p className="text-xs text-slate-500">In progress</p>
                 <p className="text-sm font-semibold text-slate-900">{focusedProjectTasks.filter((task) => task.status === TaskStatus.IN_PROGRESS).length}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <p className="text-[10px] text-slate-500">Done</p>
+                <p className="text-xs text-slate-500">Done</p>
                 <p className="text-sm font-semibold text-slate-900">{focusedProjectTasks.filter((task) => task.status === TaskStatus.DONE).length}</p>
               </div>
             </div>
@@ -169,7 +169,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                   {focusedProjectTasks.map((task) => (
                     <div key={task.id} className="p-3">
                       <p className="text-sm font-medium text-slate-900 truncate">{task.title}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         {task.status.replace('-', ' ')} • {task.priority}
                       </p>
                     </div>
@@ -178,7 +178,7 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
               )}
             </div>
             <div className="mt-3">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Project owner</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Project owner</p>
               {(() => {
                 const ownerId = focusedProject.createdBy || focusedProject.members?.[0] || '';
                 const owner = ownerById.get(ownerId);
@@ -224,41 +224,41 @@ const SettingsProjectsTab: React.FC<SettingsProjectsTabProps> = ({
                     setEditingProjectId(focusedProject.id);
                     setEditingProjectName(focusedProject.name);
                   }}
-                  className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700"
+                  className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700"
                 >
                   Rename
                 </button>
               ) : null}
               {canManageFocusedProject && !focusedProject.isDeleted && !focusedProject.isArchived && !focusedProject.isCompleted && (
                 <>
-                  <button onClick={() => onCompleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
+                  <button onClick={() => onCompleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">
                     Complete
                   </button>
-                  <button onClick={() => onArchiveProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700 inline-flex items-center gap-1">
+                  <button onClick={() => onArchiveProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700 inline-flex items-center gap-1">
                     <Archive className="w-3 h-3" /> Archive
                   </button>
                 </>
               )}
               {canManageFocusedProject && focusedProject.isArchived && (
-                <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700 inline-flex items-center gap-1">
+                <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700 inline-flex items-center gap-1">
                   <ArchiveRestore className="w-3 h-3" /> Restore
                 </button>
               )}
               {canManageFocusedProject && focusedProject.isCompleted && (
-                <button onClick={() => onReopenProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
+                <button onClick={() => onReopenProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">
                   Reopen
                 </button>
               )}
               {canManageFocusedProject && !focusedProject.isDeleted ? (
-                <button onClick={() => onDeleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-[10px] text-rose-700">
+                <button onClick={() => onDeleteProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">
                   Delete
                 </button>
               ) : canManageFocusedProject && focusedProject.isDeleted ? (
                 <>
-                  <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[10px] text-slate-700">
+                  <button onClick={() => onRestoreProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-slate-200 bg-white text-xs text-slate-700">
                     Restore
                   </button>
-                  <button onClick={() => onPurgeProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-[10px] text-rose-700">
+                  <button onClick={() => onPurgeProject?.(focusedProject.id)} className="h-7 px-2 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">
                     Purge
                   </button>
                 </>

@@ -26,6 +26,7 @@ export const useTaskDetailState = ({
   const [activeTab, setActiveTab] = useState<TaskDetailTabType>('general');
   const [description, setDescription] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [securityGroupIds, setSecurityGroupIds] = useState<string[]>([]);
   const [commentText, setCommentText] = useState('');
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [riskAssessment, setRiskAssessment] = useState<{ isAtRisk: boolean; reason: string } | null>(null);
@@ -56,6 +57,7 @@ export const useTaskDetailState = ({
           : [];
     setDescription(task.description);
     setAssigneeIds(normalizedAssignees);
+    setSecurityGroupIds(Array.isArray(task.securityGroupIds) ? task.securityGroupIds : []);
     setRiskAssessment(task.isAtRisk ? { isAtRisk: true, reason: 'Health scan previously flagged this node.' } : null);
     setDependencyQuery('');
     setTypingUsers({});
@@ -256,6 +258,8 @@ export const useTaskDetailState = ({
     setDescription,
     assigneeIds,
     setAssigneeIds,
+    securityGroupIds,
+    setSecurityGroupIds,
     commentText,
     setCommentText,
     isAIThinking,

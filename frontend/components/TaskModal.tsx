@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
-import { Hash, Loader2, Sparkles, X } from 'lucide-react';
-import { TaskPriority } from '../types';
+import React, { useMemo, useState } from 'react';
+import { Hash, Loader2, Sparkles, Users, X } from 'lucide-react';
+import { SecurityGroup, TaskPriority } from '../types';
 import { userService } from '../services/userService';
 import { aiService } from '../services/aiService';
 import { dialogService } from '../services/dialogService';
+import { estimationService } from '../services/estimationService';
+import { groupService } from '../services/groupService';
 import Button from './ui/Button';
 import AssigneePicker from './ui/AssigneePicker';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, assigneeIds?: string[]) => void;
+  onSubmit: (
+    title: string,
+    description: string,
+    priority: TaskPriority,
+    tags: string[],
+    dueDate?: number,
+    assigneeIds?: string[],
+    securityGroupIds?: string[],
+    estimateMinutes?: number
+  ) => void;
   canAssignMembers?: boolean;
+  projectId?: string | null;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAssignMembers = false }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAssignMembers = false, projectId }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
@@ -22,10 +34,30 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
   const [tags, setTags] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [securityGroupIds, setSecurityGroupIds] = useState<string[]>([]);
+  const [estimateHours, setEstimateHours] = useState('');
+  const [whatIfPercent, setWhatIfPercent] = useState(0);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
 
   const allUsers = userService.getUsers();
+  const currentUser = userService.getCurrentUser();
+  const assignableGroups = useMemo(
+    () => (currentUser ? groupService.getAssignableGroupsForProject(currentUser.orgId, projectId || undefined) : []),
+    [currentUser, projectId]
+  );
+  const selectedGroups = useMemo(
+    () => assignableGroups.filter((group) => securityGroupIds.includes(group.id)),
+    [assignableGroups, securityGroupIds]
+  );
+  const estimateMinutes = estimateHours.trim() ? Math.max(0, Math.round(Number(estimateHours || 0) * 60)) : 0;
+  const preview = currentUser && estimateMinutes > 0
+    ? estimationService.getAdjustmentPreview(currentUser.orgId, currentUser.id, estimateMinutes, {
+      projectId: projectId || undefined,
+      tags
+    })
+    : null;
+  const whatIfAdjustedMinutes = preview ? Math.round(preview.adjustedMinutes * (1 + whatIfPercent / 100)) : 0;
 
   if (!isOpen) return null;
 
@@ -56,6 +88,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
     setTagInput('');
   };
 
+  const toggleGroup = (groupId: string) => {
+    setSecurityGroupIds((prev) => (prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]));
+  };
+
+  const formatGroupScope = (group: SecurityGroup) => (group.scope === 'global' ? 'Global' : 'Project');
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -66,7 +104,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
       priority,
       tags,
       dueDate ? new Date(dueDate).getTime() : undefined,
-      assigneeIds
+      assigneeIds,
+      securityGroupIds,
+      estimateMinutes > 0 ? estimateMinutes : undefined
     );
 
     setTitle('');
@@ -76,6 +116,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
     setTagInput('');
     setDueDate('');
     setAssigneeIds([]);
+    setSecurityGroupIds([]);
+    setEstimateHours('');
+    setWhatIfPercent(0);
     onClose();
   };
 
@@ -110,6 +153,41 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Assignees</label>
                 <AssigneePicker users={allUsers} selectedIds={assigneeIds} onChange={setAssigneeIds} compact disabled={!canAssignMembers} />
+                <div className="mt-2">
+                  <label className="block text-[11px] text-slate-500 mb-1">Security groups</label>
+                  <div className="rounded-lg border border-slate-300 bg-white p-1.5 max-h-24 overflow-y-auto custom-scrollbar space-y-1">
+                    {assignableGroups.length === 0 ? (
+                      <p className="text-[11px] text-slate-500 px-1 py-1">No groups available for this project.</p>
+                    ) : (
+                      assignableGroups.map((group) => (
+                        <label
+                          key={group.id}
+                          className="h-7 px-2 rounded-md text-xs text-slate-700 bg-slate-50 hover:bg-slate-100 inline-flex items-center justify-between gap-2 w-full cursor-pointer"
+                        >
+                          <span className="truncate">{group.name}</span>
+                          <span className="text-[10px] text-slate-500">{formatGroupScope(group)}</span>
+                          <input
+                            type="checkbox"
+                            checked={securityGroupIds.includes(group.id)}
+                            onChange={() => toggleGroup(group.id)}
+                            className="accent-slate-900"
+                            disabled={!canAssignMembers}
+                          />
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {selectedGroups.length > 0 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {selectedGroups.map((group) => (
+                        <span key={group.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
+                          <Users className="w-3 h-3" />
+                          {group.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 {!canAssignMembers ? <p className="mt-1 text-[11px] text-slate-500">Only project owner/admin can assign members.</p> : null}
               </div>
               <div>
@@ -120,6 +198,45 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSubmit, canAss
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <label className="block text-xs text-slate-500 mb-1.5">Planned effort (hours)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.25}
+                value={estimateHours}
+                onChange={(e) => setEstimateHours(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-slate-300 bg-white"
+                placeholder="e.g. 8"
+              />
+              {preview ? (
+                <div className="mt-2.5 space-y-1.5 text-xs">
+                  <p className="text-slate-700">
+                    Risk-adjusted plan: <span className="font-semibold">{Math.max(0.25, preview.adjustedMinutes / 60).toFixed(2)}h</span>
+                    {' '}({preview.explanation})
+                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-slate-500">Scenario buffer ({whatIfPercent}%)</label>
+                    <input
+                      type="range"
+                      min={-20}
+                      max={50}
+                      step={5}
+                      value={whatIfPercent}
+                      onChange={(e) => setWhatIfPercent(Number(e.target.value))}
+                      className="w-40"
+                    />
+                  </div>
+                  <p className="text-slate-600">
+                    Scenario result: <span className="font-semibold">{Math.max(0.25, whatIfAdjustedMinutes / 60).toFixed(2)}h</span>
+                    {preview.requiresApproval ? <span className="ml-2 text-amber-700 font-semibold">Owner/Admin approval required at completion</span> : null}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 mt-2">Add a planned effort estimate to enable forecast calibration.</p>
+              )}
             </div>
 
             <div>

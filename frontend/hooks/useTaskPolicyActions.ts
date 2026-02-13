@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Task, TaskPriority, TaskStatus, User, Project } from '../types';
 import { toastService } from '../services/toastService';
 import { dialogService } from '../services/dialogService';
+import { estimationService } from '../services/estimationService';
+import { isTaskAssignedToUser } from '../services/permissionService';
 
 interface UseTaskPolicyActionsParams {
   user: User;
@@ -26,7 +28,10 @@ interface UseTaskPolicyActionsParams {
     tags?: string[],
     dueDate?: number,
     projectId?: string,
-    assigneeIds?: string[]
+    assigneeIds?: string[],
+    securityGroupIds?: string[],
+    estimateMinutes?: number,
+    estimateProvidedBy?: string
   ) => void;
 }
 
@@ -59,19 +64,19 @@ export const useTaskPolicyActions = ({
   };
 
   const isAssignedActor = (task?: Task) => {
-    if (!task) return false;
-    const assigneeIds =
-      Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0
-        ? task.assigneeIds
-        : task.assigneeId
-          ? [task.assigneeId]
-          : [];
-    return assigneeIds.includes(user.id);
+    return isTaskAssignedToUser(user, task);
   };
 
   const requiresApproval = (task: Task, targetStatus: string) => {
     const doneStageId = getProjectDoneStageId(task.projectId);
     return targetStatus === doneStageId && task.priority === TaskPriority.HIGH && !task.approvedAt;
+  };
+
+  const requiresEstimateApproval = (task: Task, targetStatus: string) => {
+    const doneStageId = getProjectDoneStageId(task.projectId);
+    if (targetStatus !== doneStageId) return false;
+    if (task.estimateRiskApprovedAt) return false;
+    return estimationService.shouldRequireApprovalForDone(task);
   };
 
   const isBackwardFromDone = (task: Task, targetStatus: string) => {
@@ -97,6 +102,14 @@ export const useTaskPolicyActions = ({
     if (requiresApproval(task, targetStatus)) {
       dialogService.notice('This high-priority task requires admin approval before moving to Done.', { title: 'Approval required' });
       return;
+    }
+    if (requiresEstimateApproval(task, targetStatus)) {
+      const project = projects.find((item) => item.id === task.projectId);
+      if (!canManageProject(project)) {
+        dialogService.notice('Risk-adjusted variance is high. Project owner/admin must approve before completion.', { title: 'Estimate approval required' });
+        return;
+      }
+      updateTask(task.id, { estimateRiskApprovedAt: Date.now(), estimateRiskApprovedBy: user.displayName }, user.displayName);
     }
     if (isBackwardFromDone(task, targetStatus)) {
       openMoveBackPrompt(taskId, targetStatus, targetTaskId);
@@ -130,6 +143,14 @@ export const useTaskPolicyActions = ({
     if (requiresApproval(task, targetStatus)) {
       dialogService.notice('This high-priority task requires admin approval before moving to Done.', { title: 'Approval required' });
       return;
+    }
+    if (requiresEstimateApproval(task, targetStatus)) {
+      const project = projects.find((item) => item.id === task.projectId);
+      if (!canManageProject(project)) {
+        dialogService.notice('Risk-adjusted variance is high. Project owner/admin must approve before completion.', { title: 'Estimate approval required' });
+        return;
+      }
+      updateTask(task.id, { estimateRiskApprovedAt: Date.now(), estimateRiskApprovedBy: user.displayName }, user.displayName);
     }
     if (isBackwardFromDone(task, targetStatus)) {
       openMoveBackPrompt(taskId, targetStatus);
@@ -196,14 +217,22 @@ export const useTaskPolicyActions = ({
     if (!task) return;
     const targetProject = projects.find((project) => project.id === task.projectId);
     const canManageTaskData = canManageProject(targetProject);
-    const hasAssignmentUpdate = typeof updates.assigneeId === 'string' || Array.isArray(updates.assigneeIds);
+    const hasAssignmentUpdate =
+      typeof updates.assigneeId === 'string' ||
+      Array.isArray(updates.assigneeIds) ||
+      Array.isArray(updates.securityGroupIds);
     const hasRenameUpdate = typeof updates.title === 'string' && updates.title !== task.title;
     const hasDescriptionUpdate = typeof updates.description === 'string' && updates.description !== task.description;
     const hasDependencyUpdate = Array.isArray(updates.blockedByIds);
     const hasSubtaskUpdate = Array.isArray(updates.subtasks);
     const hasAuditUpdate = typeof updates.isAtRisk === 'boolean';
+    const hasEstimateUpdate =
+      typeof updates.estimateMinutes === 'number' ||
+      updates.estimateMinutes === undefined ||
+      typeof updates.estimateProvidedBy === 'string' ||
+      typeof updates.estimateRiskApprovedAt === 'number';
     const hasOwnerRestrictedUpdate =
-      hasAssignmentUpdate || hasRenameUpdate || hasDescriptionUpdate || hasDependencyUpdate || hasSubtaskUpdate || hasAuditUpdate;
+      hasAssignmentUpdate || hasRenameUpdate || hasDescriptionUpdate || hasDependencyUpdate || hasSubtaskUpdate || hasAuditUpdate || hasEstimateUpdate;
 
     if (hasOwnerRestrictedUpdate && !canManageTaskData) {
       toastService.warning('Permission denied', 'Only project owners or admins can modify this part of the task.');
@@ -258,15 +287,18 @@ export const useTaskPolicyActions = ({
     tags: string[] = [],
     dueDate?: number,
     projectId: string = 'p1',
-    assigneeIds: string[] = []
+    assigneeIds: string[] = [],
+    securityGroupIds: string[] = [],
+    estimateMinutes?: number,
+    estimateProvidedBy?: string
   ) => {
     const targetProject = projects.find((project) => project.id === projectId);
-    if (assigneeIds.length > 0 && !canManageProject(targetProject)) {
+    if ((assigneeIds.length > 0 || securityGroupIds.length > 0) && !canManageProject(targetProject)) {
       toastService.warning('Permission denied', 'Only admins or the project creator can assign task members.');
-      createTask(title, description, priority, tags, dueDate, projectId, []);
+      createTask(title, description, priority, tags, dueDate, projectId, [], [], estimateMinutes, estimateProvidedBy);
       return;
     }
-    createTask(title, description, priority, tags, dueDate, projectId, assigneeIds);
+    createTask(title, description, priority, tags, dueDate, projectId, assigneeIds, securityGroupIds, estimateMinutes, estimateProvidedBy);
   };
 
   const doneStageIds = useMemo(

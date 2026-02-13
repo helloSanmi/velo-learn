@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, Search, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Download, Loader2, Search, Sparkles } from 'lucide-react';
 import { Project, Task, TaskPriority, TaskStatus, User } from '../../types';
 import Button from '../ui/Button';
 import { aiService } from '../../services/aiService';
+import { estimationService } from '../../services/estimationService';
 
 interface AnalyticsViewProps {
   tasks: Task[];
@@ -12,7 +13,7 @@ interface AnalyticsViewProps {
 
 type LoadFilter = 'All' | 'High' | 'Medium' | 'Low';
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, projects, allUsers }) => {
   const taskAssigneeIds = (task: Task): string[] => {
     if (Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0) return task.assigneeIds;
     return task.assigneeId ? [task.assigneeId] : [];
@@ -22,6 +23,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
   const [peopleQuery, setPeopleQuery] = useState('');
   const [loadFilter, setLoadFilter] = useState<LoadFilter>('All');
   const [activityUserFilter, setActivityUserFilter] = useState('All');
+  const orgId = allUsers[0]?.orgId || tasks[0]?.orgId || '';
+
+  useEffect(() => {
+    if (!orgId) return;
+    estimationService.recomputeOrgProfiles(orgId, tasks);
+  }, [orgId, tasks]);
 
   const stats = useMemo(() => {
     const total = tasks.length;
@@ -62,6 +69,31 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 50);
   }, [tasks, activityUserFilter]);
+
+  const estimatorProfiles = useMemo(() => {
+    if (!orgId) return [];
+    return allUsers
+      .map((user) => {
+        const profiles = estimationService.getProfilesForUser(orgId, user.id);
+        const global = profiles.find((item) => item.contextType === 'global');
+        if (!global) return null;
+        return {
+          userId: user.id,
+          name: user.displayName,
+          biasFactor: global.biasFactor,
+          confidence: global.confidence,
+          sampleSize: global.sampleSize,
+          trendDelta: global.trendDelta
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+      .sort((a, b) => b.sampleSize - a.sampleSize);
+  }, [allUsers, orgId, tasks]);
+
+  const portfolioRows = useMemo(
+    () => (orgId ? estimationService.getPortfolioRiskRows(orgId, projects, tasks) : []),
+    [orgId, projects, tasks]
+  );
 
   const runAIHealthAudit = async () => {
     setIsLoadingInsights(true);
@@ -205,6 +237,78 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, allUsers }) => {
                   <p className="text-xs text-slate-500 truncate">{entry.taskTitle}</p>
                 </div>
               ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-4">
+          <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 h-[380px] flex flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Estimate Reliability</h3>
+              <p className="text-xs text-slate-500">Historical adjustment (actual / planned)</p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+              {estimatorProfiles.length === 0 ? (
+                <p className="text-sm text-slate-500">Not enough completed tasks with planned effort yet.</p>
+              ) : (
+                estimatorProfiles.map((row) => (
+                  <div key={row.userId} className="rounded-lg border border-slate-200 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-900">{row.name}</p>
+                      <span className="text-xs text-slate-500">{row.sampleSize} samples</span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Adjustment <span className="font-semibold">{row.biasFactor.toFixed(2)}x</span> • {row.confidence} confidence
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Trend shift {row.trendDelta >= 0 ? '+' : ''}{Math.round(row.trendDelta * 100)}%
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 h-[380px] flex flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Portfolio Risk View</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const csv = estimationService.exportPortfolioCsv(portfolioRows);
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'velo-portfolio-risk.csv';
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="h-8 px-2.5 text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                Export CSV
+              </Button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+              {portfolioRows.length === 0 ? (
+                <p className="text-sm text-slate-500">No projects available.</p>
+              ) : (
+                portfolioRows.map((row) => (
+                  <div key={row.projectId} className="rounded-lg border border-slate-200 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-900 truncate">{row.projectName}</p>
+                      <span className={`text-xs font-medium ${row.deltaMinutes > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        {row.deltaMinutes > 0 ? '+' : ''}{Math.round(row.deltaMinutes / 60)}h
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Planned {Math.round(row.estimatedMinutes / 60)}h • Risk-adjusted {Math.round(row.adjustedMinutes / 60)}h • {row.inflationFactor.toFixed(2)}x
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </div>

@@ -3,6 +3,9 @@ const USERS_KEY = 'velo_users';
 const ORGS_KEY = 'velo_orgs';
 const TASKS_KEY = 'velo_data';
 const PROJECTS_KEY = 'velo_projects';
+const GROUPS_KEY = 'velo_security_groups';
+const TEAMS_KEY = 'velo_teams';
+const INVITES_KEY = 'velo_org_invites';
 const SESSION_KEY = 'velo_session';
 
 const DEFAULT_ORG_ID = 'org-ent-001';
@@ -12,6 +15,9 @@ const INITIAL_ORGS = [
     "id": DEFAULT_ORG_ID,
     "name": "Acme Global Enterprise",
     "totalSeats": 50,
+    "plan": "pro",
+    "seatPrice": 7,
+    "billingCurrency": "USD",
     "ownerId": "demo-admin",
     "createdAt": 1740175200000
   }
@@ -327,6 +333,55 @@ const INITIAL_TASKS = [
   }
 ];
 
+const INITIAL_GROUPS = [
+  {
+    "id": "grp-global-eng",
+    "orgId": DEFAULT_ORG_ID,
+    "name": "Engineering Core",
+    "scope": "global",
+    "memberIds": ["u-1", "u-3", "demo-admin"],
+    "createdBy": "demo-admin",
+    "createdAt": Date.now() - 864000000,
+    "updatedAt": Date.now() - 864000000
+  },
+  {
+    "id": "grp-p1-delivery",
+    "orgId": DEFAULT_ORG_ID,
+    "name": "Roadmap Delivery",
+    "scope": "project",
+    "projectId": "p1",
+    "memberIds": ["u-1", "u-2"],
+    "createdBy": "u-1",
+    "createdAt": Date.now() - 432000000,
+    "updatedAt": Date.now() - 432000000
+  }
+];
+
+const INITIAL_TEAMS = [
+  {
+    "id": "team-platform",
+    "orgId": DEFAULT_ORG_ID,
+    "name": "Platform Team",
+    "description": "Core platform, reliability, and API operations.",
+    "leadId": "u-1",
+    "memberIds": ["u-1", "u-3", "demo-admin"],
+    "createdBy": "demo-admin",
+    "createdAt": Date.now() - 1209600000,
+    "updatedAt": Date.now() - 1209600000
+  },
+  {
+    "id": "team-product",
+    "orgId": DEFAULT_ORG_ID,
+    "name": "Product Team",
+    "description": "Roadmap, design quality, and delivery planning.",
+    "leadId": "u-2",
+    "memberIds": ["u-2", "u-1", "demo-admin"],
+    "createdBy": "demo-admin",
+    "createdAt": Date.now() - 864000000,
+    "updatedAt": Date.now() - 864000000
+  }
+];
+
 export const mockDataService = {
   init: async (): Promise<void> => {
     try {
@@ -343,6 +398,15 @@ export const mockDataService = {
       if (!localStorage.getItem(TASKS_KEY)) {
         localStorage.setItem(TASKS_KEY, JSON.stringify(INITIAL_TASKS));
       }
+      if (!localStorage.getItem(GROUPS_KEY)) {
+        localStorage.setItem(GROUPS_KEY, JSON.stringify(INITIAL_GROUPS));
+      }
+      if (!localStorage.getItem(TEAMS_KEY)) {
+        localStorage.setItem(TEAMS_KEY, JSON.stringify(INITIAL_TEAMS));
+      }
+      if (!localStorage.getItem(INVITES_KEY)) {
+        localStorage.setItem(INVITES_KEY, JSON.stringify([]));
+      }
       if (!localStorage.getItem(SESSION_KEY)) {
         const adminUser = INITIAL_USERS.find((u) => u.username === 'admin') || INITIAL_USERS[0];
         localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
@@ -357,6 +421,9 @@ export const mockDataService = {
     localStorage.removeItem(ORGS_KEY);
     localStorage.removeItem(TASKS_KEY);
     localStorage.removeItem(PROJECTS_KEY);
+    localStorage.removeItem(GROUPS_KEY);
+    localStorage.removeItem(TEAMS_KEY);
+    localStorage.removeItem(INVITES_KEY);
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem('velo_settings');
     localStorage.removeItem('velo_notifications');

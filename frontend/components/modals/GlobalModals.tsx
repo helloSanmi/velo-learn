@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import TaskModal from '../TaskModal';
 import ProjectModal from '../ProjectModal';
 import TaskDetailModal from '../TaskDetailModal';
-import AIModal from '../AIModal';
-import AICommandCenter from '../AICommandCenter';
-import VoiceCommander from '../VoiceCommander';
-import VisionModal from '../VisionModal';
-import CommandPalette from '../CommandPalette';
-import SettingsModal, { SettingsTabType } from '../SettingsModal';
+import { SettingsTabType } from '../SettingsModal';
 import { Task, User, Project, TaskPriority } from '../../types';
+
+const AIModal = lazy(() => import('../AIModal'));
+const AICommandCenter = lazy(() => import('../AICommandCenter'));
+const VoiceCommander = lazy(() => import('../VoiceCommander'));
+const VisionModal = lazy(() => import('../VisionModal'));
+const CommandPalette = lazy(() => import('../CommandPalette'));
+const SettingsModal = lazy(() => import('../SettingsModal'));
 
 interface GlobalModalsProps {
   user: User;
@@ -42,7 +44,18 @@ interface GlobalModalsProps {
   aiEnabled: boolean;
   canAssignMembers: boolean;
   canManageTask: (taskId: string) => boolean;
-  createTask: (title: string, description: string, priority: TaskPriority, tags: string[], dueDate?: number, projectId?: string, assigneeIds?: string[]) => void;
+  createTask: (
+    title: string,
+    description: string,
+    priority: TaskPriority,
+    tags: string[],
+    dueDate?: number,
+    projectId?: string,
+    assigneeIds?: string[],
+    securityGroupIds?: string[],
+    estimateMinutes?: number,
+    estimateProvidedBy?: string
+  ) => void;
   handleAddProject: (
     name: string,
     description: string,
@@ -70,6 +83,8 @@ interface GlobalModalsProps {
   onDeleteProject: (id: string) => void;
   onPurgeProject: (id: string) => void;
   onChangeProjectOwner: (id: string, ownerId: string) => void;
+  onDeleteOrganization: () => void;
+  onUserUpdated: (user: User) => void;
 }
 
 const GlobalModals: React.FC<GlobalModalsProps> = ({
@@ -82,16 +97,21 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
   projectTasks,
   activeProjectId, aiEnabled, canAssignMembers, canManageTask, createTask, handleAddProject, handleUpdateTask,
   handleCommentOnTask, deleteTask, canDeleteTask, canToggleTaskTimer, onToggleTimer, applyAISuggestions, handleGeneratedTasks,
-  setActiveProjectId, refreshTasks, onRenameProject, onCompleteProject, onReopenProject, onArchiveProject, onRestoreProject, onDeleteProject, onPurgeProject, onChangeProjectOwner
+  setActiveProjectId, refreshTasks, onRenameProject, onCompleteProject, onReopenProject, onArchiveProject, onRestoreProject, onDeleteProject, onPurgeProject, onChangeProjectOwner, onDeleteOrganization, onUserUpdated
 }) => {
+  const withLazy = (node: React.ReactNode) => (
+    <Suspense fallback={null}>{node}</Suspense>
+  );
+
   return (
     <>
       <TaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         canAssignMembers={canAssignMembers}
-        onSubmit={(title, description, priority, tags, dueDate, assigneeIds) =>
-          createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds)
+        projectId={activeProjectId}
+        onSubmit={(title, description, priority, tags, dueDate, assigneeIds, securityGroupIds, estimateMinutes) =>
+          createTask(title, description, priority, tags, dueDate, activeProjectId || 'p1', assigneeIds, securityGroupIds, estimateMinutes, user.id)
         }
       />
       <ProjectModal
@@ -118,27 +138,31 @@ const GlobalModals: React.FC<GlobalModalsProps> = ({
         aiEnabled={aiEnabled}
         onToggleTimer={onToggleTimer}
       />
-      <AIModal suggestions={aiSuggestions} onClose={() => setAiSuggestions(null)} onApply={applyAISuggestions} isLoading={aiLoading} taskTitle={activeTaskTitle} />
-      <AICommandCenter isOpen={isCommandCenterOpen} onClose={() => setIsCommandCenterOpen(false)} tasks={tasks} />
-      <VoiceCommander isOpen={isVoiceCommanderOpen} onClose={() => setIsVoiceCommanderOpen(false)} tasks={tasks} />
-      <VisionModal isOpen={isVisionModalOpen} onClose={() => setIsVisionModalOpen(false)} onTasksGenerated={handleGeneratedTasks} />
-      <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} tasks={tasks} projects={projects} onSelectTask={setSelectedTask} onSelectProject={setActiveProjectId} />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        initialTab={settingsTab}
-        user={user}
-        projects={projects}
-        projectTasks={projectTasks}
-        onRenameProject={onRenameProject}
-        onCompleteProject={onCompleteProject}
-        onReopenProject={onReopenProject}
-        onArchiveProject={onArchiveProject}
-        onRestoreProject={onRestoreProject}
-        onDeleteProject={onDeleteProject}
-        onPurgeProject={onPurgeProject}
-        onChangeProjectOwner={onChangeProjectOwner}
-      />
+      {withLazy(<AIModal suggestions={aiSuggestions} onClose={() => setAiSuggestions(null)} onApply={applyAISuggestions} isLoading={aiLoading} taskTitle={activeTaskTitle} />)}
+      {withLazy(<AICommandCenter isOpen={isCommandCenterOpen} onClose={() => setIsCommandCenterOpen(false)} tasks={tasks} />)}
+      {withLazy(<VoiceCommander isOpen={isVoiceCommanderOpen} onClose={() => setIsVoiceCommanderOpen(false)} tasks={tasks} />)}
+      {withLazy(<VisionModal isOpen={isVisionModalOpen} onClose={() => setIsVisionModalOpen(false)} onTasksGenerated={handleGeneratedTasks} />)}
+      {withLazy(<CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} tasks={tasks} projects={projects} onSelectTask={setSelectedTask} onSelectProject={setActiveProjectId} />)}
+      {withLazy(
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          initialTab={settingsTab}
+          user={user}
+          projects={projects}
+          projectTasks={projectTasks}
+          onRenameProject={onRenameProject}
+          onCompleteProject={onCompleteProject}
+          onReopenProject={onReopenProject}
+          onArchiveProject={onArchiveProject}
+          onRestoreProject={onRestoreProject}
+          onDeleteProject={onDeleteProject}
+          onPurgeProject={onPurgeProject}
+          onChangeProjectOwner={onChangeProjectOwner}
+          onDeleteOrganization={onDeleteOrganization}
+          onUserUpdated={onUserUpdated}
+        />
+      )}
     </>
   );
 };

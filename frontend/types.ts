@@ -22,6 +22,23 @@ export interface Organization {
   totalSeats: number;
   ownerId: string;
   createdAt: number;
+  plan?: 'free' | 'basic' | 'pro';
+  seatPrice?: number;
+  billingCurrency?: string;
+}
+
+export interface OrgInvite {
+  id: string;
+  orgId: string;
+  token: string;
+  role: 'member' | 'admin';
+  createdBy: string;
+  createdAt: number;
+  expiresAt: number;
+  maxUses?: number;
+  usedCount: number;
+  revoked?: boolean;
+  invitedIdentifier?: string;
 }
 
 export interface User {
@@ -29,9 +46,37 @@ export interface User {
   orgId: string;
   username: string;
   displayName: string;
+  firstName?: string;
+  lastName?: string;
   avatar?: string;
   email?: string;
   role?: 'admin' | 'member' | 'guest';
+}
+
+export type SecurityGroupScope = 'global' | 'project';
+
+export interface SecurityGroup {
+  id: string;
+  orgId: string;
+  name: string;
+  scope: SecurityGroupScope;
+  projectId?: string;
+  memberIds: string[];
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Team {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  leadId?: string;
+  memberIds: string[];
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Project {
@@ -108,12 +153,14 @@ export interface Task {
   userId: string;
   assigneeId?: string;
   assigneeIds?: string[];
+  securityGroupIds?: string[];
   projectId: string;
   title: string;
   description: string;
   status: TaskStageId;
   priority: TaskPriority;
   createdAt: number;
+  completedAt?: number;
   order: number;
   subtasks: Subtask[];
   tags: string[];
@@ -130,9 +177,44 @@ export interface Task {
   movedBackFromStatus?: string;
   approvedAt?: number;
   approvedBy?: string;
+  estimateMinutes?: number;
+  estimateProvidedBy?: string;
+  estimateProvidedAt?: number;
+  actualMinutes?: number;
+  estimateRiskApprovedAt?: number;
+  estimateRiskApprovedBy?: string;
   // New: Dependency Tracking
   blockedByIds?: string[];
   blocksIds?: string[];
+}
+
+export type EstimationConfidence = 'low' | 'medium' | 'high';
+export type EstimationContextType = 'global' | 'project' | 'stage' | 'tag';
+
+export interface EstimationProfile {
+  id: string;
+  orgId: string;
+  userId: string;
+  contextType: EstimationContextType;
+  contextKey: string;
+  biasFactor: number;
+  confidence: EstimationConfidence;
+  sampleSize: number;
+  varianceScore: number;
+  trendDelta: number;
+  windowStart: number;
+  windowEnd: number;
+  updatedAt: number;
+}
+
+export interface EstimationAdjustmentPreview {
+  estimatedMinutes: number;
+  adjustedMinutes: number;
+  biasFactorUsed: number;
+  confidence: EstimationConfidence;
+  sampleSize: number;
+  explanation: string;
+  requiresApproval: boolean;
 }
 
 // Workflow Automation Types

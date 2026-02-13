@@ -56,8 +56,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           task={task}
           aiEnabled={aiEnabled}
           allUsers={state.allUsers}
-          assigneeIds={state.assigneeIds}
-          setAssigneeIds={state.setAssigneeIds}
           onUpdate={onUpdate}
           onAddComment={onAddComment}
           currentUser={currentUser}
@@ -139,7 +137,32 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/45 backdrop-blur-sm animate-in fade-in duration-200"
     >
       <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 h-[88vh] md:h-[84vh] flex flex-col border border-slate-200">
-        <TaskDetailHeader task={task} onClose={onClose} onDelete={onDelete} canDelete={canDelete} />
+        <TaskDetailHeader
+          task={task}
+          onClose={onClose}
+          onDelete={onDelete}
+          canDelete={canDelete}
+          allUsers={state.allUsers}
+          assigneeIds={state.assigneeIds}
+          securityGroupIds={state.securityGroupIds}
+          canManageTask={canManageTask}
+          onAssigneesChange={(nextIds) => {
+            state.setAssigneeIds(nextIds);
+            onUpdate(task.id, {
+              assigneeIds: nextIds,
+              assigneeId: nextIds[0] || undefined,
+              securityGroupIds: state.securityGroupIds
+            });
+          }}
+          onSecurityGroupIdsChange={(nextGroupIds) => {
+            state.setSecurityGroupIds(nextGroupIds);
+            onUpdate(task.id, {
+              assigneeIds: state.assigneeIds,
+              assigneeId: state.assigneeIds[0] || undefined,
+              securityGroupIds: nextGroupIds
+            });
+          }}
+        />
         <TaskDetailTabs task={task} activeTab={state.activeTab} setActiveTab={state.setActiveTab} />
 
         <div className={`flex-1 p-4 md:p-5 custom-scrollbar scroll-smooth ${state.activeTab === 'activity' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
