@@ -2,10 +2,19 @@
 # to Azure App Service using a publish profile.
 name: Deploy Frontend To Azure App Service
 
+# on:
+#   # Manual trigger only.
+#   # deploying automatically on every push.
+#   workflow_dispatch:
+
 on:
-  # Manual trigger only.
-  # deploying automatically on every push.
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-azure-app-service.yml'
 
 permissions:
   # The workflow only needs to read repository contents.
