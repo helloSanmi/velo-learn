@@ -20,9 +20,8 @@ env:
   VM_APP_PORT: ${{ vars.VM_APP_PORT || '8080' }}
 
 jobs:
-  # Single stage: build the frontend, copy it to the VM, and restart the
-  # PM2-served static site on the target port.
-  build-and-deploy:
+  # Stage 1: build the frontend and package the deployable artifact.
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -50,7 +49,29 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
-      # Step 5: copy the built files from the GitHub runner to a temporary
+      # Step 5: upload the built files so the deploy stage can publish the
+      # exact artifact that was produced in CI.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-vm-package
+          path: ${{ env.FRONTEND_DIR }}/dist
+
+  # Stage 2: download the artifact, copy it to the VM, and restart the
+  # PM2-served static site on the target port.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      # Step 1: download the artifact created in the build stage.
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: azure-vm-package
+          path: dist
+
+      # Step 2: copy the built files from the GitHub runner to a temporary
       # release folder on the VM.
       - name: Copy built site to VM
         uses: appleboy/scp-action@v0.1.7
@@ -58,11 +79,11 @@ jobs:
           host: ${{ secrets.AZURE_VM_HOST }}
           username: ${{ secrets.AZURE_VM_USERNAME }}
           key: ${{ secrets.AZURE_VM_SSH_KEY }}
-          source: "frontend/dist/*"
+          source: "dist/*"
           target: "/tmp/velo-learn-release"
-          strip_components: 2
+          strip_components: 1
 
-      # Step 6: sync the copied files into the VM web root and restart the
+      # Step 3: sync the copied files into the VM web root and restart the
       # PM2 process that serves the SPA.
       - name: Publish site on VM and restart PM2
         uses: appleboy/ssh-action@v1.0.3

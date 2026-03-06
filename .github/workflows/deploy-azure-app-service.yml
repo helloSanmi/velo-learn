@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: production
+      name: dev
 
     steps:
       # Step 1: retrieve the artifact created in the build stage.
