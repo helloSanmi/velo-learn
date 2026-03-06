@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Globe } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import Button from './ui/Button';
 
 interface LandingPageProps {
@@ -50,9 +50,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="hidden items-center gap-2 text-[15px] text-slate-700 md:inline-flex">
-              <Globe className="h-4 w-4" /> Contact sales
-            </button>
             <Button variant="outline" size="sm" onClick={onLogin} className="border-slate-400 bg-white text-slate-900 hover:bg-slate-100">Log in</Button>
             <Button size="sm" onClick={onGetStarted} className="rounded-full bg-black px-5 text-white hover:bg-slate-900">Get started</Button>
           </div>
