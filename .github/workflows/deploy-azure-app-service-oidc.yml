@@ -1,0 +1,68 @@
+# This workflow demonstrates a manual deployment of the built Vite frontend
+# to Azure App Service using Azure federated login (OIDC) instead of a
+# publish profile.
+name: Deploy Frontend To Azure App Service (OIDC)
+
+on:
+  # Manual trigger only. This lets you choose when to run the OIDC lesson.
+  workflow_dispatch:
+
+permissions:
+  # Required for Azure OIDC login.
+  id-token: write
+  # Required to read repository contents.
+  contents: read
+
+env:
+  # Shared workflow settings used across jobs and steps.
+  NODE_VERSION: "20"
+  FRONTEND_DIR: frontend
+  BUILD_DIR: frontend/dist
+  AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+
+jobs:
+  # Single stage: build the frontend, log into Azure, and deploy it.
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      # Step 1: fetch the repository so the runner can access the app code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: install the required Node.js version and enable npm caching.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Step 3: install frontend dependencies exactly as locked.
+      - name: Install frontend dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      # Step 4: build the static frontend bundle that will be deployed.
+      - name: Build frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run build
+
+      # Step 5: authenticate the workflow runner to Azure with OIDC.
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Step 6: deploy the built static files to the target Web App.
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.BUILD_DIR }}

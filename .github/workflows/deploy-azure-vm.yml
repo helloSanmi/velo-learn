@@ -1,0 +1,86 @@
+# This workflow demonstrates a manual deployment of the built Vite frontend
+# to an Azure VM over SSH, then serves it with PM2 as a static SPA.
+name: Deploy Frontend To Azure VM
+
+on:
+  # Manual trigger only. This avoids deploying to the VM on every push.
+  workflow_dispatch:
+
+permissions:
+  # The workflow only needs to read repository contents.
+  contents: read
+
+env:
+  # Shared workflow settings used across jobs and steps.
+  NODE_VERSION: "20"
+  FRONTEND_DIR: frontend
+  VM_DEPLOY_PATH: /var/www/velo-learn
+  PM2_APP_NAME: velo-learn
+  # Repository variable so the teaching demo can switch ports without editing YAML.
+  VM_APP_PORT: ${{ vars.VM_APP_PORT || '8080' }}
+
+jobs:
+  # Single stage: build the frontend, copy it to the VM, and restart the
+  # PM2-served static site on the target port.
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: fetch the repository so the runner can access the app code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: install the required Node.js version and enable npm caching.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Step 3: install frontend dependencies exactly as locked.
+      - name: Install frontend dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      # Step 4: build the static frontend bundle that will be copied to the VM.
+      - name: Build frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run build
+
+      # Step 5: copy the built files from the GitHub runner to a temporary
+      # release folder on the VM.
+      - name: Copy built site to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USERNAME }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          source: "frontend/dist/*"
+          target: "/tmp/velo-learn-release"
+          strip_components: 2
+
+      # Step 6: sync the copied files into the VM web root and restart the
+      # PM2 process that serves the SPA.
+      - name: Publish site on VM and restart PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USERNAME }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script: |
+            set -eu
+            mkdir -p ${{ env.VM_DEPLOY_PATH }}
+            rsync -av --delete /tmp/velo-learn-release/ ${{ env.VM_DEPLOY_PATH }}/
+            if pm2 describe ${{ env.PM2_APP_NAME }} >/dev/null 2>&1; then
+              pm2 delete ${{ env.PM2_APP_NAME }}
+            fi
+            # PM2 serve flags:
+            # - first argument: folder to serve
+            # - second argument: port to listen on
+            # - --name: process name shown in PM2
+            # - --spa: return index.html for unknown routes so client-side routing works
+            pm2 serve ${{ env.VM_DEPLOY_PATH }} ${{ env.VM_APP_PORT }} --name ${{ env.PM2_APP_NAME }} --spa
+            pm2 save

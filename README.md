@@ -84,3 +84,14 @@ npm run preview
 
 - AI features need `GEMINI_API_KEY`.
 - Data is locally persisted in browser storage and initialized from mock services.
+
+## Deployment Teaching
+
+This repo can be used to teach static frontend deployment with GitHub Actions YAML.
+
+- Azure App Service workflow: `.github/workflows/deploy-azure-app-service.yml`
+- Azure App Service OIDC workflow: `.github/workflows/deploy-azure-app-service-oidc.yml`
+- Azure VM workflow: `.github/workflows/deploy-azure-vm.yml`
+- Azure VM bootstrap script: `deploy/scripts/bootstrap-vm-pm2.sh`
+- Deployment notes: `docs/azure-deployment-teaching.md`
+- Lesson guide: `docs/azure-deployment-lesson-guide.md`
