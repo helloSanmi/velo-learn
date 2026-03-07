@@ -5,6 +5,12 @@ name: Deploy Frontend To Azure App Service
 on:
   workflow_dispatch:
 
+# on:
+#   workflow_dispatch:
+#   push:
+#     branches:
+#       - dev
+
 permissions:
   # The workflow only needs to read repository contents.
   contents: read
@@ -13,7 +19,8 @@ env:
   # Shared workflow settings used across jobs and steps.
   NODE_VERSION: "20"
   FRONTEND_DIR: frontend
-  BUILD_DIR: frontend/dist
+  DEPLOY_DIR: frontend/deploy-package
+  DEPLOY_ZIP: frontend/velo-app-service.zip
   # Repository variable for the Web App used by the publish-profile workflow.
   AZURE_WEBAPP_NAME_PUBLISH: ${{ vars.AZURE_WEBAPP_NAME_PUBLISH }}
 
@@ -47,19 +54,33 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
-      # Step 5: upload the built files so the deploy stage can download them.
+      # Step 5: create the runtime package that App Service will execute.
+      - name: Prepare App Service package
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          rm -rf deploy-package
+          rm -f velo-app-service.zip
+          mkdir -p deploy-package
+          cp -R dist deploy-package/dist
+          cp package.json deploy-package/package.json
+          cp package-lock.json deploy-package/package-lock.json
+          cp server.js deploy-package/server.js
+          cd deploy-package
+          zip -r ../velo-app-service.zip .
+
+      # Step 6: upload the packaged app so the deploy stage can download it.
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: azure-app-service-package
-          path: ${{ env.BUILD_DIR }}
+          path: ${{ env.DEPLOY_ZIP }}
 
   # Stage 2: download the build artifact and push it to Azure App Service.
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: dev
+      name: prod
 
     steps:
       # Step 1: retrieve the artifact created in the build stage.
@@ -67,7 +88,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: azure-app-service-package
-          path: dist
+          path: app
 
       # Step 2: deploy the built static files to the target Web App.
       - name: Deploy to Azure Web App
@@ -75,4 +96,4 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_PUBLISH }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: dist
+          package: app/velo-app-service.zip

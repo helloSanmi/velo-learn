@@ -85,7 +85,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBackToHome, onOpenSupport, 
       </div>
       <div className="border-t border-white/10">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3 text-xs text-white/60">
-          <p>© {new Date().getFullYear()} Velo</p>
+          <p>© 2027 Velo</p>
           <div className="flex items-center gap-3">
             <a href="/PRIVACY_POLICY.md" target="_blank" rel="noreferrer" className="hover:text-white">Privacy</a>
             <a href="/TERMS_OF_SERVICE.md" target="_blank" rel="noreferrer" className="hover:text-white">Terms</a>
