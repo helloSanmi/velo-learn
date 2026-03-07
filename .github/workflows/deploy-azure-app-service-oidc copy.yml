@@ -3,12 +3,15 @@
 # publish profile.
 name: Deploy Frontend To Azure App Service (OIDC)
 
+# on:
+#   # Manual trigger only. This lets you choose when to run the OIDC lesson.
+#   workflow_dispatch:
+
 on:
-  # Manual trigger only. This lets you choose when to run the OIDC lesson.
   workflow_dispatch:
   push:
     branches:
-      - dev
+      - main
 
 permissions:
   # Required for Azure OIDC login.
@@ -92,7 +95,7 @@ jobs:
           name: azure-app-service-oidc-package
           path: app
 
-
+          
       # Step 2: authenticate the workflow runner to Azure with OIDC.
       - name: Azure login
         uses: azure/login@v2
