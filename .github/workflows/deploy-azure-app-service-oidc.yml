@@ -17,7 +17,8 @@ env:
   # Shared workflow settings used across jobs and steps.
   NODE_VERSION: "20"
   FRONTEND_DIR: frontend
-  BUILD_DIR: frontend/dist
+  DEPLOY_DIR: frontend/deploy-package
+  DEPLOY_ZIP: frontend/velo-app-service.zip
   # Repository variable for the Web App used by the OIDC workflow.
   AZURE_WEBAPP_NAME_OIDC: ${{ vars.AZURE_WEBAPP_NAME_OIDC }}
 
@@ -51,13 +52,27 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
-      # Step 5: upload the built files so the Azure-authenticated deploy stage
-      # can download the exact artifact that was built.
+      # Step 5: create the runtime package that App Service will execute.
+      - name: Prepare App Service package
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          rm -rf deploy-package
+          rm -f velo-app-service.zip
+          mkdir -p deploy-package
+          cp -R dist deploy-package/dist
+          cp package.json deploy-package/package.json
+          cp package-lock.json deploy-package/package-lock.json
+          cp server.js deploy-package/server.js
+          cd deploy-package
+          zip -r ../velo-app-service.zip .
+
+      # Step 6: upload the packaged app so the Azure-authenticated deploy
+      # stage can download the exact runtime artifact.
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: azure-app-service-oidc-package
-          path: ${{ env.BUILD_DIR }}
+          path: ${{ env.DEPLOY_ZIP }}
 
   # Stage 2: authenticate to Azure with OIDC and deploy the artifact to the Web App.
   deploy:
@@ -72,7 +87,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: azure-app-service-oidc-package
-          path: dist
+          path: app
 
       # Step 2: authenticate the workflow runner to Azure with OIDC.
       - name: Azure login
@@ -87,4 +102,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_OIDC }}
-          package: dist
+          package: app/velo-app-service.zip
