@@ -2,14 +2,14 @@
 # to Azure App Service using a publish profile.
 name: Deploy Frontend To Azure App Service
 
-# on:
-#   workflow_dispatch:
-
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
+
+# on:
+#   workflow_dispatch:
+#   push:
+#     branches:
+#       - dev
 
 permissions:
   # The workflow only needs to read repository contents.

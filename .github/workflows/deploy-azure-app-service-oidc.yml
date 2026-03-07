@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: dev
+      name: prod
 
     steps:
       # Step 1: download the artifact created in the build stage.
@@ -89,6 +89,7 @@ jobs:
           name: azure-app-service-oidc-package
           path: app
 
+          
       # Step 2: authenticate the workflow runner to Azure with OIDC.
       - name: Azure login
         uses: azure/login@v2
