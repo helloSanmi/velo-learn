@@ -1,6 +1,6 @@
-# Velo Learn
+# Velo Demo App
 
-Velo Learn is a React + Vite workspace app for project planning, task boards, timelines, analytics, and AI-assisted task workflows.
+Velo Demo App is a React + Vite workspace app for project planning, task boards, timelines, analytics, and AI-assisted task workflows.
 
 ## Project Layout
 
